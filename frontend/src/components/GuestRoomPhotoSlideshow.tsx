@@ -2,15 +2,9 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, ZoomIn, ZoomOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { api, API_BASE_URL, endpoints } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api";
+import { getPublicRoomPhotos, type PublicRoomPhoto } from "@/lib/publicRooms";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-
-interface RoomPhoto {
-  image_id: number;
-  filename: string;
-  caption: string;
-  sort_order: number;
-}
 
 interface GuestRoomPhotoSlideshowProps {
   roomId: number;
@@ -31,7 +25,7 @@ function imageUrl(image: string): string {
 }
 
 export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expanded = false }: GuestRoomPhotoSlideshowProps) {
-  const [photos, setPhotos] = useState<RoomPhoto[]>([]);
+  const [photos, setPhotos] = useState<PublicRoomPhoto[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -43,12 +37,9 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
     setActiveSlide(0);
     setPhotoLoadFailed(false);
 
-    api.get<{ type: string; data?: RoomPhoto[] }>(
-      `${endpoints.publicRooms}?action=list_images&room_id=${roomId}`
-    ).then(({ data }) => {
+    getPublicRoomPhotos(roomId).then((data) => {
       if (!active) return;
-      if (data.type === "success") setPhotos(data.data || []);
-      else setPhotoLoadFailed(true);
+      setPhotos(data);
     }).catch(() => {
       if (active) {
         setPhotos([]);

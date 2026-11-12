@@ -11,6 +11,7 @@ import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
 import { RatingStars } from "@/components/RatingStars";
 import { Switch } from "@/components/ui/switch";
 import { usePolling } from "@/hooks/usePolling";
+import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { API_BASE_URL, endpoints } from "@/lib/api";
 
 import logo from "@/assets/logo.png";
@@ -101,11 +102,8 @@ const Index = () => {
   const roomsScrollRef = useRef<HTMLDivElement>(null);
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Live rooms from PHP backend (5s polling). Falls back to mock data if backend is offline.
-  const { data: liveRooms } = usePolling<Array<{ room_id: number; room_number: string; room_type: string; monthly_rent: number; description: string; status: string; image?: string; }>>(
-    `${endpoints.publicRooms}?action=list`,
-    { intervalMs: 5000 }
-  );
+  // Public room fields come from the Supabase read-only RPC; retain the mock fallback.
+  const liveRooms = usePublicRooms(5000);
   const { data: publicReviews } = usePolling<PublicReview[]>(`${endpoints.publicInfo}?action=reviews`, { intervalMs: 10000 });
   const { data: publicStats } = usePolling<PublicStats>(`${endpoints.publicInfo}?action=stats`, { intervalMs: 10000 });
 
