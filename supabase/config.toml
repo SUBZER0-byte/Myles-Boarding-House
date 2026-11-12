@@ -1,0 +1,10 @@
+project_id = "myles-boarding-house"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[functions.auth]
+verify_jwt = false

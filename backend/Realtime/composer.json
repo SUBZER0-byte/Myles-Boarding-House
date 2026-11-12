@@ -1,0 +1,10 @@
+{
+  "name": "myles/realtime",
+  "description": "Ratchet WebSocket server for Myle's Boarding House (replaces AJAX polling).",
+  "require": {
+    "cboden/ratchet": "^0.4.4"
+  },
+  "autoload": {
+    "psr-4": { "Myles\\Realtime\\": "src/" }
+  }
+}

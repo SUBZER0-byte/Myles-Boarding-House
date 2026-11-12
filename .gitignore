@@ -1,0 +1,14 @@
+backend/Config/secrets.php
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/dist/
+vendor/
+**/node_modules/
+*.log
+backend/uploads/
+backend/Chat/logs/
