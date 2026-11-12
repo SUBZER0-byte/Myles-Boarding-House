@@ -18,9 +18,22 @@ The bootstrap creates a confirmed Supabase Auth user for `public.users.user_id =
 
    The deployed Auth function already uses the project's server-side `SUPABASE_SERVICE_ROLE_KEY`. Never add that key to a `VITE_*` variable.
 
-3. Apply [`migrations/20261112223000_auth_admin_bootstrap.sql`](./migrations/20261112223000_auth_admin_bootstrap.sql) to the linked project. Use the established migration process for the project; `supabase db push` applies all pending migrations, not only this file.
+3. Apply [`migrations/20261113001500_auth_admin_bootstrap_nonce.sql`](./migrations/20261113001500_auth_admin_bootstrap_nonce.sql) to the linked project. The profile/auth migration and initial bootstrap migration should already be applied. If using the Dashboard, open **SQL Editor**, paste the contents of this migration, and run it. Do not rerun the previous migrations. If using the CLI, follow the project's migration process; `supabase db push` applies all pending migrations, not only this file.
 
-4. Deploy the Edge Function:
+4. Confirm the new trigger branch is installed:
+
+   ```sql
+   SELECT
+       to_regclass('public.auth_admin_bootstrap_nonces') IS NOT NULL AS nonce_table_exists,
+       position(
+           'mbh_admin_bootstrap_nonce' IN
+           pg_get_functiondef('public.handle_new_auth_user()'::regprocedure)
+       ) > 0 AS nonce_trigger_installed;
+   ```
+
+   Both results should be `true`.
+
+5. Deploy the Edge Function:
 
    ```text
    supabase functions deploy admin-bootstrap --project-ref <project-ref>

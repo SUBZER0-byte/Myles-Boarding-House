@@ -68,14 +68,36 @@ Deno.serve(async (request) => {
     return jsonResponse({ message: "No eligible unlinked admin profile was found." }, 409);
   }
 
+  const bootstrapNonce = crypto.randomUUID();
+  const nonceExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const { error: nonceError } = await admin
+    .from("auth_admin_bootstrap_nonces")
+    .insert({
+      nonce: bootstrapNonce,
+      user_id: profile.user_id,
+      expires_at: nonceExpiresAt,
+    });
+
+  if (nonceError) {
+    console.error("Could not create the one-time admin bootstrap nonce:", nonceError);
+    return jsonResponse({ message: "Could not prepare the admin Auth bootstrap." }, 500);
+  }
+
   const { data, error: createError } = await admin.auth.admin.createUser({
     email: profile.email,
     password: bootstrapPassword,
     email_confirm: true,
-    app_metadata: { mbh_admin_bootstrap: true },
+    user_metadata: { mbh_admin_bootstrap_nonce: bootstrapNonce },
   });
 
   if (createError || !data.user) {
+    const { error: nonceCleanupError } = await admin
+      .from("auth_admin_bootstrap_nonces")
+      .delete()
+      .eq("nonce", bootstrapNonce);
+    if (nonceCleanupError) {
+      console.error("Could not remove the unused admin bootstrap nonce:", nonceCleanupError);
+    }
     console.error("Could not create the admin Auth identity:", createError);
     return jsonResponse({ message: "Could not create the admin Auth identity." }, 409);
   }
@@ -89,6 +111,14 @@ Deno.serve(async (request) => {
   if (linkError || linkedProfile?.auth_user_id !== data.user.id) {
     console.error("The admin Auth identity was created but the profile link could not be verified.", linkError);
     return jsonResponse({ message: "The Auth account was created, but its profile link could not be verified." }, 500);
+  }
+
+  const { error: metadataCleanupError } = await admin.auth.admin.updateUserById(data.user.id, {
+    user_metadata: {},
+  });
+  if (metadataCleanupError) {
+    console.error("The admin profile is linked, but temporary bootstrap metadata could not be removed.", metadataCleanupError);
+    return jsonResponse({ message: "The admin profile is linked, but temporary bootstrap metadata could not be removed." }, 500);
   }
 
   return jsonResponse({
