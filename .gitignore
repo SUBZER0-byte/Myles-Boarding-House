@@ -12,3 +12,4 @@ vendor/
 *.log
 backend/uploads/
 backend/Chat/logs/
+supabase/.temp/
