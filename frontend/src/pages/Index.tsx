@@ -10,9 +10,9 @@ import { LocationMap } from "@/components/LocationMap";
 import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
 import { RatingStars } from "@/components/RatingStars";
 import { Switch } from "@/components/ui/switch";
-import { usePolling } from "@/hooks/usePolling";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
-import { API_BASE_URL, endpoints } from "@/lib/api";
+import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
+import { API_BASE_URL } from "@/lib/api";
 
 import logo from "@/assets/logo.png";
 import roomSingle from "@/assets/room-single.jpg";
@@ -37,21 +37,6 @@ const features = [
   { icon: Shield, title: "Maintenance Portal", desc: "Submit and track maintenance requests easily." },
   { icon: MessageSquareWarning, title: "Complaints", desc: "File a concern, track its status, and review management responses." },
 ];
-
-type PublicReview = {
-  stars: number;
-  category: string;
-  comment: string;
-  created_at: string;
-  full_name: string;
-};
-
-type PublicStats = {
-  total_rooms: number;
-  available_rooms: number;
-  happy_tenants: number;
-  avg_rating: number;
-};
 
 type RoomItem = { room_id?: number; image: string; name: string; price: string; status: "available" | "occupied" | "maintenance"; amenities: string[] };
 const mockRooms: RoomItem[] = [
@@ -103,11 +88,16 @@ const Index = () => {
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
 
   // Public room fields come from the Supabase read-only RPC; retain the mock fallback.
-  const liveRooms = usePublicRooms(5000);
-  const { data: publicReviews } = usePolling<PublicReview[]>(`${endpoints.publicInfo}?action=reviews`, { intervalMs: 10000 });
-  const { data: publicStats } = usePolling<PublicStats>(`${endpoints.publicInfo}?action=stats`, { intervalMs: 10000 });
+  const { rooms: liveRooms, error: roomLoadError } = usePublicRooms(5000);
+  const {
+    reviews: publicReviews,
+    stats: publicStats,
+    reviewsError,
+    statsError,
+    reviewsLoading,
+  } = usePublicHomepageData(10000);
 
-  const rooms: RoomItem[] = liveRooms && liveRooms.length > 0
+  const rooms: RoomItem[] = liveRooms !== null
     ? liveRooms.map(r => ({
         room_id: r.room_id,
         image: r.image
@@ -121,14 +111,15 @@ const Index = () => {
     : mockRooms;
 
   const reviews = (publicReviews ?? []).map((r) => {
-    const initials = r.full_name.trim().split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "UT";
+    const name = r.full_name?.trim() || "Anonymous";
+    const initials = name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "UT";
     return {
-      name: r.full_name,
+      name,
       initials,
       role: "Tenant",
       rating: r.stars,
       category: r.category,
-      comment: r.comment,
+      comment: r.comment ?? "",
       date: new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
     };
   });
@@ -318,6 +309,18 @@ const Index = () => {
         <div className="w-full">
           <h2 className="font-display text-3xl font-bold text-center">Rooms Preview</h2>
           <p className="text-muted-foreground text-center mt-2 max-w-md mx-auto">Find the perfect room that fits your lifestyle and budget.</p>
+          {roomLoadError && (
+            <p role="alert" className="mt-3 text-center text-sm text-destructive">
+              {liveRooms === null
+                ? "Live room data is unavailable. Showing sample rooms."
+                : "Room updates are unavailable. Showing the last loaded room data."}
+            </p>
+          )}
+          {liveRooms?.length === 0 && !roomLoadError && (
+            <p role="status" className="mt-3 text-center text-sm text-muted-foreground">
+              No rooms are currently listed.
+            </p>
+          )}
           <div className="relative mt-8">
             <div
               ref={roomsScrollRef}
@@ -389,16 +392,40 @@ const Index = () => {
           <p className="text-muted-foreground text-center mt-2 max-w-lg mx-auto">Real reviews from past and current tenants who called Myle's Boarding House home.</p>
           <div className="flex items-center justify-center gap-1 mt-4">
             <RatingStars value={avgRating} size={24} colorClass="fill-accent text-accent" emptyClass="text-muted-foreground/30" />
-            <span className="ml-2 font-display font-bold text-lg">{avgRating.toFixed(1)}</span>
+            <span className="ml-2 font-display font-bold text-lg" aria-live="polite">
+              {publicStats ? avgRating.toFixed(1) : statsError ? "Unavailable" : "Loading…"}
+            </span>
             <span className="text-muted-foreground text-sm ml-1">avg. rating</span>
           </div>
+          {statsError && (
+            <p role="alert" className="mt-2 text-center text-sm text-destructive">
+              {publicStats ? "Rating statistics could not be refreshed." : "Rating statistics are unavailable."}
+            </p>
+          )}
           <div className="relative mt-10">
-            {reviews.length === 0 ? (
-              <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-                {publicReviews ? "No tenant reviews available yet." : "Loading tenant reviews..."}
+            {!publicReviews ? (
+              <div
+                role={reviewsError ? "alert" : "status"}
+                className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground"
+              >
+                {reviewsError
+                  ? "Tenant reviews are unavailable. Please try again later."
+                  : reviewsLoading ? "Loading tenant reviews..." : "Tenant reviews are unavailable."}
+              </div>
+            ) : reviews.length === 0 ? (
+              <div
+                role={reviewsError ? "alert" : "status"}
+                className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground"
+              >
+                {reviewsError ? "Reviews could not be refreshed." : "No tenant reviews available yet."}
               </div>
             ) : (
               <>
+                {reviewsError && (
+                  <p role="alert" className="mb-3 text-center text-sm text-destructive">
+                    Reviews could not be refreshed. Showing the last loaded reviews.
+                  </p>
+                )}
                 <div
                   ref={reviewsScrollRef}
                   className="flex gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory px-[7.5vw] sm:px-0"

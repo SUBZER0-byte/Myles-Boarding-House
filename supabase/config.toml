@@ -8,3 +8,6 @@ max_rows = 1000
 
 [functions.auth]
 verify_jwt = false
+
+[functions.admin-bootstrap]
+verify_jwt = false

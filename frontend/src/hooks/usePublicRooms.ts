@@ -3,6 +3,7 @@ import { getPublicRooms, type PublicRoom } from "@/lib/publicRooms";
 
 export function usePublicRooms(intervalMs = 5000) {
   const [rooms, setRooms] = useState<PublicRoom[] | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -11,9 +12,14 @@ export function usePublicRooms(intervalMs = 5000) {
       const currentRequestId = ++requestId.current;
       try {
         const result = await getPublicRooms();
-        if (active && currentRequestId === requestId.current) setRooms(result);
-      } catch {
-        // Keep the last successful result; the landing page retains its mock fallback.
+        if (active && currentRequestId === requestId.current) {
+          setRooms(result);
+          setError(null);
+        }
+      } catch (caught) {
+        if (active && currentRequestId === requestId.current) {
+          setError(caught instanceof Error ? caught : new Error("Could not load public rooms."));
+        }
       }
     };
 
@@ -26,5 +32,5 @@ export function usePublicRooms(intervalMs = 5000) {
     };
   }, [intervalMs]);
 
-  return rooms;
+  return { rooms, error };
 }
