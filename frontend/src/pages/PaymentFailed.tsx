@@ -1,27 +1,25 @@
 import { Link } from "react-router-dom";
 import { Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { usePolling } from "@/hooks/usePolling";
-import { endpoints, sessionStore } from "@/lib/api";
-
-interface BookingStatus {
-  booking_id?: number;
-  status?: string;
-  initial_payment_status?: string;
-  room_number?: string;
-}
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { sessionStore } from "@/lib/api";
+import { listMyGuestBookings } from "@/lib/guestBookings";
 
 export default function PaymentFailed() {
   const session = sessionStore.get();
   const email = session?.email ?? "";
-  const { data, error } = usePolling<BookingStatus[]>(
-    email ? `${endpoints.guestBooking}?action=check&email=${encodeURIComponent(email)}` : null,
-    { intervalMs: 5000 }
+  const requestedBookingId = Number(new URLSearchParams(window.location.search).get("booking_id"));
+  const { data, error } = useSupabasePolling(
+    listMyGuestBookings,
+    5000,
+    Boolean(email),
   );
 
-  const latestBooking = Array.isArray(data) && data.length > 0 ? data[0] : null;
-  const bookingRecovered = latestBooking?.status === "Confirmed" || latestBooking?.initial_payment_status === "Confirmed";
-  const stillChecking = !!email && !bookingRecovered && !error;
+  const selectedBooking = Number.isSafeInteger(requestedBookingId) && requestedBookingId > 0
+    ? data?.find(booking => booking.booking_id === requestedBookingId) ?? null
+    : null;
+  const bookingRecovered = selectedBooking?.status === "Confirmed" || selectedBooking?.initial_payment_status === "Confirmed";
+  const stillChecking = !!email && !!selectedBooking && !bookingRecovered;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -30,16 +28,18 @@ export default function PaymentFailed() {
           <XCircle size={48} />
         </div>
         <h1 className="font-display text-2xl font-semibold">
-          {bookingRecovered ? "Payment Confirmed" : "Payment Cancelled"}
+          {bookingRecovered ? "Payment Confirmed" : selectedBooking ? "Payment Not Completed" : "Check Booking Status"}
         </h1>
         <p className="text-sm text-muted-foreground">
           {bookingRecovered
-            ? `Your reservation for Room ${latestBooking?.room_number ?? "your selected room"} has already been confirmed.`
-            : error
+            ? `Your reservation for Room ${selectedBooking?.room_number ?? "your selected room"} has already been confirmed.`
+            : error && selectedBooking
               ? "We are checking the latest payment status. This page refreshes automatically while the system verifies your booking."
               : stillChecking
                 ? "Your payment may still be processing. This page will refresh automatically while the system verifies the latest booking status."
-                : "Your payment was not completed. You can close this tab and try again from the booking dialog."}
+                : selectedBooking
+                  ? "Your payment was not completed. You can reopen the initial payment from My Booking before the reservation expires."
+                  : "We could not identify a booking for this payment return. Review My Booking before retrying; this page does not determine payment status."}
         </p>
 
         {stillChecking && (
@@ -49,7 +49,7 @@ export default function PaymentFailed() {
           </div>
         )}
 
-        <Button asChild variant="outline" className="w-full"><Link to="/">Back to Home</Link></Button>
+        <Button asChild variant="outline" className="w-full"><Link to={email ? "/guest/booking" : "/"}>{email ? "View My Booking" : "Back to Home"}</Link></Button>
       </div>
     </div>
   );

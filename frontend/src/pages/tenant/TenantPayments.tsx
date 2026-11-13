@@ -8,9 +8,18 @@ import { CreditCard, Loader2, CheckCircle2, Download, Wallet, XCircle } from "lu
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { useFinancialPolling } from "@/hooks/useFinancialPolling";
+import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { RefundRequestButton, RefundRequestHistory } from "@/components/RefundRequests";
+import {
+  cancelMyFullPayment,
+  getMyFullPaymentPreview,
+  getMyFullPaymentRequest,
+  newFinancialRequestId,
+  requestMyFullPayment,
+  submitMyFullPaymentProof,
+} from "@/lib/financialWorkflows";
 import axios from "axios";
 
 interface Payment {
@@ -185,14 +194,10 @@ const TenantPayments = () => {
     userId ? `${endpoints.tenantPayments}?action=history` : null,
     { intervalMs: 5000 }
   );
-  const { data: fullPayment, loading: fullPaymentLoading, refetch: refetchFullPayment } = usePolling<FullPaymentRequest | null>(
-    userId ? `${endpoints.fullPayments}?action=current` : null,
-    { intervalMs: 5000 }
-  );
-  const { data: fullPaymentPreview, refetch: refetchFullPaymentPreview } = usePolling<FullPaymentPreview>(
-    userId ? `${endpoints.fullPayments}?action=preview` : null,
-    { intervalMs: 10000 }
-  );
+  const { data: fullPayment, error: fullPaymentError, loading: fullPaymentLoading, refetch: refetchFullPayment } =
+    useFinancialPolling<FullPaymentRequest | null>(getMyFullPaymentRequest, 5000, Boolean(userId));
+  const { data: fullPaymentPreview, refetch: refetchFullPaymentPreview } =
+    useFinancialPolling<FullPaymentPreview>(getMyFullPaymentPreview, 10000, Boolean(userId));
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Payment | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("All");
@@ -200,6 +205,7 @@ const TenantPayments = () => {
   const [fullPaymentBusy, setFullPaymentBusy] = useState(false);
   const [fullPaymentReference, setFullPaymentReference] = useState("");
   const [fullPaymentScreenshot, setFullPaymentScreenshot] = useState<File | null>(null);
+  const [fullPaymentProofKey, setFullPaymentProofKey] = useState(() => newFinancialRequestId());
   const fullPaymentOpen = Boolean(fullPayment && ["Requested", "Approved", "Submitted"].includes(fullPayment.status));
   const coveredPaymentIds = new Set(fullPaymentOpen ? fullPayment?.installments.map(item => item.payment_id) : []);
 
@@ -214,15 +220,13 @@ const TenantPayments = () => {
   const submitFullPaymentRequest = async () => {
     setFullPaymentBusy(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.fullPayments}?action=request`, {});
-      if (data.type !== "success") throw new Error(data.message || "Unable to submit full payment request.");
-      toast({ title: data.message || "Full payment request submitted" });
+      await requestMyFullPayment();
+      toast({ title: "Full payment request submitted" });
       setFullPaymentDialogOpen(false);
       refreshFullPaymentData();
     } catch (error: unknown) {
-      const message = axios.isAxiosError<ApiResponse>(error) ? error.response?.data?.message : undefined;
       toast({
-        title: typeof message === "string" ? message : error instanceof Error ? error.message : "Unable to submit full payment request.",
+        title: error instanceof Error ? error.message : "Unable to submit full payment request.",
         variant: "destructive",
       });
     } finally {
@@ -234,14 +238,12 @@ const TenantPayments = () => {
     if (!fullPayment) return;
     setFullPaymentBusy(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.fullPayments}?action=cancel`, { request_id: fullPayment.request_id });
-      if (data.type !== "success") throw new Error(data.message || "Unable to cancel full payment request.");
-      toast({ title: data.message || "Full payment request cancelled" });
+      await cancelMyFullPayment(fullPayment.request_id);
+      toast({ title: "Full payment request cancelled" });
       refreshFullPaymentData();
     } catch (error: unknown) {
-      const message = axios.isAxiosError<ApiResponse>(error) ? error.response?.data?.message : undefined;
       toast({
-        title: typeof message === "string" ? message : error instanceof Error ? error.message : "Unable to cancel full payment request.",
+        title: error instanceof Error ? error.message : "Unable to cancel full payment request.",
         variant: "destructive",
       });
     } finally {
@@ -258,24 +260,22 @@ const TenantPayments = () => {
       toast({ title: "GCash transaction number must be 120 characters or fewer.", variant: "destructive" });
       return;
     }
-    const form = new FormData();
-    form.append("request_id", String(fullPayment.request_id));
-    form.append("reference_number", fullPaymentReference.trim());
-    form.append("screenshot", fullPaymentScreenshot);
     setFullPaymentBusy(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.fullPayments}?action=submit_proof`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (data.type !== "success") throw new Error(data.message || "Unable to submit payment proof.");
-      toast({ title: data.message || "Payment proof submitted" });
+      await submitMyFullPaymentProof(
+        fullPayment.request_id,
+        fullPaymentReference,
+        fullPaymentScreenshot,
+        fullPaymentProofKey,
+      );
+      toast({ title: "Payment proof submitted" });
       setFullPaymentReference("");
       setFullPaymentScreenshot(null);
+      setFullPaymentProofKey(newFinancialRequestId());
       refreshFullPaymentData();
     } catch (error: unknown) {
-      const message = axios.isAxiosError<ApiResponse>(error) ? error.response?.data?.message : undefined;
       toast({
-        title: typeof message === "string" ? message : error instanceof Error ? error.message : "Unable to submit payment proof.",
+        title: error instanceof Error ? error.message : "Unable to submit payment proof.",
         variant: "destructive",
       });
     } finally {
@@ -347,6 +347,7 @@ const TenantPayments = () => {
         </div>
         {!userId && <div className="p-3 rounded-md border border-warning/30 bg-warning/10 text-warning text-xs">Sign in to view payments.</div>}
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
+        {fullPaymentError && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{fullPaymentError}</div>}
         <RefundRequestHistory />
 
         {periods.length > 0 && (
@@ -531,7 +532,7 @@ const TenantPayments = () => {
                 {fullPayment.qr_url && (
                   <div className="rounded-lg border border-border bg-white p-3">
                     <p className="mb-2 text-center text-sm text-gray-700">Pay this fixed amount using the GCash QR.</p>
-                    <img src={`${API_BASE_URL}${fullPayment.qr_url}`} alt="Fixed-amount GCash QR" className="mx-auto max-h-[420px] max-w-full object-contain" />
+                    <img src={fullPayment.qr_url} alt="Fixed-amount GCash QR" className="mx-auto max-h-[420px] max-w-full object-contain" />
                   </div>
                 )}
                 {fullPayment.admin_note && <p className="text-sm text-muted-foreground">Admin note: {fullPayment.admin_note}</p>}
@@ -539,11 +540,17 @@ const TenantPayments = () => {
                   <p className="text-sm font-medium">Submit your GCash payment proof</p>
                   <div className="grid gap-1.5">
                     <Label htmlFor="full-payment-reference">GCash transaction number *</Label>
-                    <Input id="full-payment-reference" value={fullPaymentReference} maxLength={120} autoComplete="off" onChange={event => setFullPaymentReference(event.target.value)} placeholder="Enter the reference from your GCash receipt" />
+                    <Input id="full-payment-reference" value={fullPaymentReference} maxLength={120} autoComplete="off" onChange={event => {
+                      setFullPaymentReference(event.target.value);
+                      setFullPaymentProofKey(newFinancialRequestId());
+                    }} placeholder="Enter the reference from your GCash receipt" />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="full-payment-screenshot">GCash payment screenshot *</Label>
-                    <Input id="full-payment-screenshot" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => setFullPaymentScreenshot(event.target.files?.[0] ?? null)} />
+                    <Input id="full-payment-screenshot" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
+                      setFullPaymentScreenshot(event.target.files?.[0] ?? null);
+                      setFullPaymentProofKey(newFinancialRequestId());
+                    }} />
                     <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP; maximum 5MB. Both the transaction number and screenshot are required.</p>
                   </div>
                   <Button className="w-fit" onClick={() => void submitFullPaymentProof()} disabled={fullPaymentBusy || !fullPaymentReference.trim() || !fullPaymentScreenshot}>

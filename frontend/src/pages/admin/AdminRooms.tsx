@@ -9,10 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, BedDouble, Loader2 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, type ApiResponse, API_BASE_URL } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { API_BASE_URL } from "@/lib/api";
+import {
+  deleteMyAdminRoom,
+  getAdminRoomCoverUrl,
+  getMyAdminRooms,
+  saveMyAdminRoom,
+  setMyAdminRoomStatus,
+  uploadMyAdminRoomCover,
+} from "@/lib/adminRooms";
 
 interface Room {
   room_id: number;
@@ -21,16 +29,25 @@ interface Room {
   capacity: number;
   monthly_rent: number;
   status: string;
-  description: string;
-  image?: string;
+  description: string | null;
+  image?: string | null;
   occupants: number;
 }
 
 const empty = { room_number: "", room_type: "Single", capacity: 1, monthly_rent: 0, status: "Available", description: "" };
 
+function roomImageUrl(image: string | null | undefined): string {
+  const resolvedImage = getAdminRoomCoverUrl(image);
+  if (/^(https?:|blob:)/i.test(resolvedImage)) return resolvedImage;
+  return resolvedImage.includes("/")
+    ? `${API_BASE_URL}/${resolvedImage}`
+    : `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(resolvedImage)}`;
+}
+
 const AdminRooms = () => {
   const { toast } = useToast();
-  const { data: rooms, refetch, error } = usePolling<Room[]>(`${endpoints.adminRooms}?action=list`, { intervalMs: 5000 });
+  const loadRooms = useCallback(() => getMyAdminRooms(), []);
+  const { data: rooms, refetch, error } = useSupabasePolling<Room[]>(loadRooms);
   const [open, setOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [selected, setSelected] = useState<Room | null>(null);
@@ -76,51 +93,38 @@ const AdminRooms = () => {
       if (!captionsSaved) return;
 
       const wasEditing = Boolean(selected);
-      const url = wasEditing
-        ? `${endpoints.adminRooms}?action=update`
-        : `${endpoints.adminRooms}?action=create`;
-      const formData = new FormData();
-      formData.append('room_number', form.room_number);
-      formData.append('room_type', form.room_type);
-      formData.append('capacity', String(form.capacity));
-      formData.append('monthly_rent', String(form.monthly_rent));
-      formData.append('status', form.status);
-      formData.append('description', form.description || '');
-      if (selected) formData.append('room_id', String(selected.room_id));
-      if (imageFile) {
-        formData.append('image', imageFile);
-      } else if (selected && imagePreview) {
-        // send only filename for existing image (server will normalize)
-        const existing = imagePreview.includes('/') ? imagePreview.split('/').pop() : imagePreview;
-        formData.append('existing_image', existing as string);
-      }
-      // Clear the default JSON Content-Type on the axios instance for this
-      // request so the browser can set the multipart boundary automatically.
-      const res = await api.post<ApiResponse>(url, formData, { headers: { 'Content-Type': undefined } });
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message || "Failed to save room", variant: "destructive" });
-        return;
-      }
-
-      let savedRoomId = selected?.room_id;
+      const savedRoomId = await saveMyAdminRoom({
+        ...form,
+        room_id: selected?.room_id ?? null,
+      });
       if (!wasEditing) {
-        const createdRoomId = Number(res.data.room_id);
-        if (!Number.isInteger(createdRoomId) || createdRoomId <= 0) {
-          throw new Error("The room was created, but the server did not return its room ID.");
-        }
-        savedRoomId = createdRoomId;
         setSelected({
-          room_id: createdRoomId,
+          room_id: savedRoomId,
           ...form,
           occupants: 0,
-          image: undefined,
+          image: null,
+        });
+      }
+      let savedImage = selected?.image;
+      if (imageFile) {
+        savedImage = await uploadMyAdminRoomCover(savedRoomId, imageFile, selected?.image);
+        setSelected((current) => current ? { ...current, image: savedImage ?? null } : current);
+        setImageFile(null);
+        setImagePreview(savedImage ?? null);
+      }
+
+      if (!wasEditing) {
+        setSelected({
+          room_id: savedRoomId,
+          ...form,
+          occupants: 0,
+          image: savedImage ?? null,
         });
         if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
         setImageFile(null);
         setImagePreview(null);
       }
 
-      if (!savedRoomId) throw new Error("The saved room ID is unavailable.");
       const photoResult = await photoManagerRef.current.uploadPending(savedRoomId);
       if (photoResult && photoResult.failedCount > 0) {
         const details = [...new Set(photoResult.errors
@@ -137,14 +141,11 @@ const AdminRooms = () => {
 
       toast({ title: wasEditing ? "Room updated" : "Room created" });
       setOpen(false);
-      refetch();
+      void refetch();
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Failed to save room",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -154,14 +155,29 @@ const AdminRooms = () => {
 
   const handleDelete = async () => {
     if (!selected) return;
-    const res = await api.get<ApiResponse>(`${endpoints.adminRooms}?action=delete&room_id=${selected.room_id}`);
-    toast({ title: res.data.message || "Done", variant: res.data.type === "success" ? "default" : "destructive" });
-    setDelOpen(false); refetch();
+    try {
+      await deleteMyAdminRoom(selected.room_id);
+      toast({ title: "Room deleted" });
+      setDelOpen(false);
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not delete the room.",
+        variant: "destructive",
+      });
+    }
   };
 
   const setStatus = async (r: Room, status: string) => {
-    await api.get<ApiResponse>(`${endpoints.adminRooms}?action=set_status&room_id=${r.room_id}&status=${status}`);
-    refetch();
+    try {
+      await setMyAdminRoomStatus(r.room_id, status);
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not update room status.",
+        variant: "destructive",
+      });
+    }
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
@@ -185,11 +201,7 @@ const AdminRooms = () => {
             <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 space-y-3">
               {r.image && (
                 <img
-                  src={
-                    r.image.startsWith('http') ? r.image
-                    : r.image.includes('/') ? `${API_BASE_URL}/${r.image}`
-                    : `${API_BASE_URL}/uploads/rooms/${r.image}`
-                  }
+                  src={roomImageUrl(r.image)}
                   alt={`Room ${r.room_number}`}
                   className="w-full h-36 object-cover rounded-md mb-2"
                 />
@@ -286,11 +298,7 @@ const AdminRooms = () => {
             {imagePreview && (
               <div className="grid gap-1.5">
                 <img
-                  src={
-                    imagePreview.startsWith('http') ? imagePreview
-                    : imagePreview.includes('/') ? `${API_BASE_URL}/${imagePreview}`
-                    : `${API_BASE_URL}/uploads/rooms/${imagePreview}`
-                  }
+                  src={roomImageUrl(imagePreview)}
                   className="w-full h-40 object-cover rounded-md"
                 />
               </div>

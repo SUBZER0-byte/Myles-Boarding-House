@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
 import { API_BASE_URL } from "@/lib/api";
+import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 
 import logo from "@/assets/logo.png";
 import roomSingle from "@/assets/room-single.jpg";
@@ -101,7 +102,9 @@ const Index = () => {
     ? liveRooms.map(r => ({
         room_id: r.room_id,
         image: r.image
-          ? (r.image.startsWith("http") ? r.image : `${API_BASE_URL}/uploads/rooms/${r.image}`)
+          ? (getPublicRoomImageUrl(r.image).startsWith("http")
+            ? getPublicRoomImageUrl(r.image)
+            : `${API_BASE_URL}/uploads/rooms/${r.image}`)
           : imageForType(r.room_type),
         name: `${r.room_type} Room ${r.room_number}`,
         price: "₱" + Number(r.monthly_rent).toLocaleString(),

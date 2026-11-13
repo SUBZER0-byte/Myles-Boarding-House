@@ -2,6 +2,7 @@ backend/Config/secrets.php
 .env
 .env.*
 !.env.example
+!supabase/.env.example
 node_modules/
 frontend/.env
 frontend/.env.*

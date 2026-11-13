@@ -5,7 +5,7 @@ import axios from "axios";
  * Override with VITE_API_BASE_URL, for example:
  * https://api.example.com/backend
  */
-const envBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim().replace(/\/$/, "");
+const envBase = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, "");
 function defaultLocalBase(): string {
   // Apache serves this project from the XAMPP htdocs root. The backend lives
   // directly under the real project folder, not a stale legacy folder name.

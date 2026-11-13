@@ -6,46 +6,24 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
-import { usePolling } from "@/hooks/usePolling";
+import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
-import { api, endpoints, API_BASE_URL, type ApiResponse } from "@/lib/api";
-import axios from "axios";
-
-interface RefundRequest {
-  refund_id: number;
-  payment_id: number;
-  user_id: number;
-  refund_amount: number;
-  gcash_account_name: string;
-  gcash_number: string;
-  transaction_reference: string | null;
-  screenshot_path: string | null;
-  transfer_reference: string | null;
-  transfer_screenshot_path: string | null;
-  reason: string | null;
-  status: "Pending" | "Approved" | "Rejected";
-  admin_note: string | null;
-  created_at: string;
-  payment_amount: number;
-  method: string | null;
-  reference_number: string | null;
-  description: string | null;
-  payment_type: string | null;
-  booking_id: number | null;
-  due_date: string | null;
-  payer_name: string | null;
-  payer_email: string | null;
-  acted_at: string | null;
-}
+import {
+  decideAdminRefund,
+  listAdminRefundRequests,
+  newFinancialRequestId,
+  type RefundRequest,
+} from "@/lib/financialWorkflows";
 
 const peso = (amount: number) => `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 const AdminRefunds = () => {
   const { toast } = useToast();
-  const { data: refunds, error, refetch } = usePolling<RefundRequest[]>(`${endpoints.refunds}?action=admin_list`, { intervalMs: 5000 });
+  const { data: refunds, error, refetch } = useFinancialPolling(listAdminRefundRequests);
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [transferReferences, setTransferReferences] = useState<Record<number, string>>({});
   const [transferScreenshots, setTransferScreenshots] = useState<Record<number, File | null>>({});
+  const [transferScreenshotKeys, setTransferScreenshotKeys] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const decide = async (request: RefundRequest, decision: "Approved" | "Rejected") => {
@@ -56,29 +34,19 @@ const AdminRefunds = () => {
     }
     setBusyId(request.refund_id);
     try {
-      const body = new FormData();
-      body.append("refund_id", String(request.refund_id));
-      body.append("decision", decision);
-      body.append("admin_note", notes[request.refund_id] || "");
-      if (decision === "Approved") {
-        body.append("transfer_reference", transferReference);
-        const screenshot = transferScreenshots[request.refund_id];
-        if (screenshot) body.append("transfer_screenshot", screenshot);
-      }
-      const { data } = await api.post<ApiResponse>(`${endpoints.refunds}?action=decide`, body, {
-        headers: { "Content-Type": "multipart/form-data" },
+      await decideAdminRefund({
+        refund_id: request.refund_id,
+        decision,
+        admin_note: notes[request.refund_id] || "",
+        transfer_reference: decision === "Approved" ? transferReference : undefined,
+        transfer_screenshot: decision === "Approved" ? transferScreenshots[request.refund_id] : null,
+        idempotency_key: transferScreenshotKeys[request.refund_id],
       });
-      if (data.type !== "success") throw new Error(data.message || "Unable to update refund request.");
-      toast({ title: data.message || `Refund request ${decision.toLowerCase()}` });
+      toast({ title: `Refund request ${decision.toLowerCase()}` });
       refetch();
     } catch (error) {
-      const serverMessage = axios.isAxiosError<ApiResponse>(error)
-        ? error.response?.data?.message
-        : undefined;
       toast({
-        title: typeof serverMessage === "string"
-          ? serverMessage
-          : error instanceof Error ? error.message : "Unable to update refund request.",
+        title: error instanceof Error ? error.message : "Unable to update refund request.",
         variant: "destructive",
       });
     } finally {
@@ -140,10 +108,10 @@ const AdminRefunds = () => {
                 <p><span className="text-muted-foreground">Refund GCash number:</span> {request.gcash_number || "—"}</p>
                 <p><span className="text-muted-foreground">Request reason:</span> {request.reason || "Not provided"}</p>
                 <p className="text-xs text-muted-foreground">Requested {new Date(request.created_at).toLocaleString()}</p>
-                {request.screenshot_path && (
+                {request.screenshot_url && (
                   <a
                     className="inline-flex w-fit items-center gap-2 text-primary underline underline-offset-4"
-                    href={`${API_BASE_URL}${endpoints.refunds}?action=screenshot&refund_id=${request.refund_id}`}
+                    href={request.screenshot_url}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -151,10 +119,10 @@ const AdminRefunds = () => {
                   </a>
                 )}
                 {request.transfer_reference && <p><span className="text-muted-foreground">Refund transfer transaction number:</span> {request.transfer_reference}</p>}
-                {request.transfer_screenshot_path && (
+                {request.transfer_screenshot_url && (
                   <a
                     className="inline-flex w-fit items-center gap-2 text-primary underline underline-offset-4"
-                    href={`${API_BASE_URL}${endpoints.refunds}?action=transfer_screenshot&refund_id=${request.refund_id}`}
+                    href={request.transfer_screenshot_url}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -183,10 +151,16 @@ const AdminRefunds = () => {
                         id={`refund-transfer-screenshot-${request.refund_id}`}
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        onChange={event => setTransferScreenshots(current => ({
-                          ...current,
-                          [request.refund_id]: event.target.files?.[0] || null,
-                        }))}
+                        onChange={event => {
+                          setTransferScreenshots(current => ({
+                            ...current,
+                            [request.refund_id]: event.target.files?.[0] || null,
+                          }));
+                          setTransferScreenshotKeys(current => ({
+                            ...current,
+                            [request.refund_id]: newFinancialRequestId(),
+                          }));
+                        }}
                       />
                       <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP; maximum 5MB.</p>
                     </div>

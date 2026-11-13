@@ -6,6 +6,13 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
+[auth]
+site_url = "https://myles-boarding-house.vercel.app"
+additional_redirect_urls = [
+  "http://localhost:5173/**",
+  "https://myles-boarding-house.vercel.app/**",
+]
+
 [functions.auth]
 verify_jwt = false
 
@@ -47,3 +54,9 @@ verify_jwt = true
 
 [functions.admin-guests]
 verify_jwt = true
+
+[functions.admin-tenants]
+verify_jwt = true
+
+[functions.chatbot]
+verify_jwt = false

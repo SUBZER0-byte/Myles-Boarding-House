@@ -1,57 +1,31 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { api, endpoints, sessionStore } from "@/lib/api";
-import { usePolling } from "@/hooks/usePolling";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useChatPolling } from "@/hooks/useChatPolling";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ImagePlus, Send, Smile, Trash2, UserRound, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
-import { API_BASE_URL } from "@/lib/api";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { loadMyProfile, type AuthProfile } from "@/lib/auth";
+import {
+  listChatConversations,
+  listChatMessages,
+  removeChatMessage,
+  sendChatMessage,
+  type ChatConversation,
+  type ChatMessage,
+} from "@/lib/chatWorkflows";
 
 const EmojiPicker = lazy(() => import("emoji-picker-react"));
-
-type Conversation = {
-  user_id: number;
-  full_name: string;
-  username: string;
-  email: string;
-  user_type: string;
-  profile_picture?: string | null;
-  last_message: string | null;
-  last_at: string | null;
-};
-
-type SessionUser = {
-  user_id: number;
-  username: string;
-  email: string;
-  user_type: string;
-};
-
-type Message = {
-  message_id: number;
-  from_user_id: number;
-  to_user_id: number;
-  body: string;
-  created_at: string;
-  is_read?: number;
-  image_path?: string | null;
-  image_paths?: string[];
-  is_unsent?: number;
-  guest_name?: string | null;
-  guest_email?: string | null;
-};
-
-const CHAT_URL = "/Chat/messages.php";
 
 export default function Chat() {
   const location = useLocation();
   const [authChecked, setAuthChecked] = useState(false);
-  const [authUser, setAuthUser] = useState<SessionUser | null>(() => sessionStore.get() as SessionUser | null);
+  const [authUser, setAuthUser] = useState<AuthProfile | null>(null);
+  const [authError, setAuthError] = useState("");
   const myId = Number(authUser?.user_id ?? 0);
   const pathRole = location.pathname.startsWith("/admin")
     ? "admin"
@@ -69,7 +43,7 @@ export default function Chat() {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [removingMessageId, setRemovingMessageId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -90,31 +64,29 @@ export default function Chat() {
 
   useEffect(() => {
     let alive = true;
-    api.get(`${endpoints.auth}?action=me`).then((res) => {
-      if (!alive) return;
-      if (res.data?.type === "success") {
-        const nextUser: SessionUser = {
-          user_id: Number(res.data.user_id ?? 0),
-          username: String(res.data.username ?? ""),
-          email: String(res.data.email ?? ""),
-          user_type: String(res.data.user_type ?? "guest"),
-        };
-        setAuthUser(nextUser);
-      } else {
-        setAuthUser((sessionStore.get() as SessionUser | null) ?? null);
+    loadMyProfile().then(profile => {
+      if (alive) {
+        setAuthUser(profile);
+        setAuthError("");
       }
-    }).catch(() => {
-      if (alive) setAuthUser((sessionStore.get() as SessionUser | null) ?? null);
+    }).catch(profileError => {
+      if (alive) setAuthError(profileError instanceof Error ? profileError.message : "Could not load your account.");
     }).finally(() => {
       if (alive) setAuthChecked(true);
     });
     return () => { alive = false; };
   }, []);
 
-  const { data: conversations, loading: conversationsLoading, error: conversationsError } = usePolling<Conversation[]>(
-    authChecked && authUser ? `${CHAT_URL}?action=conversations&user_id=${myId}` : null,
-    { alwaysPoll: true, intervalMs: 3000 }
+  const loadConversations = useCallback(() => listChatConversations(), []);
+  const loadMessages = useCallback(
+    () => peerId ? listChatMessages(peerId) : Promise.resolve([]),
+    [peerId],
   );
+  const {
+    data: conversations,
+    loading: conversationsLoading,
+    error: conversationsError,
+  } = useChatPolling<ChatConversation[]>(loadConversations, 3000, authChecked && !!authUser);
   const visibleConversations = useMemo(
     () => (conversations ?? []).filter((c) =>
       Number(c.user_id) !== myId && (role !== "guest" || c.user_type.toLowerCase() === "admin")
@@ -122,14 +94,19 @@ export default function Chat() {
     [conversations, myId, role]
   );
 
-  const { data: liveMessages } = usePolling<Message[]>(
-    peerId ? `${CHAT_URL}?action=messages&peer_id=${peerId}&user_id=${myId}` : null,
-    { alwaysPoll: true, intervalMs: 3000 }
+  const { data: liveMessages, error: messagesError } = useChatPolling<ChatMessage[]>(
+    loadMessages,
+    3000,
+    !!peerId && !!authUser,
   );
 
   useEffect(() => {
     setMessages(liveMessages ?? []);
   }, [liveMessages, peerId]);
+
+  useEffect(() => {
+    if (messagesError) setError(messagesError);
+  }, [messagesError]);
 
   useEffect(() => {
     if (peerId === myId) {
@@ -167,62 +144,36 @@ export default function Chat() {
     setError("");
     setSending(true);
     try {
-      const payload = imageFiles.length ? new FormData() : { user_id: myId, to_user_id: peerId, body };
-      if (payload instanceof FormData) {
-        payload.append("user_id", String(myId));
-        payload.append("to_user_id", String(peerId));
-        payload.append("body", body);
-        imageFiles.forEach(file => payload.append("images[]", file));
-      }
-      const res = await api.post(`${CHAT_URL}?action=send`, payload, imageFiles.length
-        ? { headers: { "Content-Type": undefined } }
-        : undefined);
-      if (res.data?.type === "success" && res.data.data) {
-        setMessages((prev) =>
-          prev.some((m) => m.message_id === res.data.data.message_id)
-            ? prev
-            : [...prev, res.data.data as Message]
-        );
-        setDraft("");
-        setImageFiles([]);
-        if (imageInputRef.current) imageInputRef.current.value = "";
-      } else {
-        setError(res.data?.message || "Unable to send message right now.");
-      }
-    } catch (sendError: unknown) {
-      const message = typeof sendError === "object" && sendError !== null && "response" in sendError
-        ? (sendError as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      setError(message || "Unable to send message right now.");
+      const message = await sendChatMessage(peerId, body, imageFiles);
+      setMessages(previous =>
+        previous.some(item => item.message_id === message.message_id)
+          ? previous
+          : [...previous, message]
+      );
+      setDraft("");
+      setImageFiles([]);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : "Unable to send message right now.");
     } finally {
       setSending(false);
     }
   };
 
-  const removeMessage = async (message: Message, mode: "delete_for_me" | "unsend") => {
+  const removeMessage = async (message: ChatMessage, mode: "delete_for_me" | "unsend") => {
     if (removingMessageId !== null) return;
     if (mode === "unsend" && !window.confirm("Unsend this message for everyone?")) return;
     setRemovingMessageId(message.message_id);
     setError("");
     try {
-      const res = await api.post(`${CHAT_URL}?action=remove`, {
-        user_id: myId,
-        message_id: message.message_id,
-        mode,
-      });
-      if (res.data?.type !== "success") {
-        throw new Error(res.data?.message || "Unable to remove message.");
-      }
+      await removeChatMessage(message.message_id, mode);
       setMessages(current => mode === "delete_for_me"
         ? current.filter(item => item.message_id !== message.message_id)
         : current.map(item => item.message_id === message.message_id
-          ? { ...item, body: "", image_path: null, image_paths: [], is_unsent: 1 }
+          ? { ...item, body: "", image_path: null, image_paths: [], image_urls: [], is_unsent: 1 }
           : item));
     } catch (removeError: unknown) {
-      const message = typeof removeError === "object" && removeError !== null && "response" in removeError
-        ? (removeError as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      setError(message || (removeError instanceof Error ? removeError.message : "Unable to remove message."));
+      setError(removeError instanceof Error ? removeError.message : "Unable to remove message.");
     } finally {
       setRemovingMessageId(null);
     }
@@ -249,7 +200,7 @@ export default function Chat() {
               <p className="p-4 text-sm text-muted-foreground">Checking your session...</p>
             )}
             {authChecked && !authUser && (
-              <p className="p-4 text-sm text-destructive">Please sign in to view messages.</p>
+              <p className="p-4 text-sm text-destructive">{authError || "Please sign in to view messages."}</p>
             )}
             {authUser && conversationsLoading && !conversations && (
               <p className="p-4 text-sm text-muted-foreground">Loading users...</p>
@@ -325,28 +276,24 @@ export default function Chat() {
                         ? (m.guest_name ?? 'Guest')
                         : (visibleConversations.find(c => c.user_id === m.from_user_id)?.full_name ?? 'User');
                   const unsent = Number(m.is_unsent) === 1;
-                  const imagePaths = m.image_paths?.length
-                    ? m.image_paths
-                    : m.image_path
-                        ? [m.image_path]
-                        : [];
+                  const imageUrls = m.image_urls ?? [];
                   return (
                     <div key={m.message_id} className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}>
                       {!mine && (
                         <div className="text-[11px] text-muted-foreground">{senderName}</div>
                       )}
-                      {!unsent && imagePaths.length > 0 && (
+                      {!unsent && imageUrls.length > 0 && (
                         <div className="flex max-w-[75%] flex-col gap-2">
-                          {imagePaths.map((path, index) => (
+                          {imageUrls.map((url, index) => (
                             <button
-                              key={`${m.message_id}-${path}-${index}`}
+                              key={`${m.message_id}-${url}-${index}`}
                               type="button"
                               className="cursor-zoom-in border-0 bg-transparent p-0"
-                              aria-label={`View image ${index + 1} of ${imagePaths.length}`}
-                              onClick={() => openImageViewer(imagePaths.map(imagePath => `${API_BASE_URL}/${imagePath}`), index)}
+                              aria-label={`View image ${index + 1} of ${imageUrls.length}`}
+                              onClick={() => openImageViewer(imageUrls, index)}
                             >
                               <img
-                                src={`${API_BASE_URL}/${path}`}
+                                src={url}
                                 alt={`Image attachment ${index + 1}`}
                                 className="max-h-80 max-w-full rounded-lg object-contain"
                               />
@@ -524,6 +471,7 @@ export default function Chat() {
                   </Popover>
                   <Input
                     value={draft}
+                    maxLength={4000}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
@@ -576,6 +524,3 @@ export default function Chat() {
     </DashboardLayout>
   );
 }
-
-// Silence unused-import lint for endpoints reservation
-void endpoints;

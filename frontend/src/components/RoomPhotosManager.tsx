@@ -4,7 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE_URL, api, endpoints } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api";
+import {
+  addMyAdminRoomPhoto,
+  deleteMyAdminRoomPhoto,
+  getAdminRoomPhotoUrl,
+  getMyAdminRoomPhotos,
+  moveMyAdminRoomPhoto,
+  saveMyAdminRoomPhotoCaption,
+} from "@/lib/adminRooms";
 
 const PHOTO_LABELS = ["Whole room", "Bed", "Table", "Window", "Drawer", "Closet", "Bathroom", "Balcony", "Desk"];
 const MAX_PHOTOS_PER_ROOM = 12;
@@ -56,7 +64,8 @@ function errorMessage(error: unknown): string {
 }
 
 function photoUrl(filename: string): string {
-  if (filename.startsWith("http")) return filename;
+  const imageUrl = getAdminRoomPhotoUrl(filename);
+  if (imageUrl.startsWith("http")) return imageUrl;
   return `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(filename)}`;
 }
 
@@ -97,12 +106,8 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
       setLoading(true);
       setPhotoLoadFailed(false);
       try {
-        const { data } = await api.get<{ type: string; data?: RoomPhoto[]; message?: string }>(
-          `${endpoints.adminRooms}?action=list_images&room_id=${id}`
-        );
-        if (data.type !== "success") throw new Error(data.message || "Could not load room photos");
+        const loadedPhotos = await getMyAdminRoomPhotos(id);
         if (isCurrent()) {
-          const loadedPhotos = data.data || [];
           persistedCaptions.current = new Map(loadedPhotos.map((photo) => [photo.image_id, photo.caption || ""]));
           setPhotos(loadedPhotos.map((photo) => ({
             ...photo,
@@ -157,35 +162,18 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
       if (pending.length === 0) return { failedCount: 0, errors: [] };
 
       setUploading(true);
-      const formData = new FormData();
-      formData.append("room_id", String(targetRoomId));
-      pending.forEach(({ file, caption }) => {
-        formData.append("images[]", file);
-        formData.append("captions[]", caption);
-      });
-
       try {
-        const { data } = await api.post<{
-          type: string;
-          errors?: PhotoUploadError[];
-          message?: string;
-        }>(`${endpoints.adminRooms}?action=add_images`, formData, {
-          headers: { "Content-Type": undefined },
-        });
-
-        const errors = Array.isArray(data.errors) ? data.errors : [];
-        const failedIndexes = new Set(
-          errors
-            .map((item) => item.index)
-            .filter((index) => Number.isInteger(index) && index >= 0 && index < pending.length)
-        );
-        if (data.type !== "success" && failedIndexes.size === 0) {
-          pending.forEach((_, index) => failedIndexes.add(index));
-          if (errors.length === 0) {
+        const failedIndexes = new Set<number>();
+        const errors: PhotoUploadError[] = [];
+        for (const [index, photo] of pending.entries()) {
+          try {
+            await addMyAdminRoomPhoto(targetRoomId, photo.file, photo.caption, photos.length + index);
+          } catch (error: unknown) {
+            failedIndexes.add(index);
             errors.push({
-              index: -1,
-              filename: "",
-              message: data.message || "The server did not confirm the photo upload",
+              index,
+              filename: photo.file.name,
+              message: errorMessage(error),
             });
           }
         }
@@ -209,7 +197,7 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
       } finally {
         setUploading(false);
       }
-    }, [loadPhotos, pending, revokePreview]);
+    }, [loadPhotos, pending, photos.length, revokePreview]);
 
     const pickPhotos = (files: FileList | null) => {
       if (!files) return;
@@ -272,11 +260,7 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
       setSavingCaptions((current) => [...current, photo.image_id]);
       const task = (async () => {
         try {
-          const { data } = await api.post<{ type: string; message?: string }>(
-            `${endpoints.adminRooms}?action=update_image`,
-            { image_id: photo.image_id, caption }
-          );
-          if (data.type !== "success") throw new Error(data.message || "Could not save photo label");
+          await saveMyAdminRoomPhotoCaption(photo.image_id, caption);
           if (enabledRef.current) {
             persistedCaptions.current.set(photo.image_id, caption);
             if (dirtyCaptions.current.get(photo.image_id) === caption) {
@@ -318,11 +302,7 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
     const movePhoto = async (imageId: number, direction: "up" | "down") => {
       if (!roomId || disabled) return;
       try {
-        const { data } = await api.post<{ type: string; message?: string }>(
-          `${endpoints.adminRooms}?action=move_image`,
-          { image_id: imageId, direction }
-        );
-        if (data.type !== "success") throw new Error(data.message || "Could not reorder photos");
+        await moveMyAdminRoomPhoto(imageId, direction);
         await loadPhotos(roomId);
       } catch (error: unknown) {
         toast({
@@ -336,11 +316,7 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
     const removePhoto = async (imageId: number) => {
       if (!roomId || disabled) return;
       try {
-        const { data } = await api.post<{ type: string; message?: string }>(
-          `${endpoints.adminRooms}?action=delete_image`,
-          { image_id: imageId }
-        );
-        if (data.type !== "success") throw new Error(data.message || "Could not remove photo");
+        await deleteMyAdminRoomPhoto(imageId);
         persistedCaptions.current.delete(imageId);
         dirtyCaptions.current.delete(imageId);
         await loadPhotos(roomId);
@@ -397,7 +373,7 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
         )}
         {photoLoadFailed && (
           <p className="text-xs text-destructive">
-            Existing photos could not be loaded. You can still select files, but saving requires the room photo database migration to be applied.
+            Existing photos could not be loaded. You can still select files, but saving requires the Supabase room-management migration to be applied.
           </p>
         )}
 

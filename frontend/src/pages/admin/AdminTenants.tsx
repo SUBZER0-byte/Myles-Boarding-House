@@ -7,62 +7,36 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface Tenant {
-  tenant_id: number;
-  user_id?: number;
-  room_id: number | null;
-  full_name: string;
-  username?: string | null;
-  phone: string;
-  email: string;
-  address: string | null;
-  age: number | string | null;
-  birthday: string | null;
-  emergency_contact_name: string | null;
-  emergency_contact_phone: string | null;
-  move_in_date: string;
-  move_out_date: string | null;
-  is_active: number;
-  room_number: string | null;
-  room_type: string | null;
-  profile_picture?: string | null;
-}
-
-interface AccountSuggestion {
-  user_id: number;
-  username: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  birthday: string | null;
-  emergency_contact_name: string | null;
-  emergency_contact_phone: string | null;
-  user_type: string;
-}
+import {
+  createAdminTenant,
+  deactivateAdminTenant,
+  deleteAdminTenant,
+  findAdminTenantAccounts,
+  listAdminTenants,
+  updateAdminTenant,
+  uploadAdminTenantPicture,
+  type AdminTenantAccountSuggestion,
+  type AdminTenant,
+} from "@/lib/adminTenants";
 
 const AdminTenants = () => {
   const { toast } = useToast();
-  const { data: tenants, refetch, error } = usePolling<Tenant[]>(
-    `${endpoints.adminTenants}?action=list`,
-    { intervalMs: 5000 }
-  );
+  const loadTenants = useCallback(() => listAdminTenants(), []);
+  const { data: tenants, refetch, error } = useSupabasePolling(loadTenants, 5000);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"cards" | "table">("cards");
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
-  const [selected, setSelected] = useState<Tenant | null>(null);
+  const [selected, setSelected] = useState<AdminTenant | null>(null);
   const [saving, setSaving] = useState(false);
   const [tenantPicture, setTenantPicture] = useState<File | null>(null);
-  const [accountSuggestions, setAccountSuggestions] = useState<AccountSuggestion[]>([]);
+  const [accountSuggestions, setAccountSuggestions] = useState<AdminTenantAccountSuggestion[]>([]);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
@@ -79,16 +53,6 @@ const AdminTenants = () => {
     });
 
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
-  const uploadProfilePicture = async (userId: number, file: File) => {
-    const formData = new FormData();
-    formData.append("user_id", String(userId));
-    formData.append("profile_picture", file);
-    const response = await api.post<ApiResponse>("/Admin/settings.php?action=upload_user_profile_picture", formData, {
-      headers: { "Content-Type": undefined },
-    });
-    if (response.data.type !== "success") throw new Error(response.data.message || "Unable to upload profile picture");
-  };
-
   useEffect(() => {
     const query = form.username.trim();
     const canSuggestAccount = addOpen || (editOpen && selected?.user_id == null);
@@ -104,16 +68,9 @@ const AdminTenants = () => {
     setSuggestionsError("");
     const timer = window.setTimeout(async () => {
       try {
-        const response = await api.get<ApiResponse<AccountSuggestion[]>>(
-          `${endpoints.adminTenants}?action=suggest_usernames&query=${encodeURIComponent(query)}`
-        );
+        const suggestions = await findAdminTenantAccounts(query);
         if (cancelled) return;
-        if (response.data.type !== "success") {
-          setSuggestionsError(response.data.message || "Unable to load account suggestions.");
-          setAccountSuggestions([]);
-          return;
-        }
-        setAccountSuggestions(response.data.data ?? []);
+        setAccountSuggestions(suggestions);
       } catch (error) {
         if (cancelled) return;
         setSuggestionsError(error instanceof Error ? error.message : "Unable to load account suggestions.");
@@ -129,7 +86,7 @@ const AdminTenants = () => {
     };
   }, [addOpen, editOpen, form.username, selected?.user_id]);
 
-  const selectAccountSuggestion = (account: AccountSuggestion) => {
+  const selectAccountSuggestion = (account: AdminTenantAccountSuggestion) => {
     setForm(current => ({
       ...current,
       username: account.username,
@@ -146,7 +103,7 @@ const AdminTenants = () => {
   };
 
   const openAdd = () => { resetForm(); setTenantPicture(null); setAddOpen(true); };
-  const openEdit = (t: Tenant) => {
+  const openEdit = (t: AdminTenant) => {
     setSelected(t);
     setTenantPicture(null);
     setForm({
@@ -162,20 +119,17 @@ const AdminTenants = () => {
   const handleAdd = async () => {
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${endpoints.adminTenants}?action=create`, form);
-      if (res.data.type === "success") {
-        const userId = Number(res.data.user_id);
-        let pictureFailed = false;
-        if (tenantPicture && userId > 0) {
-          try {
-            await uploadProfilePicture(userId, tenantPicture);
-          } catch {
-            pictureFailed = true;
-          }
+      const response = await createAdminTenant(form);
+      let pictureFailed = false;
+      if (tenantPicture && response.user_id) {
+        try {
+          await uploadAdminTenantPicture(response.user_id, tenantPicture);
+        } catch {
+          pictureFailed = true;
         }
-        toast({ title: pictureFailed ? "Tenant added, but picture upload failed" : "Tenant added", variant: pictureFailed ? "destructive" : "default" });
-        setAddOpen(false); setTenantPicture(null); refetch();
-      } else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      }
+      toast({ title: pictureFailed ? "Tenant added, but picture upload failed" : "Tenant added", variant: pictureFailed ? "destructive" : "default" });
+      setAddOpen(false); setTenantPicture(null); refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to add tenant", variant: "destructive" });
     } finally { setSaving(false); }
@@ -185,21 +139,18 @@ const AdminTenants = () => {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${endpoints.adminTenants}?action=update`,
-        { ...form, tenant_id: selected.tenant_id });
-      if (res.data.type === "success") {
-        const userId = Number(res.data.user_id ?? selected.user_id);
-        let pictureFailed = false;
-        if (tenantPicture && userId > 0) {
-          try {
-            await uploadProfilePicture(userId, tenantPicture);
-          } catch {
-            pictureFailed = true;
-          }
+      const response = await updateAdminTenant({ ...form, tenant_id: selected.tenant_id });
+      const userId = response.user_id ?? selected.user_id;
+      let pictureFailed = false;
+      if (tenantPicture && userId) {
+        try {
+          await uploadAdminTenantPicture(userId, tenantPicture);
+        } catch {
+          pictureFailed = true;
         }
-        toast({ title: pictureFailed ? "Tenant updated, but picture upload failed" : "Tenant updated", variant: pictureFailed ? "destructive" : "default" });
-        setEditOpen(false); setTenantPicture(null); refetch();
-      } else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      }
+      toast({ title: pictureFailed ? "Tenant updated, but picture upload failed" : "Tenant updated", variant: pictureFailed ? "destructive" : "default" });
+      setEditOpen(false); setTenantPicture(null); refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to update tenant", variant: "destructive" });
     } finally { setSaving(false); }
@@ -207,16 +158,24 @@ const AdminTenants = () => {
 
   const handleDelete = async () => {
     if (!selected) return;
-    const res = await api.get<ApiResponse>(`${endpoints.adminTenants}?action=delete&tenant_id=${selected.tenant_id}`);
-    toast({ title: res.data.message || (res.data.type === "success" ? "Deleted" : "Failed"),
-      variant: res.data.type === "success" ? "default" : "destructive" });
-    setDelOpen(false); refetch();
+    try {
+      await deleteAdminTenant(selected.tenant_id);
+      toast({ title: "Tenant deleted" });
+      setDelOpen(false);
+      refetch();
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Unable to delete tenant", variant: "destructive" });
+    }
   };
 
-  const handleDeactivate = async (t: Tenant) => {
-    const res = await api.get<ApiResponse>(`${endpoints.adminTenants}?action=deactivate&tenant_id=${t.tenant_id}`);
-    toast({ title: res.data.message || "Updated" });
-    refetch();
+  const handleDeactivate = async (t: AdminTenant) => {
+    try {
+      await deactivateAdminTenant(t.tenant_id);
+      toast({ title: "Tenant deactivated" });
+      refetch();
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Unable to deactivate tenant", variant: "destructive" });
+    }
   };
 
   const filtered = (tenants ?? []).filter((t) =>

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Incremental migration of the remaining Admin, Tenant, and Guest PHP/MySQL-backed flows to the existing Supabase deployment.",
+  "tasks": [
+    {
+      "type": "transform",
+      "id": "001-complete-in-progress-supabase-slices",
+      "description": "Complete and verify the Supabase work already started in the worktree",
+      "reason": "The worktree already contains partial migrations and frontend changes that are prerequisites for a safe continuation.",
+      "requirements": "Inspect the existing uncommitted edits before changing anything and preserve unrelated/pre-existing changes. Finish and verify the current Admin house-settings, Admin room/photo management, Admin tenant management, public room availability/storage-image reads, and Tenant/Admin tenancy-cancellation slices represented by the existing frontend changes, Supabase migrations/functions, and tests. Keep authorization checks server-side, validate RLS and Storage policies, use transactional database behavior for coupled writes, add/adjust focused tests, and update the directly related deployment guide without claiming that local SQL or functions have been applied remotely. Do not overwrite or recreate these existing changes.",
+      "dependencies": [],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    },
+    {
+      "type": "transform",
+      "id": "002-migrate-guest-booking-and-admin-review",
+      "description": "Move guest booking and Admin booking review from PHP/MySQL to Supabase",
+      "reason": "Guest room discovery currently transitions into PHP-backed holds, bookings, status, cancellation, and initial-payment actions.",
+      "requirements": "Migrate the remaining GuestDashboard, GuestRooms, GuestBooking, PaymentSuccess, PaymentFailed, AdminGuestBookingPayments, and AdminCancellations booking-tab flows. Preserve the existing booking/payment state machine and UI behavior. Make capacity reservation, holds, booking creation/cancellation, status transitions, and related notifications/logs safe against concurrent requests and duplicate retries using database constraints and transactional RPCs or equivalent server-side operations. Keep provider callbacks and privileged operations server-side and idempotent. Move booking payment proofs and any remaining booking-related uploads to Supabase Storage with least-privilege policies and record linkage. Add tests for role/ownership boundaries, unauthenticated calls, race/duplicate requests, expiry and cancellation, and rollback; update the deployment guide with data and file-backfill prerequisites. Do not deploy functions or switch production traffic.",
+      "dependencies": [
+        "001-complete-in-progress-supabase-slices"
+      ],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    },
+    {
+      "type": "transform",
+      "id": "003-migrate-tenant-and-admin-financial-workflows",
+      "description": "Move Tenant and Admin rent, full-payment, and refund workflows to Supabase",
+      "reason": "Tenant and Admin financial pages still read and mutate PHP/MySQL payment records and PHP-hosted proof files.",
+      "requirements": "Migrate TenantPayments, AdminPayments, AdminFullPayments, AdminRefunds, their shared refund components, and associated PHP-backed payment-proof reads/uploads. Preserve payment schedules, approval/rejection behavior, evidence access, refund accounting, and notifications. Use transactional database operations for ledger/status updates, authorization and ownership checks in database policies/RPCs or authenticated server functions, and idempotency/reconciliation for provider or callback operations that cannot be part of a database transaction. Store evidence in Supabase Storage with private access and short-lived authorized reads as appropriate; never expose service-role or payment credentials in frontend code. Add unit and local integration tests for malformed/duplicate submissions, cross-tenant access, admin-only decisions, rollback, and file access policies. Document backfill/reconciliation and rollback requirements.",
+      "dependencies": [
+        "002-migrate-guest-booking-and-admin-review"
+      ],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    },
+    {
+      "type": "transform",
+      "id": "004-migrate-chat-and-chatbot-services",
+      "description": "Move shared messaging and chatbot flows off PHP",
+      "reason": "Admin, Tenant, and Guest routes still use PHP message, unread-count, and Ollama chatbot endpoints.",
+      "requirements": "Migrate Chat.tsx, message/unread-count behavior in DashboardSidebar, and ChatbotWidget away from PHP/MySQL while preserving supported conversations, polling/realtime behavior, and error states. Enforce conversation membership and role authorization in RLS and any server-side function; keep LLM credentials and privileged provider calls in server-side Edge Function secrets. If chat attachments exist, move them to appropriately scoped Supabase Storage policies. Add tests for identity isolation, unauthorized conversation access, message validation, provider failure, and secret-free frontend bundles. Update the migration/deployment guide to describe required server-side provider configuration and verification limits.",
+      "dependencies": [
+        "003-migrate-tenant-and-admin-financial-workflows"
+      ],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    },
+    {
+      "type": "transform",
+      "id": "005-migrate-admin-settings-and-retire-page-php-dependencies",
+      "description": "Migrate remaining Admin settings and remove PHP dependencies from role pages",
+      "reason": "Admin Settings and shared API helpers still expose PHP-backed configuration, QR, and other remaining role-page paths.",
+      "requirements": "Migrate the remaining AdminSettings flows for payment/SMS configuration, API secrets, chatbot FAQs/suggested questions, and GCash QR management, plus any remaining PHP-backed auth/profile/public-info calls reachable from Admin, Tenant, or Guest pages. Keep provider/API credentials server-side, place uploaded QR/settings media in Supabase Storage with Admin-only writes and appropriate reads, and ensure the frontend receives only non-secret configuration. Search all in-scope routes/components and remove or replace remaining PHP API calls and obsolete endpoint configuration only when their consumers are migrated. Update backend/guides/VERCEL_EXTERNAL_PHP_DEPLOYMENT.md (and directly related docs) with the final remaining-PHP inventory, backfill sequence, migration/function/config prerequisites, cutover/rollback steps, and explicit local-versus-remote verification boundaries. Do not delete backend PHP sources or deploy/publish; preserve them until authorized cutover is verified.",
+      "dependencies": [
+        "004-migrate-chat-and-chatbot-services"
+      ],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    },
+    {
+      "type": "security",
+      "id": "006-verify-supabase-security-and-dependencies",
+      "description": "Verify authorization, Storage policies, secret handling, and dependency security",
+      "reason": "The migration adds or changes privileged database and storage access paths and must not weaken existing protections.",
+      "requirements": "Run a focused security verification of all changed Supabase migrations, RPCs, Edge Functions, RLS/Storage policies, and frontend configuration. Confirm each operation derives identity from a verified Supabase session, Admin and row-owner checks cannot be bypassed by caller-supplied IDs, SECURITY DEFINER functions use a fixed safe search_path and least-privilege grants, private uploads cannot be fetched cross-user, and no secret/service-role key is bundled for Vercel. Run dependency vulnerability checks and remediate migration-relevant findings without expanding into unrelated application rewrites. Record local test evidence and any remote checks that remain pending; do not run remote scans requiring unapproved access.",
+      "dependencies": [
+        "005-migrate-admin-settings-and-retire-page-php-dependencies"
+      ],
+      "successCriteria": {
+        "passBuild": "true",
+        "generateNewUnitTests": "true",
+        "passUnitTests": "true"
+      }
+    }
+  ],
+  "metadata": {
+    "planName": "php-mysql-to-supabase",
+    "projectName": "Myle's Boarding House",
+    "language": "typescript",
+    "createdAt": "2026-11-13T22:35:02+08:00",
+    "version": "1.0"
+  }
+}

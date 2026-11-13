@@ -11,43 +11,19 @@ import {
   BedDouble, CalendarDays, Clock, CheckCircle2,
   XCircle, Loader2, AlertTriangle, ReceiptText,
 } from "lucide-react";
-import { useState } from "react";
-import { usePolling } from "@/hooks/usePolling";
+import { useRef, useState } from "react";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { useToast } from "@/hooks/use-toast";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { sessionStore } from "@/lib/api";
+import {
+  cancelMyGuestBooking,
+  listMyGuestBookings,
+  submitMyBookingInitialPayment,
+  type GuestBooking as Booking,
+} from "@/lib/guestBookings";
 
 /* ── types ──────────────────────────────────────────────────── */
-interface Booking {
-  booking_id: number;
-  full_name: string;
-  email: string;
-  phone: string;
-  room_id: number;
-  room_number: string;
-  room_type: string;
-  room_status: string;
-  reservation_type?: "capacity_based" | "entire_room";
-  occupant_count?: number;
-  move_in_date: string;
-  check_out_date: string | null;
-  length_of_stay_months: number;
-  monthly_rent: number;
-  payment_plan: string;
-  total_rent: number;
-  initial_payment_amount: number;
-  initial_payment_status: string | null;
-  initial_payment_paid: boolean | number;
-  payment_expires_at_epoch?: number;
-  server_now_epoch?: number;
-  amount_paid: number;
-  amount_due: number;
-  next_payment_due: string | null;
-  notes: string;
-  status: "Pending" | "Pending Verification" | "Confirmed" | "Checked In" | "Active" | "Checked Out" | "Cancelled" | "Rejected" | "Expired";
-  created_at: string;
-}
-
-type StatusKey = Booking["status"];
+type StatusKey = "Pending" | "Pending Verification" | "Confirmed" | "Checked In" | "Active" | "Checked Out" | "Cancelled" | "Rejected" | "Expired";
 
 const statusStyles: Record<StatusKey, { badge: string; icon: React.ReactNode }> = {
   Pending: {
@@ -94,11 +70,10 @@ const GuestBooking = () => {
   const session = sessionStore.get();
   const email = session?.email || "";
 
-  const { data: bookings, refetch, error } = usePolling<Booking[]>(
-    email
-      ? `${endpoints.guestBooking}?action=check&email=${encodeURIComponent(email)}`
-      : null,
-    { intervalMs: 10000 }
+  const { data: bookings, refetch, error } = useSupabasePolling<Booking[]>(
+    listMyGuestBookings,
+    10000,
+    Boolean(email),
   );
 
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -106,6 +81,7 @@ const GuestBooking = () => {
   const [busy, setBusy] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
+  const paymentSubmissionKey = useRef<string | null>(null);
 
   const openCancel = (b: Booking) => {
     setSelected(b);
@@ -121,23 +97,19 @@ const GuestBooking = () => {
     if (!selected || !email) return;
     setBusy(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.guestBooking}?action=cancel`,
-        { booking_id: selected.booking_id, email }
-      );
-      if (res.data.type === "success") {
-        toast({
-          title: "Booking cancelled",
-          description: "Your booking has been cancelled and the room is now available again.",
-        });
-        setConfirmOpen(false);
-        setSelected(null);
-        refetch();
-      } else {
-        toast({ title: res.data.message || "Failed to cancel", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Network error — please try again.", variant: "destructive" });
+      await cancelMyGuestBooking(selected.booking_id);
+      toast({
+        title: "Booking cancelled",
+        description: "Your booking has been cancelled and its reservation released.",
+      });
+      setConfirmOpen(false);
+      setSelected(null);
+      refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not cancel booking.",
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
     }
@@ -417,16 +389,19 @@ const GuestBooking = () => {
         description="Your room is temporarily reserved. Please complete your payment before the payment deadline. If you fail to submit your payment before the deadline, your temporary reservation will automatically expire."
         successTitle="Payment Submitted"
         successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
-        onPaid={async (method, reference) => {
+        allowScreenshot
+        onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!paymentBooking) throw new Error("Booking reference is missing.");
-          const { data } = await api.post<ApiResponse>(
-            `${endpoints.guestBooking}?action=submit_initial_gcash_payment`,
-            { booking_id: paymentBooking.booking_id, method, reference },
+          paymentSubmissionKey.current ||= crypto.randomUUID();
+          await submitMyBookingInitialPayment(
+            paymentBooking.booking_id,
+            method,
+            reference,
+            screenshot,
+            paymentSubmissionKey.current,
           );
-          if (data.type !== "success") {
-            throw new Error(data.message || "Could not submit the booking payment.");
-          }
-          toast({ title: data.message || "GCash payment submitted for admin review" });
+          paymentSubmissionKey.current = null;
+          toast({ title: "GCash payment submitted for admin review" });
           refetch();
         }}
       />

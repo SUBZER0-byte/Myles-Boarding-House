@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { sessionStore } from "@/lib/api";
 import { signOutSupabase } from "@/lib/auth";
-import { usePolling } from "@/hooks/usePolling";
+import { useChatPolling } from "@/hooks/useChatPolling";
 import { useUserUnreadNotificationCount } from "@/hooks/useUserNotifications";
+import { getChatUnreadCount } from "@/lib/chatWorkflows";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -83,12 +83,8 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
   const nav = role === "admin" ? adminNav : role === "tenant" ? tenantNav : guestNav;
   const navRef = useRef<HTMLElement | null>(null);
   const scrollKey = `sidebarScroll:${role}`;
-  const userId = Number((sessionStore.get() as { user_id?: number | string } | null)?.user_id ?? 0);
   const { count: unreadNotifications } = useUserUnreadNotificationCount(10000);
-  const { data: unreadMessages } = usePolling<{ count: number }>(
-    userId > 0 ? `/Chat/messages.php?action=unread_count&user_id=${userId}` : null,
-    { alwaysPoll: true, intervalMs: 10000 },
-  );
+  const { data: unreadMessages, error: unreadMessagesError } = useChatPolling(getChatUnreadCount, 10000);
 
   // Restore scroll position on mount (after route change re-mounts layout)
   useEffect(() => {
@@ -171,7 +167,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
         {nav.map((item) => {
           const isActive = isNavActive(item.to);
           const unreadCount = item.label === "Messages"
-            ? Number(unreadMessages?.count ?? 0)
+            ? Number(unreadMessages ?? 0)
             : item.label === "Notifications"
               ? unreadNotifications
               : 0;
@@ -180,7 +176,8 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
               key={item.to}
               to={item.to}
               onClick={onMobileClose}
-              aria-label={`${item.label}${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              aria-label={`${item.label}${item.label === "Messages" && unreadMessagesError ? ", unread count unavailable" : ""}${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              title={item.label === "Messages" && unreadMessagesError ? "Unread message count unavailable" : undefined}
               className={`flex items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-md text-sm transition-colors ${
                 isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"

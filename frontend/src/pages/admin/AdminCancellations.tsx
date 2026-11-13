@@ -11,32 +11,18 @@ import {
   CheckCircle2, XCircle, Loader2, CalendarDays,
   BedDouble, User, Banknote, ArrowLeftRight, Clock, AlertTriangle,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { listAdminCancelledGuestBookings } from "@/lib/guestBookings";
+import {
+  approveTenantCancellation,
+  getAdminCancellations,
+  rejectTenantCancellation,
+  type AdminCancellationRequest,
+} from "@/lib/tenantCancellations";
 
 /* ── types ─────────────────────────────────────────────── */
-interface CancellationRequest {
-  cancellation_id: number;
-  tenant_id: number;
-  tenant_name: string;
-  tenant_email: string;
-  tenant_phone: string;
-  room_number: string;
-  monthly_rent: number;
-  move_in_date: string;
-  cancellation_date: string;
-  daily_rate: number;
-  days_consumed: number;
-  amount_used: number;
-  refund_amount: number;
-  status: "Pending" | "Approved" | "Rejected" | "Withdrawn" | "Expired";
-  cancellation_expires_at: string;
-  rejection_reason: string | null;
-  created_at: string;
-}
-
 interface CancelledBooking {
   booking_id: number;
   full_name: string;
@@ -46,7 +32,7 @@ interface CancelledBooking {
   room_number: string | null;
   monthly_rent: number | null;
   move_in_date: string | null;
-  status: "Cancelled";
+  status: string;
   notes: string | null;
   created_at: string;
 }
@@ -62,25 +48,28 @@ const statusOptions = ["Pending", "Approved", "Rejected", "Withdrawn", "Expired"
 /* ── component ─────────────────────────────────────────── */
 const AdminCancellations = () => {
   const { toast } = useToast();
-  const session = sessionStore.get();
-  const adminUserId = session?.user_id;
 
   const [mainTab, setMainTab] = useState<"tenancy" | "bookings">("tenancy");
   const [statusFilter, setStatusFilter] = useState<string>("Pending");
 
-  // Poll active tenancy cancellation requests
-  const { data: requests, refetch, error } = usePolling<CancellationRequest[]>(
-    mainTab === "tenancy"
-      ? `${endpoints.adminCancellations}?action=list&status=${encodeURIComponent(statusFilter)}`
-      : null,
-    { intervalMs: 5000 }
+  const loadRequests = useCallback(
+    () => getAdminCancellations(statusFilter),
+    [statusFilter],
   );
+  const {
+    data: requests,
+    refetch,
+    error,
+  } = useSupabasePolling<AdminCancellationRequest[]>(loadRequests, 5000, mainTab === "tenancy");
 
-  const { data: allTenancyRequests } = usePolling<CancellationRequest[]>(
-    mainTab === "tenancy"
-      ? `${endpoints.adminCancellations}?action=list&status=all`
-      : null,
-    { intervalMs: 5000 }
+  const loadAllRequests = useCallback(
+    () => getAdminCancellations("all"),
+    [],
+  );
+  const { data: allTenancyRequests } = useSupabasePolling<AdminCancellationRequest[]>(
+    loadAllRequests,
+    5000,
+    mainTab === "tenancy",
   );
 
   const requestCounts = allTenancyRequests?.reduce<Record<string, number>>((acc, request) => {
@@ -89,41 +78,47 @@ const AdminCancellations = () => {
   }, {}) ?? {};
 
   // Poll cancelled guest bookings
-  const { data: cancelledBookings, refetch: refetchBookings, error: bookingsError } = usePolling<CancelledBooking[]>(
-    mainTab === "bookings"
-      ? `${endpoints.adminCancellations}?action=list_bookings`
-      : null,
-    { intervalMs: 5000 }
+  const { data: cancelledBookings, error: bookingsError } = useSupabasePolling<CancelledBooking[]>(
+    listAdminCancelledGuestBookings,
+    5000,
+    mainTab === "bookings",
   );
 
-  const [approveTarget, setApproveTarget] = useState<CancellationRequest | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<CancellationRequest | null>(null);
+  const [approveTarget, setApproveTarget] = useState<AdminCancellationRequest | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<AdminCancellationRequest | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [busy, setBusy] = useState(false);
 
   const approve = async () => {
-    if (!approveTarget || !adminUserId) return;
+    if (!approveTarget) return;
     setBusy(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminCancellations}?action=approve`,
-        { cancellation_id: approveTarget.cancellation_id, admin_user_id: adminUserId }
-      );
-      toast({ title: res.data.message || "Done", variant: res.data.type === "success" ? "default" : "destructive" });
-      if (res.data.type === "success") { setApproveTarget(null); refetch(); }
+      await approveTenantCancellation(approveTarget.cancellation_id);
+      toast({ title: "Cancellation approved and refund recorded" });
+      setApproveTarget(null);
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not approve cancellation.",
+        variant: "destructive",
+      });
     } finally { setBusy(false); }
   };
 
   const reject = async () => {
-    if (!rejectTarget || !adminUserId) return;
+    if (!rejectTarget) return;
     setBusy(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminCancellations}?action=reject`,
-        { cancellation_id: rejectTarget.cancellation_id, admin_user_id: adminUserId, rejection_reason: rejectReason }
-      );
-      toast({ title: res.data.message || "Done", variant: res.data.type === "success" ? "default" : "destructive" });
-      if (res.data.type === "success") { setRejectTarget(null); setRejectReason(""); refetch(); }
+      await rejectTenantCancellation(rejectTarget.cancellation_id, rejectReason);
+      toast({ title: "Cancellation rejected" });
+      setRejectTarget(null);
+      setRejectReason("");
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not reject cancellation.",
+        variant: "destructive",
+      });
     } finally { setBusy(false); }
   };
 

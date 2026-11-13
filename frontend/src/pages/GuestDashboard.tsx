@@ -1,28 +1,12 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatCard } from "@/components/StatCard";
-import { BedDouble, MapPin, Heart, Loader2, ReceiptText, Clock, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { BedDouble, Heart, Loader2, ReceiptText, Clock, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { usePolling } from "@/hooks/usePolling";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { readSavedRoomIds } from "@/lib/savedRooms";
-import { endpoints, sessionStore } from "@/lib/api";
-
-interface PublicRoom {
-  room_id: number;
-  room_number: string;
-  room_type: string;
-  monthly_rent: number;
-  status: string;
-}
-interface Booking {
-  booking_id: number;
-  room_number: string;
-  room_type: string;
-  move_in_date: string;
-  status: "Pending" | "Confirmed" | "Cancelled";
-  created_at: string;
-}
-
+import { sessionStore } from "@/lib/api";
+import { getPublicRooms, type PublicRoom } from "@/lib/publicRooms";
+import { listMyGuestBookings, type GuestBooking } from "@/lib/guestBookings";
 type StatusKey = "Pending" | "Confirmed" | "Cancelled";
 
 const statusStyles: Record<StatusKey, { badge: string; icon: React.ReactNode }> = {
@@ -48,13 +32,14 @@ const GuestDashboard = () => {
   const name = session?.username || "Guest";
   const email = session?.email || "";
 
-  const { data: rooms } = usePolling<PublicRoom[]>(
-    `${endpoints.publicRooms}?action=list`,
-    { intervalMs: 15000 }
+  const { data: rooms } = useSupabasePolling<PublicRoom[]>(
+    getPublicRooms,
+    15000,
   );
-  const { data: bookings } = usePolling<Booking[]>(
-    email ? `${endpoints.guestBooking}?action=check&email=${encodeURIComponent(email)}` : null,
-    { intervalMs: 15000 }
+  const { data: bookings } = useSupabasePolling<GuestBooking[]>(
+    listMyGuestBookings,
+    15000,
+    Boolean(email),
   );
 
   const available = (rooms || []).filter((r) => (r.status || "").toLowerCase() === "available");

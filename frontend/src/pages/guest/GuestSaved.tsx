@@ -1,23 +1,22 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Heart, BedDouble } from "lucide-react";
+import { Heart, BedDouble, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePolling } from "@/hooks/usePolling";
-import { API_BASE_URL, endpoints } from "@/lib/api";
+import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { Button } from "@/components/ui/button";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
+import { API_BASE_URL } from "@/lib/api";
+import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 
-interface PublicRoom {
-  room_id: number;
-  room_number: string;
-  room_type: string;
-  monthly_rent: number;
-  status: string;
-  description?: string;
-  image?: string;
+const peso = (n: number | string) =>
+  "₱" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+function roomImageUrl(image: string): string {
+  const resolvedImage = getPublicRoomImageUrl(image);
+  if (resolvedImage.startsWith("http")) return resolvedImage;
+  return image.includes("/")
+    ? `${API_BASE_URL}/${image}`
+    : `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(image)}`;
 }
-
-const peso = (n: number) =>
-  "₱" + (n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 type StatusKey = "available" | "occupied" | "reserved" | "maintenance";
 
@@ -29,10 +28,7 @@ const statusBadge: Record<StatusKey, string> = {
 };
 
 const GuestSaved = () => {
-  const { data: rooms } = usePolling<PublicRoom[]>(
-    `${endpoints.publicRooms}?action=list`,
-    { intervalMs: 15000 }
-  );
+  const { rooms, error } = usePublicRooms(15000);
   const [saved, setSaved] = useState<number[]>([]);
 
   useEffect(() => {
@@ -45,7 +41,7 @@ const GuestSaved = () => {
     setSaved(next);
   };
 
-  const savedRooms = (rooms || []).filter((r) => saved.includes(Number(r.room_id)));
+  const savedRooms = (rooms ?? []).filter((r) => saved.includes(Number(r.room_id)));
 
   return (
     <DashboardLayout role="guest">
@@ -55,7 +51,17 @@ const GuestSaved = () => {
           <p className="text-muted-foreground text-sm mt-1">Rooms you've bookmarked for later.</p>
         </div>
 
-        {savedRooms.length === 0 ? (
+        {error && (
+          <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+            Could not load rooms: {error.message}
+          </div>
+        )}
+
+        {!rooms && !error ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 size={14} className="animate-spin" /> Loading saved rooms…
+          </div>
+        ) : savedRooms.length === 0 ? (
           <div className="bg-card border border-border rounded-lg p-10 text-center">
             <Heart size={32} className="mx-auto text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">No saved rooms yet. Browse rooms and tap the heart icon.</p>
@@ -70,13 +76,7 @@ const GuestSaved = () => {
                 <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 flex flex-col">
                   {r.image && (
                     <img
-                      src={
-                        r.image.startsWith("http")
-                          ? r.image
-                          : r.image.includes("/")
-                            ? `${API_BASE_URL}/${r.image}`
-                            : `${API_BASE_URL}/uploads/rooms/${r.image}`
-                      }
+                      src={roomImageUrl(r.image)}
                       alt={`Room ${r.room_number}`}
                       className="w-full h-36 object-cover rounded-md mb-3"
                     />

@@ -1,0 +1,102 @@
+# Tasks-to-Implementation Traceability Checkpoint
+metadata:
+  generated: "2026-11-13T23:22:00+08:00"
+  source_tasks: ".github/modernize/php-mysql-to-supabase/.metadata/tasks.json"
+  last_updated: "2026-11-13T23:22:00+08:00"
+
+summary:
+  total_tasks: 1
+  completed_tasks: 0
+  in_progress_tasks: 0
+  pending_tasks: 0
+  blocked_tasks: 1
+  completion_percentage: 0.0
+
+tasks:
+  - task_id: "003-migrate-tenant-and-admin-financial-workflows"
+    description: "Move Tenant and Admin rent, full-payment, and refund workflows to Supabase"
+    status: "blocked"
+    implementation:
+      files_changed:
+        - file: "supabase/migrations/20261113230000_financial_workflows.sql"
+          changes:
+            - change_type: "added"
+              description: "Add role-checked transactional full-payment/refund RPCs, idempotency constraints, and private evidence Storage policies"
+        - file: "frontend/src/lib/financialWorkflows.ts"
+          changes:
+            - change_type: "added"
+              description: "Add authenticated Supabase service operations, evidence uploads, and five-minute signed reads"
+        - file: "frontend/src/hooks/useFinancialPolling.ts"
+          changes:
+            - change_type: "added"
+              description: "Poll Supabase financial RPC reads with explicit loading and failure states"
+        - file: "frontend/src/pages/tenant/TenantPayments.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move full-payment reads, requests, proof submission, and cancellation to Supabase"
+        - file: "frontend/src/pages/admin/AdminFullPayments.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move full-payment Admin list, decisions, QR upload, and proof reads to Supabase"
+        - file: "frontend/src/components/RefundRequests.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move shared Tenant/Guest refund eligibility, submissions, history, and evidence reads to Supabase"
+        - file: "frontend/src/pages/admin/AdminRefunds.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move Admin refund listing, decisions, and transfer proof uploads to Supabase"
+        - file: "frontend/src/test/financialWorkflows.test.ts"
+          changes:
+            - change_type: "added"
+              description: "Cover identity-scoped RPC calls, malformed evidence, private signed reads, and duplicate retry semantics"
+        - file: "supabase/tests/financial_workflows.test.sql"
+          changes:
+            - change_type: "added"
+              description: "Add pgTAP coverage for authentication, duplicate requests, cross-tenant access, Admin checks, rollback, and Storage visibility"
+        - file: "backend/guides/VERCEL_EXTERNAL_PHP_DEPLOYMENT.md"
+          changes:
+            - change_type: "modified"
+              description: "Document local-only financial slice, residual PHP endpoints, backfill, coupling, and rollback"
+    verification:
+      build_passed: true
+      test_results:
+        command: "npm.cmd --prefix frontend test"
+        passed: 88
+        failed: 0
+        skipped: 0
+        failures: []
+      notes: "Focused financial unit tests: 4 passed. SQL integration tests could not run because Docker/Podman and psql are unavailable. TypeScript check reports one unrelated pre-existing error in frontend/src/pages/GuestDashboard.tsx."
+    upstream_trace:
+      plan_item: "003-migrate-tenant-and-admin-financial-workflows"
+      requirements:
+        - "Task 003 requirements in .github/modernize/php-mysql-to-supabase/.metadata/tasks.json"
+      full_trace: "Task 003 → financial workflow RPC/Storage service and UI → frontend tests and pgTAP test source"
+      notes: "This task remains incomplete because rent-ledger screens and rent-payment proof flows still use PHP/MySQL."
+
+pending_tasks: []
+untracked_changes: []
+traceability_chain:
+  - chain_id: "TRACE-FINANCIAL-003"
+    requirement: "Task 003 financial workflow requirements"
+    plan_phase: "Financial migration"
+    plan_item: "003-migrate-tenant-and-admin-financial-workflows"
+    tasks:
+      - "003-migrate-tenant-and-admin-financial-workflows"
+    files:
+      - "supabase/migrations/20261113230000_financial_workflows.sql"
+      - "frontend/src/lib/financialWorkflows.ts"
+      - "frontend/src/pages/tenant/TenantPayments.tsx"
+      - "frontend/src/pages/admin/AdminFullPayments.tsx"
+      - "frontend/src/components/RefundRequests.tsx"
+      - "frontend/src/pages/admin/AdminRefunds.tsx"
+    status: "partial"
+
+validation:
+  passed: false
+  errors: []
+  warnings:
+    - "The Supabase financial migration and pgTAP test were not applied/run locally because the environment lacks Docker/Podman and psql."
+    - "Rent payment schedule/history/submission and rent-proof flows remain PHP-backed, including Tenant payments.php actions history, submit, and screenshot; Admin actions tenants, list, summary, create, update_status, delete, generate_next_month, and screenshot."
+  blocking_issues:
+    - "Safe full financial cutover requires an authorized MySQL ledger/evidence backfill and coordinated retirement of remaining PHP rent endpoints."

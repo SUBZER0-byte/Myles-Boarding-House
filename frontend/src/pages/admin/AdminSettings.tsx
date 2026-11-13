@@ -20,6 +20,23 @@ import {
   saveMyAdminSettingsProfile,
   type AdminSettingsProfile,
 } from "@/lib/adminProfile";
+import {
+  getMyAdminHouseSettings,
+  saveMyAdminHouseSettings,
+  type AdminHouseSettings,
+} from "@/lib/adminHouseSettings";
+import {
+  deleteMyAdminChatbotFaq,
+  deleteMyAdminChatbotSuggestedQuestion,
+  getMyAdminChatbotFaqs,
+  getMyAdminChatbotSuggestedQuestions,
+  saveMyAdminChatbotFaq,
+  saveMyAdminChatbotSuggestedQuestion,
+  type ChatbotFaq,
+  type ChatbotFaqCategory,
+  type ChatbotFaqInput,
+  type ChatbotSuggestedQuestion,
+} from "@/lib/adminChatbotSettings";
 
 type Profile = AdminSettingsProfile & { user_type: string };
 type Settings = Record<string, string | boolean>;
@@ -32,10 +49,7 @@ type AdminApiKeys = {
 };
 type PayPalMode = "SANDBOX" | "LIVE" | "Unavailable";
 type GcashQrImage = { filename: string; path: string; uploaded_at: number; is_active: boolean; amount: number | null };
-type ChatbotFaqCategory = "rates" | "availability" | "house_rules" | "payment_methods" | "reservation_steps" | "location" | "other";
-type ChatbotFaq = { faq_id: number; category: ChatbotFaqCategory; question: string; answer: string; is_active: number };
-type ChatbotFaqForm = { faq_id: number | null; category: ChatbotFaqCategory; question: string; answer: string; is_active: boolean };
-type ChatbotSuggestedQuestion = { suggested_question_id: number; question: string; is_active: number };
+type ChatbotFaqForm = ChatbotFaqInput;
 
 const chatbotFaqCategories: { value: ChatbotFaqCategory; label: string }[] = [
   { value: "rates", label: "Rates" },
@@ -108,6 +122,12 @@ const AdminSettings = () => {
     user_type: "Admin",
   }), []);
   const { data: liveProfile } = useSupabasePolling(loadAdminProfile, 5000, Boolean(userId));
+  const loadHouseSettings = useCallback(() => getMyAdminHouseSettings(), []);
+  const { data: liveHouseSettings, refetch: refetchHouseSettings } = useSupabasePolling(
+    loadHouseSettings,
+    5000,
+    Boolean(userId),
+  );
   const { data: liveSettings } = usePolling<Settings>(
     `${endpoints.adminSettings}?action=get_settings`,
     { intervalMs: 5000 }
@@ -198,20 +218,11 @@ const AdminSettings = () => {
   const loadChatbotFaqs = useCallback(async () => {
     setChatbotFaqsLoading(true);
     try {
-      const res = await api.get<ApiResponse<ChatbotFaq[]>>(
-        `${endpoints.adminSettings}?action=list_chatbot_faqs`,
-      );
-      if (res.data.type !== "success" || !res.data.data) {
-        throw new Error(res.data.message ?? "Unable to load chatbot FAQs");
-      }
-      setChatbotFaqs(res.data.data);
+      setChatbotFaqs(await getMyAdminChatbotFaqs());
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to load chatbot FAQs",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -222,20 +233,11 @@ const AdminSettings = () => {
   const loadChatbotSuggestedQuestions = useCallback(async () => {
     setChatbotSuggestedQuestionsLoading(true);
     try {
-      const res = await api.get<ApiResponse<ChatbotSuggestedQuestion[]>>(
-        `${endpoints.adminSettings}?action=list_chatbot_suggested_questions`,
-      );
-      if (res.data.type !== "success" || !res.data.data) {
-        throw new Error(res.data.message ?? "Unable to load suggested questions");
-      }
-      setChatbotSuggestedQuestions(res.data.data);
+      setChatbotSuggestedQuestions(await getMyAdminChatbotSuggestedQuestions());
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to load suggested questions",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -274,8 +276,12 @@ const AdminSettings = () => {
   }, [liveProfile]);
 
   useEffect(() => {
-    if (liveSettings) setSettings(liveSettings);
-  }, [liveSettings]);
+    if (liveSettings) {
+      setSettings(current => ({ ...liveSettings, ...current, ...(liveHouseSettings ?? {}) }));
+    } else if (liveHouseSettings) {
+      setSettings(current => ({ ...current, ...liveHouseSettings }));
+    }
+  }, [liveSettings, liveHouseSettings]);
 
   useEffect(() => {
     if (livePaymentMode?.mode) setPaymentMode(livePaymentMode.mode);
@@ -305,24 +311,14 @@ const AdminSettings = () => {
   const saveChatbotFaq = async () => {
     setChatbotFaqSaving(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=save_chatbot_faq`,
-        chatbotFaqForm,
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "Unable to save chatbot FAQ", variant: "destructive" });
-        return;
-      }
-      toast({ title: res.data.message ?? "Chatbot FAQ saved" });
+      await saveMyAdminChatbotFaq(chatbotFaqForm);
+      toast({ title: "Chatbot FAQ saved" });
       setChatbotFaqForm(newChatbotFaq());
       await loadChatbotFaqs();
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to save chatbot FAQ",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -333,24 +329,14 @@ const AdminSettings = () => {
   const deleteChatbotFaq = async (faqId: number) => {
     setChatbotFaqDeleting(faqId);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=delete_chatbot_faq`,
-        { faq_id: faqId },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "Unable to delete chatbot FAQ", variant: "destructive" });
-        return;
-      }
-      toast({ title: res.data.message ?? "Chatbot FAQ deleted" });
+      await deleteMyAdminChatbotFaq(faqId);
+      toast({ title: "Chatbot FAQ deleted" });
       if (chatbotFaqForm.faq_id === faqId) setChatbotFaqForm(newChatbotFaq());
       await loadChatbotFaqs();
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to delete chatbot FAQ",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -364,25 +350,15 @@ const AdminSettings = () => {
     const editingId = chatbotSuggestedQuestionEditing;
     setChatbotSuggestedQuestionSaving(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=save_chatbot_suggested_question`,
-        { question, ...(editingId !== null ? { suggested_question_id: editingId } : {}) },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "Unable to save suggested question", variant: "destructive" });
-        return;
-      }
-      toast({ title: res.data.message ?? (editingId !== null ? "Suggested question updated" : "Suggested question added") });
+      await saveMyAdminChatbotSuggestedQuestion(question, editingId);
+      toast({ title: editingId !== null ? "Suggested question updated" : "Suggested question added" });
       setChatbotSuggestedQuestion("");
       setChatbotSuggestedQuestionEditing(null);
       await loadChatbotSuggestedQuestions();
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to save suggested question",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -403,26 +379,16 @@ const AdminSettings = () => {
   const deleteChatbotSuggestedQuestion = async (suggestedQuestionId: number) => {
     setChatbotSuggestedQuestionDeleting(suggestedQuestionId);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=delete_chatbot_suggested_question`,
-        { suggested_question_id: suggestedQuestionId },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "Unable to delete suggested question", variant: "destructive" });
-        return;
-      }
-      toast({ title: res.data.message ?? "Suggested question deleted" });
+      await deleteMyAdminChatbotSuggestedQuestion(suggestedQuestionId);
+      toast({ title: "Suggested question deleted" });
       if (chatbotSuggestedQuestionEditing === suggestedQuestionId) {
         cancelChatbotSuggestedQuestionEdit();
       }
       await loadChatbotSuggestedQuestions();
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to delete suggested question",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
@@ -483,8 +449,7 @@ const AdminSettings = () => {
       "house_contact_phone",
       "house_contact_email",
     ];
-    const values = Object.fromEntries(keys.map(key => [key, settingText(key)]));
-    await saveSettingsGroup("House Contact Info", values, setHouseSaving);
+    await saveHouseSettingsGroup("House Contact Info", Object.fromEntries(keys.map(key => [key, settingText(key)])));
   };
 
   const saveGpsSettings = async () => {
@@ -501,7 +466,7 @@ const AdminSettings = () => {
       });
       return;
     }
-    await saveSettingsGroup("GPS Mapping Settings", {
+    await saveHouseSettingsGroup("GPS Mapping Settings", {
       house_map_lat: String(latitude),
       house_map_lng: String(longitude),
     }, setGpsSaving);
@@ -524,13 +489,36 @@ const AdminSettings = () => {
       });
       return;
     }
-    await saveSettingsGroup("Office Hours", {
+    await saveHouseSettingsGroup("Office Hours", {
       house_weekday_open_time: weekdayOpen,
       house_weekday_close_time: weekdayClose,
       house_weekend_open_time: weekendOpen,
       house_weekend_close_time: weekendClose,
-      house_weekend_by_appointment: settingEnabled("house_weekend_by_appointment", true),
+      house_weekend_by_appointment: settingEnabled("house_weekend_by_appointment", true) ? "1" : "0",
     }, setHouseSaving);
+  };
+
+  const saveHouseSettingsGroup = async (
+    groupName: string,
+    values: AdminHouseSettings,
+    setGroupSaving: (isSaving: boolean) => void = setHouseSaving,
+  ): Promise<boolean> => {
+    setGroupSaving(true);
+    try {
+      await saveMyAdminHouseSettings(values);
+      toast({ title: `${groupName} saved` });
+      await refetchHouseSettings();
+      return true;
+    } catch (error) {
+      toast({
+        title: `Unable to save ${groupName}`,
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setGroupSaving(false);
+    }
   };
 
   const saveTextbeeSettings = async () => {

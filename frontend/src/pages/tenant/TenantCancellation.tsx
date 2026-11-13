@@ -11,38 +11,18 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { sessionStore } from "@/lib/api";
+import {
+  getMyCancellationPreview,
+  getMyCancellationStatus,
+  submitMyCancellationRequest,
+  withdrawMyCancellationRequest,
+  type CancellationPreview as Preview,
+  type TenantCancellationStatus as CancellationStatus,
+} from "@/lib/tenantCancellations";
 
 /* ── types ─────────────────────────────────────────────── */
-interface Preview {
-  full_name: string;
-  room_number: string;
-  monthly_rent: number;
-  daily_rate: number;
-  move_in_date: string;
-  cancellation_date: string;
-  calculated_at: string;
-  days_consumed: number;
-  amount_used: number;
-  refund_amount: number;
-}
-
-interface CancellationStatus {
-  cancellation_id: number;
-  status: "Pending" | "Approved" | "Rejected" | "Withdrawn" | "Expired";
-  cancellation_expires_at: string;
-  cancellation_date: string;
-  days_consumed: number;
-  refund_amount: number;
-  daily_rate: number;
-  amount_used: number;
-  monthly_rent: number;
-  move_in_date: string;
-  room_number: string;
-  rejection_reason: string | null;
-}
-
 const peso = (n: number) =>
   "₱" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -73,10 +53,15 @@ const TenantCancellation = () => {
   const session = sessionStore.get();
   const userId = session?.user_id;
 
-  // Poll tenant's active cancellation
-  const { data: status, refetch, loading: statusLoading } = usePolling<CancellationStatus | null>(
-    userId ? `${endpoints.tenantCancellations}?action=my_status&user_id=${userId}` : null,
-    { intervalMs: 5000 }
+  const {
+    data: status,
+    refetch,
+    loading: statusLoading,
+    error: statusError,
+  } = useSupabasePolling<CancellationStatus | null>(
+    getMyCancellationStatus,
+    5000,
+    !!userId,
   );
 
   const { remaining, label: countdownLabel } = useCountdown(
@@ -90,7 +75,8 @@ const TenantCancellation = () => {
   const [busy, setBusy] = useState(false);
 
   // Once we know there's no pending/active request, show the calculator
-  const showCalculator = !statusLoading && (status === null || status?.status === "Withdrawn" || status?.status === "Expired");
+  const showCalculator = !statusLoading && !statusError
+    && (status === null || status?.status === "Withdrawn" || status?.status === "Expired");
 
   useEffect(() => {
     if (showCalculator && userId && !preview) loadPreview();
@@ -101,10 +87,12 @@ const TenantCancellation = () => {
     if (!userId) return;
     setPreviewLoading(true);
     try {
-      const res = await api.get<ApiResponse<Preview>>(
-        `${endpoints.tenantCancellations}?action=preview&user_id=${userId}`
-      );
-      if (res.data.type === "success" && res.data.data) setPreview(res.data.data);
+      setPreview(await getMyCancellationPreview());
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not load the refund preview.",
+        variant: "destructive",
+      });
     } finally {
       setPreviewLoading(false);
     }
@@ -114,17 +102,15 @@ const TenantCancellation = () => {
     if (!userId) return;
     setBusy(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.tenantCancellations}?action=request`,
-        { user_id: userId }
-      );
-      if (res.data.type === "success") {
-        toast({ title: "Cancellation request submitted" });
-        setConfirmOpen(false);
-        refetch();
-      } else {
-        toast({ title: res.data.message || "Failed", variant: "destructive" });
-      }
+      await submitMyCancellationRequest();
+      toast({ title: "Cancellation request submitted" });
+      setConfirmOpen(false);
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not submit the cancellation request.",
+        variant: "destructive",
+      });
     } finally { setBusy(false); }
   };
 
@@ -132,17 +118,15 @@ const TenantCancellation = () => {
     if (!userId || !status) return;
     setBusy(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.tenantCancellations}?action=withdraw`,
-        { user_id: userId, cancellation_id: status.cancellation_id }
-      );
-      if (res.data.type === "success") {
-        toast({ title: "Request withdrawn" });
-        setWithdrawOpen(false);
-        refetch();
-      } else {
-        toast({ title: res.data.message || "Failed", variant: "destructive" });
-      }
+      await withdrawMyCancellationRequest(status.cancellation_id);
+      toast({ title: "Request withdrawn" });
+      setWithdrawOpen(false);
+      void refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not withdraw the request.",
+        variant: "destructive",
+      });
     } finally { setBusy(false); }
   };
 
@@ -160,6 +144,11 @@ const TenantCancellation = () => {
         {!userId && (
           <div className="p-3 rounded-md border border-warning/30 bg-warning/10 text-warning text-xs">
             Sign in to manage your cancellation.
+          </div>
+        )}
+        {statusError && (
+          <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+            {statusError}
           </div>
         )}
 

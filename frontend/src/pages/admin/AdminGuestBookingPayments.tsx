@@ -6,41 +6,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CreditCard, Trash2, Loader2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { CreditCard, XCircle, Loader2 } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { API_BASE_URL, api, type ApiResponse } from "@/lib/api";
 import { decideStayExtension, listStayExtensionRequests } from "@/lib/stayExtensions";
 import type { StayExtensionRequest } from "@/lib/stayExtensions";
+import {
+  confirmAdminBookingPayment,
+  listAdminGuestBookings,
+  recordAdminGuestBookingPayment,
+  rejectAdminBookingPayment,
+  updateAdminGuestBookingStatus,
+  type AdminGuestBooking as Booking,
+} from "@/lib/guestBookings";
 
-interface Booking {
-  booking_id: number;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  room_id: number | null;
-  room_number: string | null;
-  reservation_type?: "capacity_based" | "entire_room";
-  occupant_count?: number;
-  monthly_rent: number | null;
-  move_in_date: string | null;
-  check_out_date: string | null;
-  payment_plan: string;
-  total_rent: number;
-  amount_paid: number;
-  next_payment_due: string | null;
-  status: string;
-  notes: string | null;
-  created_at: string;
-  gcash_submitted_reference?: string | null;
-  gcash_submitted_screenshot?: string | null;
-}
+const bookingStatusOptions: Record<string, string[]> = {
+  Pending: ["Pending", "Cancelled"],
+  Confirmed: ["Confirmed", "Checked In", "Cancelled"],
+  "Checked In": ["Checked In", "Active", "Checked Out"],
+  Active: ["Active", "Checked Out"],
+};
 
 const AdminGuestBookingPayments = () => {
   const { toast } = useToast();
-  const { data: bookings, refetch, error } = usePolling<Booking[]>("/Admin/bookings.php?action=list", { intervalMs: 5000 });
+  const { data: bookings, refetch, error } = useSupabasePolling<Booking[]>(listAdminGuestBookings, 5000);
   const loadExtensionRequests = useCallback(() => listStayExtensionRequests(), []);
   const { data: extensionRequests, refetch: refetchExtensions, error: extensionError } =
     useSupabasePolling(loadExtensionRequests, 5000);
@@ -48,74 +38,75 @@ const AdminGuestBookingPayments = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [form, setForm] = useState({ amount: "", method: "GCash", reference: "" });
+  const paymentIdempotencyKeys = useRef(new Map<number, string>());
 
   const openPayment = (b: Booking) => {
     setSelected(b);
     setForm({ amount: String(b.monthly_rent || 0), method: "GCash", reference: "" });
+    if (!paymentIdempotencyKeys.current.has(b.booking_id)) {
+      paymentIdempotencyKeys.current.set(b.booking_id, crypto.randomUUID());
+    }
     setPaymentOpen(true);
   };
 
   const recordPayment = async () => {
     if (!selected) return;
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=record_payment", {
-      booking_id: selected.booking_id,
-      amount: parseFloat(form.amount),
-      method: form.method,
-      reference: form.reference,
-    });
-    if (res.data.type === "success") {
+    try {
+      await recordAdminGuestBookingPayment({
+        booking_id: selected.booking_id,
+        amount: Number(form.amount),
+        method: form.method,
+        reference: form.reference.trim(),
+        idempotency_key: paymentIdempotencyKeys.current.get(selected.booking_id) ?? crypto.randomUUID(),
+      });
       toast({ title: "Payment recorded" });
       setPaymentOpen(false);
+      paymentIdempotencyKeys.current.delete(selected.booking_id);
       refetch();
-    } else {
-      toast({ title: res.data.message || "Failed", variant: "destructive" });
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Could not record payment.", variant: "destructive" });
     }
   };
 
   const confirmInitialGcashPayment = async (booking: Booking) => {
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=confirm_initial_gcash_payment", {
-      booking_id: booking.booking_id,
-      reference: booking.gcash_submitted_reference || "",
-    });
-    if (res.data.type === "success") {
-      toast({ title: res.data.message || "GCash payment confirmed" });
+    try {
+      await confirmAdminBookingPayment(booking.booking_id);
+      toast({ title: "GCash payment confirmed" });
       refetch();
-    } else {
-      toast({ title: res.data.message || "Could not confirm payment", variant: "destructive" });
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Could not confirm payment.", variant: "destructive" });
     }
   };
 
   const rejectInitialGcashPayment = async (booking: Booking) => {
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=reject_initial_gcash_payment", {
-      booking_id: booking.booking_id,
-    });
-    if (res.data.type === "success") {
-      toast({ title: res.data.message || "GCash payment rejected" });
+    try {
+      await rejectAdminBookingPayment(booking.booking_id);
+      toast({ title: "GCash payment rejected" });
       refetch();
-    } else {
-      toast({ title: res.data.message || "Could not reject payment", variant: "destructive" });
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Could not reject payment.", variant: "destructive" });
     }
   };
 
   const updateStatus = async (b: Booking, status: string) => {
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=update_status", {
-      booking_id: b.booking_id,
-      status,
-    });
-    if (res.data.type === "success") refetch();
-    else toast({ title: res.data.message || "Failed to update", variant: "destructive" });
+    try {
+      await updateAdminGuestBookingStatus(b.booking_id, status);
+      refetch();
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Could not update booking.", variant: "destructive" });
+    }
   };
 
-  const deleteBooking = async () => {
+  const cancelBooking = async () => {
     if (!selected) return;
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=delete", {
-      booking_id: selected.booking_id,
-    });
-    if (res.data.type === "success") {
-      toast({ title: "Booking deleted" });
+    try {
+      await updateAdminGuestBookingStatus(selected.booking_id, "Cancelled");
+      toast({ title: "Booking cancelled; its audit and payment records were retained." });
       setDeleteOpen(false);
       setSelected(null);
       refetch();
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Could not cancel booking.", variant: "destructive" });
     }
   };
 
@@ -196,8 +187,16 @@ const AdminGuestBookingPayments = () => {
               </div>
               {/* Delete button placed at top-right of card */}
               <div className="absolute top-3 right-3">
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => { setSelected(b); setDeleteOpen(true); }}>
-                  <Trash2 size={14} />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-destructive"
+                  aria-label="Cancel booking"
+                  title="Cancel booking"
+                  disabled={["Cancelled", "Rejected", "Expired", "Checked Out", "Checked In", "Active"].includes(b.status)}
+                  onClick={() => { setSelected(b); setDeleteOpen(true); }}
+                >
+                  <XCircle size={14} />
                 </Button>
               </div>
 
@@ -233,7 +232,7 @@ const AdminGuestBookingPayments = () => {
                 </div>
               )}
 
-              {(b.gcash_submitted_reference || b.gcash_submitted_screenshot) && (
+              {(b.gcash_submitted_reference || b.gcash_submitted_screenshot || b.proof_unavailable) && (
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
                   <div className="space-y-1">
                     <p>
@@ -245,12 +244,17 @@ const AdminGuestBookingPayments = () => {
                     {b.gcash_submitted_screenshot && (
                       <a
                         className="text-primary underline"
-                        href={`${API_BASE_URL}/uploads/${b.gcash_submitted_screenshot}`}
+                        href={b.gcash_submitted_screenshot}
                         target="_blank"
                         rel="noreferrer"
                       >
                         View payment proof
                       </a>
+                    )}
+                    {b.proof_unavailable && (
+                      <p className="text-xs text-destructive">
+                        Legacy proof is not available in Supabase Storage yet. Complete and verify the payment-proof backfill before cutover.
+                      </p>
                     )}
                   </div>
                   {["Pending", "Pending Verification"].includes(b.status) && (
@@ -267,7 +271,7 @@ const AdminGuestBookingPayments = () => {
               )}
 
               <div className="flex flex-wrap gap-2">
-                {["Confirmed", "Cancelled", "Pending Verification", "Rejected", "Expired"].includes(b.status) ? (
+                {!bookingStatusOptions[b.status] ? (
                   <div className="flex-1 min-w-[180px] rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                     Status locked: {b.status}
                   </div>
@@ -275,12 +279,9 @@ const AdminGuestBookingPayments = () => {
                   <Select value={b.status} onValueChange={(v) => updateStatus(b, v)}>
                     <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      <SelectItem value="Checked In">Checked In</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Checked Out">Checked Out</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      {bookingStatusOptions[b.status].map(status => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -338,18 +339,18 @@ const AdminGuestBookingPayments = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
+      {/* Cancellation Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Booking?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the booking for {selected?.full_name}. This cannot be undone.
+              Cancel the booking for {selected?.full_name}? Its booking, payment, and audit records will be retained.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelected(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteBooking}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={cancelBooking}>Cancel Booking</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

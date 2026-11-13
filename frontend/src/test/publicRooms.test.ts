@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase", () => ({
   supabase: { rpc },
 }));
 
-import { getPublicRoomPhotos, getPublicRooms } from "@/lib/publicRooms";
+import { getPublicRoomPhotos, getPublicRooms, getPublicRoomsForDates } from "@/lib/publicRooms";
 
 describe("public room reads", () => {
   beforeEach(() => {
@@ -27,5 +27,21 @@ describe("public room reads", () => {
 
     await expect(getPublicRoomPhotos(7)).resolves.toEqual(photos);
     expect(rpc).toHaveBeenCalledWith("get_public_room_photos", { p_room_id: 7 });
+  });
+
+  it("loads date-specific room capacity from the availability RPC", async () => {
+    const rooms = [{ room_id: 7, available_beds: 2, available_for_dates: true }];
+    rpc.mockResolvedValue({ data: rooms, error: null });
+
+    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).resolves.toEqual(rooms);
+    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_dates", {
+      p_check_in_date: "2026-12-01",
+      p_check_out_date: "2027-01-01",
+    });
+  });
+
+  it("rejects malformed availability responses", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).rejects.toThrow("invalid list");
   });
 });

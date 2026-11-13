@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,36 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, ExternalLink, Loader2, Search, XCircle } from "lucide-react";
-import { usePolling } from "@/hooks/usePolling";
+import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
-import { api, API_BASE_URL, endpoints, type ApiResponse } from "@/lib/api";
-import axios from "axios";
-
-interface FullPaymentInstallment {
-  payment_id: number;
-  amount: number;
-  due_date: string | null;
-  description: string | null;
-  payment_status: string;
-}
-
-interface FullPaymentRequest {
-  request_id: number;
-  tenant_id: number;
-  user_id: number;
-  total_amount: number;
-  status: "Requested" | "Approved" | "Rejected" | "Submitted" | "Confirmed" | "Cancelled";
-  admin_note: string | null;
-  reference_number: string | null;
-  has_screenshot: boolean;
-  created_at: string;
-  full_name: string;
-  email: string | null;
-  phone: string | null;
-  room_number: string | null;
-  installment_count: number;
-  installments: FullPaymentInstallment[];
-}
+import {
+  decideAdminFullPayment,
+  listAdminFullPaymentRequests,
+  newFinancialRequestId,
+  approveAdminFullPayment,
+  type AdminFullPaymentRequest,
+} from "@/lib/financialWorkflows";
 
 const peso = (amount: number) => `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 const statuses = ["All", "Requested", "Approved", "Submitted", "Confirmed", "Rejected", "Cancelled"] as const;
@@ -46,18 +25,17 @@ const AdminFullPayments = () => {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<FullPaymentRequest | null>(null);
+  const [selected, setSelected] = useState<AdminFullPaymentRequest | null>(null);
   const [note, setNote] = useState("");
   const [qrImage, setQrImage] = useState<File | null>(null);
   const [qrPreviewUrl, setQrPreviewUrl] = useState<string | null>(null);
+  const [qrUploadKey, setQrUploadKey] = useState(() => newFinancialRequestId());
   const [busy, setBusy] = useState(false);
-  const query = new URLSearchParams();
-  if (statusFilter !== "All") query.set("status", statusFilter);
-  if (search.trim()) query.set("search", search.trim());
-  const { data: requests, error, refetch } = usePolling<FullPaymentRequest[]>(
-    `${endpoints.adminFullPayments}?action=list&${query.toString()}`,
-    { intervalMs: 5000 }
+  const loadRequests = useCallback(
+    () => listAdminFullPaymentRequests(statusFilter, search),
+    [statusFilter, search],
   );
+  const { data: requests, error, refetch } = useFinancialPolling<AdminFullPaymentRequest[]>(loadRequests);
   const request = requests?.find(item => item.request_id === selected?.request_id) ?? selected;
   useEffect(() => {
     if (!qrImage) {
@@ -69,28 +47,22 @@ const AdminFullPayments = () => {
     return () => URL.revokeObjectURL(previewUrl);
   }, [qrImage]);
 
-  const reportFailure = (error: unknown, fallback: string) => {
-    const serverMessage = axios.isAxiosError<ApiResponse>(error) ? error.response?.data?.message : undefined;
-    toast({
-      title: typeof serverMessage === "string" ? serverMessage : error instanceof Error ? error.message : fallback,
-      variant: "destructive",
-    });
-  };
-
   const submitDecision = async (action: "reject" | "confirm" | "reject_proof") => {
     if (!request) return;
     setBusy(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.adminFullPayments}?action=${action}`, {
-        request_id: request.request_id,
-        admin_note: note.trim(),
-      });
-      if (data.type !== "success") throw new Error(data.message || "Unable to update full payment request.");
-      toast({ title: data.message || "Full payment request updated" });
+      const actionName = action === "reject"
+        ? "admin_full_reject"
+        : action === "confirm" ? "admin_full_confirm" : "admin_full_reject_proof";
+      await decideAdminFullPayment(request.request_id, actionName, note);
+      toast({ title: "Full payment request updated" });
       setNote("");
       await refetch();
     } catch (error) {
-      reportFailure(error, "Unable to update full payment request.");
+      toast({
+        title: error instanceof Error ? error.message : "Unable to update full payment request.",
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
     }
@@ -101,22 +73,19 @@ const AdminFullPayments = () => {
       toast({ title: "Upload the fixed-amount GCash QR image.", variant: "destructive" });
       return;
     }
-    const form = new FormData();
-    form.append("request_id", String(request.request_id));
-    form.append("admin_note", note.trim());
-    form.append("qr_image", qrImage);
     setBusy(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.adminFullPayments}?action=approve`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (data.type !== "success") throw new Error(data.message || "Unable to approve full payment request.");
-      toast({ title: data.message || "Full payment request approved" });
+      await approveAdminFullPayment(request.request_id, note, qrImage, qrUploadKey);
+      toast({ title: "Full payment request approved" });
       setNote("");
       setQrImage(null);
+      setQrUploadKey(newFinancialRequestId());
       await refetch();
     } catch (error) {
-      reportFailure(error, "Unable to approve full payment request.");
+      toast({
+        title: error instanceof Error ? error.message : "Unable to approve full payment request.",
+        variant: "destructive",
+      });
     } finally {
       setBusy(false);
     }
@@ -127,10 +96,11 @@ const AdminFullPayments = () => {
       setSelected(null);
       setNote("");
       setQrImage(null);
+      setQrUploadKey(newFinancialRequestId());
     }
   };
 
-  const badgeVariant = (status: FullPaymentRequest["status"]) =>
+  const badgeVariant = (status: AdminFullPaymentRequest["status"]) =>
     status === "Confirmed" ? "default" : status === "Rejected" ? "destructive" : "secondary";
 
   return (
@@ -264,18 +234,18 @@ const AdminFullPayments = () => {
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment screenshot</p>
                       <a
                         className="block overflow-hidden rounded-md border border-border bg-white"
-                        href={`${API_BASE_URL}${endpoints.adminFullPayments}?action=screenshot&request_id=${request.request_id}`}
+                        href={request.screenshot_url || undefined}
                         target="_blank"
                         rel="noreferrer"
                         aria-label="Open payment proof in a new tab"
                       >
                         <img
-                          src={`${API_BASE_URL}${endpoints.adminFullPayments}?action=screenshot&request_id=${request.request_id}`}
+                          src={request.screenshot_url || undefined}
                           alt={`GCash payment proof for full payment request ${request.request_id}`}
                           className="max-h-72 w-full object-contain"
                         />
                       </a>
-                      <a className="inline-flex items-center gap-2 text-primary underline underline-offset-4" href={`${API_BASE_URL}${endpoints.adminFullPayments}?action=screenshot&request_id=${request.request_id}`} target="_blank" rel="noreferrer">
+                      <a className="inline-flex items-center gap-2 text-primary underline underline-offset-4" href={request.screenshot_url || undefined} target="_blank" rel="noreferrer">
                         <ExternalLink size={14} /> Open full-size screenshot
                       </a>
                     </>
@@ -289,7 +259,10 @@ const AdminFullPayments = () => {
                 <div className="space-y-3 border-t border-border pt-4">
                   <div className="grid gap-1.5">
                     <Label htmlFor="full-payment-qr">Fixed-amount GCash QR image</Label>
-                    <Input id="full-payment-qr" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => setQrImage(event.target.files?.[0] ?? null)} />
+                    <Input id="full-payment-qr" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
+                      setQrImage(event.target.files?.[0] ?? null);
+                      setQrUploadKey(newFinancialRequestId());
+                    }} />
                     <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP; maximum 5MB.</p>
                   </div>
                   {qrPreviewUrl && (

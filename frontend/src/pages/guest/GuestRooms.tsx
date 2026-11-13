@@ -2,9 +2,9 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
 import { BedDouble, CalendarDays, Heart, Loader2, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useMemo, useState } from "react";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { sessionStore } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,23 +14,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { BookingTermsDialog } from "@/components/BookingTermsDialog";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { toast } from "@/hooks/use-toast";
-import { API_BASE_URL } from "@/lib/api";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
 import { addMonths, format } from "date-fns";
-
-interface PublicRoom {
-  room_id: number;
-  room_number: string;
-  room_type: string;
-  capacity: number;
-  occupants?: number;
-  available_beds?: number;
-  monthly_rent: number | string;
-  status: string;
-  available_for_dates?: boolean | number | string;
-  description?: string;
-  image?: string;
-}
+import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import {
+  acquireMyGuestRoomHold,
+  createMyGuestBooking,
+  getGuestBookingBoundaryDates,
+  releaseMyGuestRoomHold,
+  submitMyBookingInitialPayment,
+} from "@/lib/guestBookings";
 
 interface RoomBoundaryDates {
   room_id: number;
@@ -75,6 +68,8 @@ const GuestRooms = () => {
   const [submittedBookingId, setSubmittedBookingId] = useState<number | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [paymentDeadline, setPaymentDeadline] = useState<{ expiresAtEpoch: number; serverNowEpoch: number } | null>(null);
+  const bookingRequestKey = useRef<string | null>(null);
+  const paymentSubmissionKey = useRef<string | null>(null);
   const [form, setForm] = useState({
     full_name: session?.full_name || session?.username || "",
     email: session?.email || "",
@@ -92,22 +87,28 @@ const GuestRooms = () => {
     && form.check_out_date >= minimumCheckOutDate
     && new Date(`${form.move_in_date}T00:00:00`) >= new Date(new Date().toDateString()));
   const invalidDateRange = hasAnyDates && !hasDateRange;
-  const roomListUrl = hasDateRange
-    ? `${endpoints.publicRooms}?action=list&check_in_date=${encodeURIComponent(form.move_in_date)}&check_out_date=${encodeURIComponent(form.check_out_date)}`
-    : `${endpoints.publicRooms}?action=list`;
-  const { data: rooms, error, refetch: refetchRooms } = usePolling<PublicRoom[]>(
-    roomListUrl,
-    { intervalMs: 10000 }
+  const roomCheckInDate = hasDateRange ? form.move_in_date : minimumCheckInDate;
+  const defaultCheckOutDate = new Date(`${minimumCheckInDate}T00:00:00`);
+  defaultCheckOutDate.setDate(defaultCheckOutDate.getDate() + 1);
+  const roomCheckOutDate = hasDateRange ? form.check_out_date : format(defaultCheckOutDate, "yyyy-MM-dd");
+  const boundaryRoomId = bookingRoom?.room_id;
+  const loadRooms = useCallback(
+    () => getPublicRoomsForDates(roomCheckInDate, roomCheckOutDate),
+    [roomCheckInDate, roomCheckOutDate],
   );
-  const boundaryDatesUrl = bookingRoom
-    ? `${endpoints.booking}?action=boundary_dates&room_id=${bookingRoom.room_id}`
-    : null;
+  const { data: rooms, error, refetch: refetchRooms } = useSupabasePolling(loadRooms, 10000);
+  const loadBoundaryDates = useCallback(
+    () => boundaryRoomId
+      ? getGuestBookingBoundaryDates(boundaryRoomId)
+      : Promise.resolve({ room_id: 0, dates: [] }),
+    [boundaryRoomId],
+  );
   const {
     data: scheduledRoomDates,
     loading: loadingScheduledRoomDates,
     error: scheduledRoomDatesError,
     refetch: refetchScheduledRoomDates,
-  } = usePolling<RoomBoundaryDates>(boundaryDatesUrl, { intervalMs: 10000 });
+  } = useSupabasePolling<RoomBoundaryDates>(loadBoundaryDates, 60000, Boolean(boundaryRoomId));
   const boundaryDatesReady = Boolean(
     bookingRoom
     && scheduledRoomDates?.room_id === bookingRoom.room_id
@@ -175,19 +176,12 @@ const GuestRooms = () => {
 
   const releaseRoomHold = async () => {
     try {
-      const { data } = await api.post<ApiResponse>(
-        `${endpoints.booking}?action=release_room_hold`,
-        {},
-      );
-      if (data.type !== "success") throw new Error(data.message || "The room hold could not be released.");
+      await releaseMyGuestRoomHold();
       refetchRooms();
     } catch (error: unknown) {
-      const responseMessage = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Room hold could not be released",
-        description: `${responseMessage || (error instanceof Error ? error.message : "Please try again.")} It will expire automatically after five minutes.`,
+        description: `${error instanceof Error ? error.message : "Please try again."} It will expire automatically after five minutes.`,
         variant: "destructive",
       });
     }
@@ -198,33 +192,28 @@ const GuestRooms = () => {
     setAcquiringHold(true);
     setAcquiringHoldRoomId(room.room_id);
     try {
-      const { data } = await api.post<ApiResponse>(
-        `${endpoints.booking}?action=acquire_room_hold`,
-        {
-          room_id: room.room_id,
-          ...(hasDateRange && {
-            move_in_date: form.move_in_date,
-            check_out_date: form.check_out_date,
-          }),
-        },
-      );
-      if (data.type !== "success") throw new Error(data.message || "This room could not be reserved.");
+      await acquireMyGuestRoomHold({
+        room_id: room.room_id,
+        ...(hasDateRange && {
+          move_in_date: form.move_in_date,
+          check_out_date: form.check_out_date,
+        }),
+      });
       setQuickViewRoom(null);
       setBookingRoom(room);
+      bookingRequestKey.current = null;
+      paymentSubmissionKey.current = null;
       setStep(1);
       setTermsOpen(true);
       refetchRooms();
       toast({
         title: "Room held for 5 minutes",
-        description: data.message || "Continue the booking before the hold expires.",
+        description: "Continue the booking before the hold expires.",
       });
     } catch (error: unknown) {
-      const responseMessage = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Unable to reserve room",
-        description: responseMessage || (error instanceof Error ? error.message : "Please try again."),
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
       refetchRooms();
@@ -238,24 +227,17 @@ const GuestRooms = () => {
     if (!bookingRoom || acquiringHold) return;
     setAcquiringHold(true);
     try {
-      const { data } = await api.post<ApiResponse>(
-        `${endpoints.booking}?action=acquire_room_hold`,
-        {
-          room_id: bookingRoom.room_id,
-          move_in_date: form.move_in_date,
-          check_out_date: form.check_out_date,
-        },
-      );
-      if (data.type !== "success") throw new Error(data.message || "Room availability could not be secured.");
+      await acquireMyGuestRoomHold({
+        room_id: bookingRoom.room_id,
+        move_in_date: form.move_in_date,
+        check_out_date: form.check_out_date,
+      });
       setStep(2);
       refetchRooms();
     } catch (error: unknown) {
-      const responseMessage = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "Room unavailable",
-        description: responseMessage || (error instanceof Error ? error.message : "Please choose another room or date range."),
+        description: error instanceof Error ? error.message : "Please choose another room or date range.",
         variant: "destructive",
       });
       refetchRooms();
@@ -268,48 +250,19 @@ const GuestRooms = () => {
     if (!bookingRoom || submitting) return;
     setSubmitting(true);
     try {
-      const availabilityUrl = `${endpoints.publicRooms}?action=list&check_in_date=${encodeURIComponent(form.move_in_date)}&check_out_date=${encodeURIComponent(form.check_out_date)}`;
-      const availabilityResponse = await api.get<ApiResponse<PublicRoom[]>>(availabilityUrl);
-      if (availabilityResponse.data.type !== "success" || !availabilityResponse.data.data) {
-        throw new Error(availabilityResponse.data.message || "Room availability could not be checked. Please try again.");
-      }
-      const currentRoom = availabilityResponse.data.data.find(
-        room => Number(room.room_id) === Number(bookingRoom.room_id),
-      );
-      const availableForDates = currentRoom?.available_for_dates === true
-        || Number(currentRoom?.available_for_dates) === 1;
-      if (!currentRoom || currentRoom.status === "Maintenance" || !availableForDates) {
-        refetchRooms();
-        setStep(1);
-        toast({
-          title: "Room unavailable",
-          description: `Room ${bookingRoom.room_number} is unavailable for the selected dates. Please change your dates or choose another room.`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data } = await api.post<ApiResponse & {
-        booking_id?: number;
-        initial_payment_amount?: number;
-        payment_expires_at_epoch?: number;
-        server_now_epoch?: number;
-      }>(
-        `${endpoints.booking}?action=create`,
-        {
-          ...form,
-          room_id: bookingRoom.room_id,
-          notes: form.notes,
-        }
-      );
-      if (data.type !== "success") throw new Error(data.message || "Booking failed");
+      bookingRequestKey.current ||= crypto.randomUUID();
+      const data = await createMyGuestBooking({
+        ...form,
+        room_id: bookingRoom.room_id,
+        idempotency_key: bookingRequestKey.current,
+      });
       toast({
         title: "Room temporarily reserved",
-        description: data.message,
+        description: "Your booking is saved. Complete the initial payment before the deadline.",
       });
       setDetailsOpen(false);
       setTermsOpen(false);
-      setSubmittedBookingId(data.booking_id ?? null);
+      setSubmittedBookingId(data.booking_id);
       setPaymentAmount(Number(data.initial_payment_amount ?? initialPayment));
       setPaymentDeadline(
         Number(data.payment_expires_at_epoch) > 0 && Number(data.server_now_epoch) > 0
@@ -322,14 +275,12 @@ const GuestRooms = () => {
       refetchRooms();
       setPaymentOpen(true);
       setBookingRoom(null);
+      bookingRequestKey.current = null;
     } catch (e: unknown) {
-      const responseMessage = typeof e === "object" && e !== null && "response" in e
-        ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      const msg = responseMessage || (e instanceof Error ? e.message : "Booking failed");
+      const msg = e instanceof Error ? e.message : "Booking failed";
       refetchRooms();
       const availabilityConflict = msg.includes("unavailable for the selected dates")
-        || msg.includes("currently being reserved by another guest");
+        || msg.includes("hold expired");
       if (availabilityConflict) setStep(1);
       toast({
         title: availabilityConflict ? "Room unavailable" : "Booking error",
@@ -771,18 +722,16 @@ const GuestRooms = () => {
         successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!submittedBookingId) throw new Error("Booking reference is missing.");
-          const formData = new FormData();
-          formData.append("booking_id", String(submittedBookingId));
-          formData.append("method", method);
-          formData.append("reference", reference);
-          if (screenshot) formData.append("screenshot", screenshot);
-          const { data } = await api.post<ApiResponse>(
-            `${endpoints.booking}?action=submit_initial_gcash_payment`,
-            formData,
-            { headers: { "Content-Type": "multipart/form-data" } },
+          paymentSubmissionKey.current ||= crypto.randomUUID();
+          await submitMyBookingInitialPayment(
+            submittedBookingId,
+            method,
+            reference,
+            screenshot,
+            paymentSubmissionKey.current,
           );
-          if (data.type !== "success") throw new Error(data.message || "Could not submit the booking payment.");
-          toast({ title: data.message || "GCash payment submitted for admin review" });
+          paymentSubmissionKey.current = null;
+          toast({ title: "GCash payment submitted for admin review" });
           refetchRooms();
         }}
       />

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
-import { usePolling } from "@/hooks/usePolling";
+import { useChatPolling } from "@/hooks/useChatPolling";
+import { askChatbot, getChatbotStatus, getChatbotSuggestions, type ChatbotResponse } from "@/lib/chatbot";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -13,16 +13,7 @@ type ChatMessage = {
 
 type AiStatus = "online" | "busy" | "offline";
 
-type ChatApiResponse = {
-  type?: string;
-  reply?: string;
-  message?: string;
-  status?: AiStatus;
-  error_type?: string;
-  retryable?: boolean;
-  cached?: boolean;
-  debug?: Record<string, unknown> | null;
-};
+type ChatApiResponse = ChatbotResponse;
 
 const DEFAULT_GREETING =
   "Hello! I'm your Myle's Boarding House assistant. How can I help you today?";
@@ -49,11 +40,8 @@ function getFriendlyMessage(data: ChatApiResponse | undefined, fallback: string)
 }
 
 export function ChatbotWidget() {
-  const { data: adminSuggestions, error: suggestionsError } = usePolling<string[]>(
-    "/Chat/ollama.php?action=suggestions",
-    { intervalMs: 5000 },
-  );
-  const suggestions = [...new Set([...(adminSuggestions ?? []), "How do I book a room?", "What rooms are available and how much are they?", "How do I check room rates and booking costs?", "What room details can you show me?", "How do I use GPS directions to the boarding house?", "What are the latest announcements?", "How do I create an account?", "How do I pay my rent?", "How do I request a full rent payment?", "How do I cancel my booking or tenancy?", "How do I request a refund?", "How do I leave a rating?", "How do I report a maintenance issue?", "How do I file a complaint?"])];
+  const { data: remoteSuggestions, error: suggestionsError } = useChatPolling(getChatbotSuggestions, 30000);
+  const suggestions = [...new Set([...(remoteSuggestions ?? []), "How do I book a room?", "What rooms are available and how much are they?", "How do I check room rates and booking costs?", "What room details can you show me?", "How do I use GPS directions to the boarding house?", "What are the latest announcements?", "How do I create an account?", "How do I pay my rent?", "How do I request a full rent payment?", "How do I cancel my booking or tenancy?", "How do I request a refund?", "How do I leave a rating?", "How do I report a maintenance issue?", "How do I file a complaint?"])];
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "assistant", message: DEFAULT_GREETING },
@@ -86,13 +74,14 @@ export function ChatbotWidget() {
 
     const checkStatus = async () => {
       try {
-        const { data } = await api.post<ChatApiResponse>("/Chat/ollama.php", { action: "status" });
+        const data = await getChatbotStatus();
         if (!mounted) return;
         setAiStatus(data?.status ?? "offline");
         setStatusMessage(data?.message ?? "AI is online.");
       } catch {
         if (!mounted) return;
         setAiStatus("offline");
+        setStatusMessage("AI server is temporarily unavailable.");
       }
     };
 
@@ -212,16 +201,11 @@ export function ChatbotWidget() {
         }
 
         try {
-          const { data } = await api.post<ChatApiResponse>(
-            "/Chat/ollama.php",
-            {
-              message: trimmed,
-              history,
-              language: preferredLanguage,
-              action: "chat",
-            },
-            { signal: controller.signal },
-          );
+          const data = await askChatbot({
+            message: trimmed,
+            history,
+            language: preferredLanguage,
+          }, controller.signal);
 
           const reply = data?.type === "success" && data.reply
             ? String(data.reply)

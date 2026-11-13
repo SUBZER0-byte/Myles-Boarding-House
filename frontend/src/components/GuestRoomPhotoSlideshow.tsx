@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Image as ImageIcon, ZoomIn, ZoomOut } from "
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { API_BASE_URL } from "@/lib/api";
-import { getPublicRoomPhotos, type PublicRoomPhoto } from "@/lib/publicRooms";
+import { getPublicRoomImageUrl, getPublicRoomPhotos, type PublicRoomPhoto } from "@/lib/publicRooms";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 interface GuestRoomPhotoSlideshowProps {
@@ -19,7 +19,8 @@ interface Slide {
 }
 
 function imageUrl(image: string): string {
-  if (image.startsWith("http")) return image;
+  const resolvedImage = getPublicRoomImageUrl(image);
+  if (resolvedImage.startsWith("http")) return resolvedImage;
   if (image.includes("/")) return `${API_BASE_URL}/${image}`;
   return `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(image)}`;
 }

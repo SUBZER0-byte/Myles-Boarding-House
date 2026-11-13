@@ -6,9 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RotateCcw } from "lucide-react";
-import { usePolling } from "@/hooks/usePolling";
+import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
-import { api, endpoints, API_BASE_URL, type ApiResponse } from "@/lib/api";
+import {
+  getEligibleRefundPayments,
+  listMyRefundRequests,
+  newFinancialRequestId,
+  submitMyRefundRequest,
+} from "@/lib/financialWorkflows";
 
 interface RefundRequest {
   refund_id: number;
@@ -19,9 +24,10 @@ interface RefundRequest {
   status: "Pending" | "Approved" | "Rejected";
   transaction_reference: string | null;
   transfer_reference: string | null;
-  transfer_screenshot_path: string | null;
+  transfer_screenshot_path?: string | null;
+  transfer_screenshot_url?: string | null;
   admin_note: string | null;
-  description: string | null;
+  description?: string | null;
   created_at: string;
 }
 
@@ -46,7 +52,7 @@ interface Props {
 const peso = (amount: number) => `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 export function RefundRequestHistory() {
-  const { data: requests, error } = usePolling<RefundRequest[]>(`${endpoints.refunds}?action=mine`, { intervalMs: 10000 });
+  const { data: requests, error } = useFinancialPolling<RefundRequest[]>(listMyRefundRequests, 10000);
   if (error) {
     return <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>;
   }
@@ -63,10 +69,10 @@ export function RefundRequestHistory() {
             <p className="font-medium text-sm">{request.description || `Payment #${request.payment_id}`}</p>
             <p className="text-xs text-muted-foreground">{new Date(request.created_at).toLocaleDateString()} · {peso(Number(request.refund_amount))}</p>
             {request.transfer_reference && <p className="text-xs text-muted-foreground mt-1">Refund transfer transaction number: {request.transfer_reference}</p>}
-            {request.transfer_screenshot_path && (
+            {request.transfer_screenshot_url && (
               <a
                 className="text-xs text-primary underline underline-offset-4"
-                href={`${API_BASE_URL}${endpoints.refunds}?action=transfer_screenshot&refund_id=${request.refund_id}`}
+                href={request.transfer_screenshot_url}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -91,6 +97,7 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
   const [gcashNumber, setGcashNumber] = useState("");
   const [reason, setReason] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [requestKey, setRequestKey] = useState(() => newFinancialRequestId());
   const [saving, setSaving] = useState(false);
   const [payments, setPayments] = useState<EligiblePayment[]>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState<number | null>(null);
@@ -100,21 +107,18 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
 
   useEffect(() => {
     if (!open) return;
-    const query = new URLSearchParams({ action: "eligible" });
-    if (paymentId) query.set("payment_id", String(paymentId));
-    if (bookingId) query.set("booking_id", String(bookingId));
     let active = true;
     setPayments([]);
     setSelectedPaymentId(null);
     setLoadError("");
-    api.get<ApiResponse<EligiblePayment[]>>(`${endpoints.refunds}?${query.toString()}`)
-      .then(({ data }) => {
+    getEligibleRefundPayments({ payment_id: paymentId, booking_id: bookingId })
+      .then(data => {
         if (!active) return;
-        if (data.type !== "success" || !Array.isArray(data.data)) {
-          setLoadError(data.message || "Unable to load refundable payments.");
+        if (!Array.isArray(data)) {
+          setLoadError("Unable to load refundable payments.");
           return;
         }
-        const available = data.data.filter(item => !item.has_pending_request && Number(item.remaining_amount) > 0);
+        const available = data.filter(item => !item.has_pending_request && Number(item.remaining_amount) > 0);
         setPayments(available);
         setSelectedPaymentId(available[0]?.payment_id ?? null);
         if (!available.length) setLoadError("No payment with a refundable balance is available.");
@@ -135,26 +139,25 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
       toast({ title: "Enter a transaction number or attach a GCash screenshot", variant: "destructive" });
       return;
     }
-    const form = new FormData();
-    form.append("payment_id", String(payment.payment_id));
-    form.append("gcash_account_name", gcashAccountName.trim());
-    form.append("gcash_number", gcashNumber.trim());
-    form.append("transaction_reference", reference.trim());
-    form.append("reason", reason.trim());
-    if (screenshot) form.append("screenshot", screenshot);
     setSaving(true);
     try {
-      const { data } = await api.post<ApiResponse>(`${endpoints.refunds}?action=submit`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
+      await submitMyRefundRequest({
+        payment_id: payment.payment_id,
+        gcash_account_name: gcashAccountName,
+        gcash_number: gcashNumber,
+        transaction_reference: reference,
+        reason,
+        screenshot,
+        idempotency_key: requestKey,
       });
-      if (data.type !== "success") throw new Error(data.message || "Refund request failed.");
-      toast({ title: data.message || "Refund request submitted" });
+      toast({ title: "Refund request submitted" });
       setOpen(false);
       setReference("");
       setGcashAccountName("");
       setGcashNumber("");
       setReason("");
       setScreenshot(null);
+      setRequestKey(newFinancialRequestId());
       onSubmitted?.();
     } catch (error) {
       toast({
@@ -179,6 +182,7 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
           setGcashNumber("");
           setReason("");
           setScreenshot(null);
+          setRequestKey(newFinancialRequestId());
         }
       }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
