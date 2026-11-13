@@ -2,7 +2,7 @@
 metadata:
   generated: "2026-11-13T23:22:00+08:00"
   source_tasks: ".github/modernize/php-mysql-to-supabase/.metadata/tasks.json"
-  last_updated: "2026-11-13T23:22:00+08:00"
+  last_updated: "2026-11-14T00:50:00+08:00"
 
 summary:
   total_tasks: 1
@@ -33,7 +33,7 @@ tasks:
         - file: "frontend/src/pages/tenant/TenantPayments.tsx"
           changes:
             - change_type: "modified"
-              description: "Move full-payment reads, requests, proof submission, and cancellation to Supabase"
+              description: "Move rent history, payment submission, full-payment requests, and proof workflow to Supabase"
         - file: "frontend/src/pages/admin/AdminFullPayments.tsx"
           changes:
             - change_type: "modified"
@@ -57,25 +57,77 @@ tasks:
         - file: "backend/guides/VERCEL_EXTERNAL_PHP_DEPLOYMENT.md"
           changes:
             - change_type: "modified"
-              description: "Document local-only financial slice, residual PHP endpoints, backfill, coupling, and rollback"
+              description: "Document local financial migration, remaining QR/SMS dependencies, backfill, and rollback"
+        - file: "supabase/migrations/20261114030000_rent_payment_ledger.sql"
+          changes:
+            - change_type: "added"
+              description: "Add role-checked transactional rent scheduling, history, GCash submission, Admin ledger operations, and notifications"
+        - file: "supabase/tests/rent_payment_ledger.test.sql"
+          changes:
+            - change_type: "added"
+              description: "Add pgTAP coverage for authentication, tenant isolation, duplicate submission, Admin actions, and payment status"
+        - file: "frontend/src/lib/rentPayments.ts"
+          changes:
+            - change_type: "added"
+              description: "Add authenticated rent-ledger RPC calls, private proof uploads, and signed Admin proof reads"
+        - file: "frontend/src/test/rentPayments.test.ts"
+          changes:
+            - change_type: "added"
+              description: "Test owner-derived rent calls, evidence validation, Storage errors, Admin RPC parameters, and signed proof reads"
+        - file: "frontend/src/pages/admin/AdminPayments.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move Admin rent list, summary, create, status, delete, schedule, and screenshot actions to Supabase"
+        - file: "supabase/migrations/20261114040000_gcash_qr_storage.sql"
+          changes:
+            - change_type: "added"
+              description: "Add role-checked GCash QR management, private Storage, and authenticated image reads"
+        - file: "frontend/src/lib/gcashQrs.ts"
+          changes:
+            - change_type: "added"
+              description: "Add Supabase QR management, booking reads, and signed private-image URLs"
+        - file: "frontend/src/components/BookingPaymentDialog.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Load exact-amount GCash QR images from Supabase; remove PHP QR fallbacks"
+        - file: "frontend/src/pages/admin/AdminSettings.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Move GCash QR upload, edit, crop, display, and delete flows to Supabase"
+        - file: "frontend/src/components/ProfilePictureCard.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Remove the unused PHP upload branch; profile picture uploads now exclusively use Supabase Storage"
+        - file: "frontend/src/pages/admin/AdminSettings.tsx"
+          changes:
+            - change_type: "modified"
+              description: "Remove PHP settings/key polling and credential persistence from the browser; direct Supabase providers to server-side secrets"
     verification:
       build_passed: true
       test_results:
         command: "npm.cmd --prefix frontend test"
-        passed: 88
+        passed: 112
         failed: 0
         skipped: 0
         failures: []
-      notes: "Focused financial unit tests: 4 passed. SQL integration tests could not run because Docker/Podman and psql are unavailable. TypeScript check reports one unrelated pre-existing error in frontend/src/pages/GuestDashboard.tsx."
+      notes: "Sixteen focused financial/rent/QR service tests passed. Full frontend suite (112 tests), production build, TypeScript check, and targeted ESLint passed. SQL integration tests could not run because psql, Supabase CLI, Docker, and Podman are unavailable."
     upstream_trace:
       plan_item: "003-migrate-tenant-and-admin-financial-workflows"
       requirements:
         - "Task 003 requirements in .github/modernize/php-mysql-to-supabase/.metadata/tasks.json"
-      full_trace: "Task 003 → financial workflow RPC/Storage service and UI → frontend tests and pgTAP test source"
-      notes: "This task remains incomplete because rent-ledger screens and rent-payment proof flows still use PHP/MySQL."
+      full_trace: "Task 003 → financial and rent-ledger RPC/Storage services and UI → frontend tests and pgTAP test sources"
+      notes: "Rent-ledger screens and proof submission now use local Supabase RPCs. GCash QR administration and payment-dialog reads also use Supabase RPC/Storage. Legacy PayPal workflows, local SQL integration verification, and authorized data/evidence/QR backfill remain."
 
 pending_tasks: []
-untracked_changes: []
+untracked_changes:
+  - "frontend/src/lib/rentPayments.ts"
+  - "frontend/src/test/rentPayments.test.ts"
+  - "frontend/src/lib/gcashQrs.ts"
+  - "frontend/src/test/gcashQrs.test.ts"
+  - "supabase/migrations/20261114030000_rent_payment_ledger.sql"
+  - "supabase/tests/rent_payment_ledger.test.sql"
+  - "supabase/migrations/20261114040000_gcash_qr_storage.sql"
+  - "supabase/tests/gcash_qr_storage.test.sql"
 traceability_chain:
   - chain_id: "TRACE-FINANCIAL-003"
     requirement: "Task 003 financial workflow requirements"
@@ -85,18 +137,27 @@ traceability_chain:
       - "003-migrate-tenant-and-admin-financial-workflows"
     files:
       - "supabase/migrations/20261113230000_financial_workflows.sql"
+      - "supabase/migrations/20261114030000_rent_payment_ledger.sql"
       - "frontend/src/lib/financialWorkflows.ts"
+      - "frontend/src/lib/rentPayments.ts"
       - "frontend/src/pages/tenant/TenantPayments.tsx"
       - "frontend/src/pages/admin/AdminFullPayments.tsx"
       - "frontend/src/components/RefundRequests.tsx"
       - "frontend/src/pages/admin/AdminRefunds.tsx"
+      - "supabase/migrations/20261114040000_gcash_qr_storage.sql"
+      - "supabase/tests/gcash_qr_storage.test.sql"
+      - "frontend/src/lib/gcashQrs.ts"
+      - "frontend/src/test/gcashQrs.test.ts"
+      - "frontend/src/components/BookingPaymentDialog.tsx"
+      - "frontend/src/pages/admin/AdminSettings.tsx"
     status: "partial"
 
 validation:
   passed: false
   errors: []
   warnings:
-    - "The Supabase financial migration and pgTAP test were not applied/run locally because the environment lacks Docker/Podman and psql."
-    - "Rent payment schedule/history/submission and rent-proof flows remain PHP-backed, including Tenant payments.php actions history, submit, and screenshot; Admin actions tenants, list, summary, create, update_status, delete, generate_next_month, and screenshot."
+    - "The Supabase financial migrations and pgTAP tests were not run locally because psql, Supabase CLI, Docker, and Podman are unavailable."
+    - "Legacy PayPal payment/configuration workflows remain PHP-backed."
+    - "Financial tables, GCash references, proof objects, and QR media have not been backfilled or reconciled."
   blocking_issues:
-    - "Safe full financial cutover requires an authorized MySQL ledger/evidence backfill and coordinated retirement of remaining PHP rent endpoints."
+    - "Safe cutover requires authorized MySQL ledger/evidence/QR backfill and reconciliation, PayPal endpoint migration, and verified SQL/RLS/Storage tests."

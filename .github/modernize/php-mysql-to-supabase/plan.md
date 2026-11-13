@@ -40,26 +40,32 @@ Repository inspection found these Admin/Tenant/Guest page flows still using PHP
 or PHP-hosted files. Some pages have both Supabase and PHP paths; the page names
 below identify the remaining PHP portion, not necessarily every read on that page.
 
-- **Admin**: `AdminPayments` (rent ledger/actions); `AdminFullPayments`
+- **Admin**: `AdminFullPayments`
   (requests, decisions, proof images); `AdminGuestBookingPayments` (booking
   review/payment actions); `AdminRefunds` (refund requests and evidence);
   `AdminCancellations` booking-cancellations tab (the tenancy-cancellation tab
-  now calls Supabase in the worktree);   and the remaining `AdminSettings`
-  payment/SMS configuration, API secrets, and GCash QR management.
-  Chatbot FAQ/question administration now uses Admin-only Supabase RPCs, but
-  requires migration and content backfill. `BookingPaymentDialog` still reads GCash QR data through the PHP
-  public-info API.
-- **Tenant**: Full-payment/refund/proof flows in `TenantPayments` now use
-  Supabase; rent ledger history, submission, and rent-proof handling remain
-  PHP-backed.
+  now calls Supabase in the worktree);     and the remaining `AdminSettings`
+  legacy PayPal configuration. Supabase SMS/chatbot credentials are configured
+  as server-side Edge Function secrets, not through the browser. GCash QR management and the shared
+  payment dialog now use Supabase RPC and private Storage, but still require the
+  migration and QR image/amount backfill before cutover. Chatbot FAQ/question
+  administration also uses Admin-only Supabase RPCs and requires its migration
+  and content backfill.
+- **Tenant**: Full-payment/refund/proof flows and rent history/submission in
+  `TenantPayments` use Supabase RPCs and private financial Storage. The shared
+  payment dialog now loads GCash QR configuration and images through Supabase;
+  configured QR images/amounts must be backfilled before cutover.
 - **Guest**: `GuestDashboard` booking-status/public-room API reads; `GuestRooms`
   room holds, booking creation, and initial-payment submission (its room
   availability/read work is partially Supabase-backed); `GuestBooking` status,
   cancellation, and initial-payment flows; and `PaymentSuccess`/`PaymentFailed`
   booking-status reads. Shared Supabase chat and the chatbot are also used by
   Guest accounts.
-- **Admin Settings**: provider/API secrets, SMS configuration, chatbot FAQ and
-  suggested-question management, and GCash QR management remain PHP-backed.
+- **Admin Settings**: legacy PayPal configuration remains PHP-backed until its
+  payment endpoints migrate. Supabase TextBee/Ollama secrets are server-side
+  Edge Function configuration. GCash QR management now uses Supabase RPC/Storage but requires
+  migration and image/amount backfill. Chatbot FAQ and suggested-question management
+  now use Admin-only Supabase RPCs, but require migration and content backfill.
 - **Shared components**: `Chat.tsx` and `DashboardSidebar` now use the
   authenticated `manage_my_chat` RPC and private chat-image Storage bucket.
   `ChatbotWidget` now uses a server-side Ollama Edge Function and public

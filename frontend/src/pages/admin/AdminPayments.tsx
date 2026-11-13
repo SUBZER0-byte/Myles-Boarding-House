@@ -5,35 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2, CheckCircle2, Clock3, AlertTriangle, CircleDashed, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import {
+  createAdminRentPayment,
+  deleteAdminRentPayment,
+  generateNextMonthRentPayments,
+  getAdminRentPaymentScreenshot,
+  getAdminRentPaymentSummary,
+  listAdminRentPaymentTenants,
+  listAdminRentPayments,
+  updateAdminRentPaymentStatus,
+  type RentPayment,
+  type RentPaymentTenant,
+} from "@/lib/rentPayments";
 
-interface Payment {
-  payment_id: number;
-  tenant_id: number;
-  full_name: string;
-  room_number: string | null;
-  amount: number;
-  due_date: string;
-  paid_at: string | null;
-  method: string | null;
-  reference_number: string | null;
-  has_payment_screenshot: number | boolean;
-  status: string;
-  display_status: string;
-  description: string;
-}
+type Payment = RentPayment;
 interface Summary { status: string; cnt: number; total: number; }
-interface Tenant {
-  tenant_id: number;
-  full_name: string;
-  room_number: string | null;
-  move_in_date: string | null;
-  move_out_date: string | null;
-  is_active: number;
-}
+type Tenant = RentPaymentTenant;
 
 const paymentStatusStyles: Record<string, { icon: typeof CheckCircle2; trigger: string; dot: string }> = {
   Paid: {
@@ -67,16 +57,21 @@ const AdminPayments = () => {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTenant, setSelectedTenant] = useState<string>("");
-  const { data: tenants, error: tenantsError } = usePolling<Tenant[]>(`${endpoints.adminPayments}?action=tenants`, { intervalMs: 10000 });
+  const { data: tenants, error: tenantsError } = useSupabasePolling<Tenant[]>(listAdminRentPaymentTenants, 10000);
   const tenantId = Number(selectedTenant);
-  const query = new URLSearchParams({ action: "list", tenant_id: selectedTenant });
-  if (statusFilter !== "all") query.set("status", statusFilter);
-  const url = selectedTenant ? `${endpoints.adminPayments}?${query.toString()}` : null;
-  const { data: payments, refetch, error } = usePolling<Payment[]>(url, { intervalMs: 5000 });
-  const { data: summary } = usePolling<Summary[]>(
-    selectedTenant ? `${endpoints.adminPayments}?action=summary&tenant_id=${selectedTenant}` : null,
-    { intervalMs: 5000 },
+  const loadPayments = useCallback(
+    () => listAdminRentPayments({
+      ...(selectedTenant && { tenant_id: tenantId }),
+      ...(statusFilter !== "all" && { status: statusFilter }),
+    }),
+    [selectedTenant, statusFilter, tenantId],
   );
+  const loadSummary = useCallback(
+    () => selectedTenant ? getAdminRentPaymentSummary(tenantId) : Promise.resolve([]),
+    [selectedTenant, tenantId],
+  );
+  const { data: payments, refetch, error } = useSupabasePolling<Payment[]>(loadPayments, 5000, Boolean(selectedTenant));
+  const { data: summary } = useSupabasePolling<Summary[]>(loadSummary, 5000, Boolean(selectedTenant));
 
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ tenant_id: "", amount: 0, due_date: "", description: "", status: "Pending" });
@@ -85,26 +80,32 @@ const AdminPayments = () => {
   const [paymentMethod, setPaymentMethod] = useState<"Cash" | "GCash">("Cash");
   const [paymentReference, setPaymentReference] = useState("");
   const [statusSaving, setStatusSaving] = useState(false);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
 
   const create = async () => {
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${endpoints.adminPayments}?action=create`, form);
-      if (res.data.type === "success") { toast({ title: "Payment created" }); setOpen(false); refetch(); }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      await createAdminRentPayment({ ...form, tenant_id: Number(form.tenant_id) });
+      toast({ title: "Payment created" });
+      setOpen(false);
+      refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not create payment.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
   const updateStatus = async (p: Payment, status: string, method?: "Cash" | "GCash", reference?: string) => {
     try {
-      const res = await api.post<ApiResponse>(`${endpoints.adminPayments}?action=update_status`, {
+      await updateAdminRentPaymentStatus({
         payment_id: p.payment_id,
         status,
         method,
         reference,
       });
-      if (res.data.type !== "success") throw new Error(res.data.message || "Unable to record payment.");
-      toast({ title: res.data.message || "Payment record updated" });
+      toast({ title: status === "Paid" ? "Payment marked as paid" : "Payment status updated" });
       setStatusPayment(null);
       refetch();
     } catch (error) {
@@ -140,13 +141,48 @@ const AdminPayments = () => {
   };
 
   const remove = async (p: Payment) => {
-    const res = await api.post<ApiResponse>(`${endpoints.adminPayments}?action=delete`, { payment_id: p.payment_id });
-    toast({ title: res.data.message || "Deleted" }); refetch();
+    try {
+      await deleteAdminRentPayment(p.payment_id);
+      toast({ title: "Deleted" });
+      refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not delete payment.",
+        variant: "destructive",
+      });
+    }
   };
 
   const generateNextMonth = async () => {
-    const res = await api.get<ApiResponse>(`${endpoints.adminPayments}?action=generate_next_month`);
-    toast({ title: res.data.message || "Updated" }); refetch();
+    try {
+      const result = await generateNextMonthRentPayments();
+      toast({
+        title: result.count > 0
+          ? `Generated ${result.count} next-month rent payment(s).`
+          : "No new next-month rent payment was needed.",
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not generate rent payments.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const showScreenshot = async (payment: Payment) => {
+    if (!payment.screenshot_path) {
+      toast({ title: "Payment screenshot is unavailable.", variant: "destructive" });
+      return;
+    }
+    try {
+      setScreenshotPreview(await getAdminRentPaymentScreenshot(payment.screenshot_path));
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Could not open the payment screenshot.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -251,14 +287,13 @@ const AdminPayments = () => {
                     <p>{p.method || "—"}</p>
                     {p.reference_number && <p className="text-xs">Transaction #: {p.reference_number}</p>}
                     {p.has_payment_screenshot && (
-                      <a
+                      <button
+                        type="button"
                         className="text-xs font-medium text-primary underline underline-offset-2"
-                        href={`${API_BASE_URL}${endpoints.adminPayments}?action=screenshot&payment_id=${p.payment_id}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        onClick={() => void showScreenshot(p)}
                       >
                         View GCash screenshot
-                      </a>
+                      </button>
                     )}
                   </td>
                   <td className="p-3 text-muted-foreground">{p.paid_at ?? "—"}</td>
@@ -390,6 +425,22 @@ const AdminPayments = () => {
               {statusSaving && <Loader2 size={14} className="mr-2 animate-spin" />}Save paid status
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(screenshotPreview)} onOpenChange={open => {
+        if (!open) setScreenshotPreview(null);
+      }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>GCash payment screenshot</DialogTitle>
+            <DialogDescription>Private payment evidence; this link expires automatically.</DialogDescription>
+          </DialogHeader>
+          {screenshotPreview && (
+            <a href={screenshotPreview} target="_blank" rel="noreferrer" className="block">
+              <img src={screenshotPreview} alt="GCash payment proof" className="mx-auto max-h-[70vh] max-w-full object-contain" />
+            </a>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -5,13 +5,19 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Loader2, CheckCircle2, Download, Wallet, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
+import { sessionStore } from "@/lib/api";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { RefundRequestButton, RefundRequestHistory } from "@/components/RefundRequests";
+import {
+  listMyRentPayments,
+  newRentPaymentSubmissionId,
+  submitMyRentPayment,
+  type RentPayment,
+} from "@/lib/rentPayments";
 import {
   cancelMyFullPayment,
   getMyFullPaymentPreview,
@@ -20,16 +26,8 @@ import {
   requestMyFullPayment,
   submitMyFullPaymentProof,
 } from "@/lib/financialWorkflows";
-import axios from "axios";
 
-interface Payment {
-  payment_id: number; amount: number; due_date: string | null; paid_at: string | null;
-  status: string; method: string | null; description: string; reference_number?: string | null;
-  has_payment_screenshot?: number | boolean;
-  refunded_amount?: number | null;
-  refund_available?: number | boolean;
-  check_in_date?: string | null; check_out_date?: string | null;
-}
+type Payment = RentPayment;
 
 interface FullPaymentInstallment {
   payment_id: number;
@@ -190,9 +188,10 @@ const TenantPayments = () => {
   const { toast } = useToast();
   const session = sessionStore.get();
   const userId = session?.user_id;
-  const { data: history, error, refetch: refetchHistory } = usePolling<Payment[]>(
-    userId ? `${endpoints.tenantPayments}?action=history` : null,
-    { intervalMs: 5000 }
+  const { data: history, error, refetch: refetchHistory } = useSupabasePolling<Payment[]>(
+    listMyRentPayments,
+    5000,
+    Boolean(userId),
   );
   const { data: fullPayment, error: fullPaymentError, loading: fullPaymentLoading, refetch: refetchFullPayment } =
     useFinancialPolling<FullPaymentRequest | null>(getMyFullPaymentRequest, 5000, Boolean(userId));
@@ -206,10 +205,15 @@ const TenantPayments = () => {
   const [fullPaymentReference, setFullPaymentReference] = useState("");
   const [fullPaymentScreenshot, setFullPaymentScreenshot] = useState<File | null>(null);
   const [fullPaymentProofKey, setFullPaymentProofKey] = useState(() => newFinancialRequestId());
+  const paymentSubmissionId = useRef<string | null>(null);
   const fullPaymentOpen = Boolean(fullPayment && ["Requested", "Approved", "Submitted"].includes(fullPayment.status));
   const coveredPaymentIds = new Set(fullPaymentOpen ? fullPayment?.installments.map(item => item.payment_id) : []);
 
-  const startPay = (p: Payment) => { setSelected(p); setOpen(true); };
+  const startPay = (p: Payment) => {
+    setSelected(p);
+    paymentSubmissionId.current = newRentPaymentSubmissionId();
+    setOpen(true);
+  };
 
   const refreshFullPaymentData = () => {
     refetchHistory();
@@ -285,30 +289,17 @@ const TenantPayments = () => {
 
   const submit = async (method: string, reference: string, _captureId?: string, _orderId?: string, screenshot?: File) => {
     if (!selected) throw new Error("Select a rent payment before submitting.");
-    try {
-      let body: FormData | { payment_id: number; method: string; reference: string };
-      if (screenshot) {
-        body = new FormData();
-        body.append("payment_id", String(selected.payment_id));
-        body.append("method", method);
-        body.append("reference", reference);
-        body.append("screenshot", screenshot);
-      } else {
-        body = { payment_id: selected.payment_id, method, reference };
-      }
-      const res = await api.post<ApiResponse>(`${endpoints.tenantPayments}?action=submit`, body,
-        screenshot ? { headers: { "Content-Type": "multipart/form-data" } } : undefined);
-      if (res.data.type !== "success") throw new Error(res.data.message || "Payment submission failed.");
-      toast({ title: res.data.message ?? "GCash payment submitted for admin review" });
-      refetchHistory();
-    } catch (error: unknown) {
-      const responseMessage = axios.isAxiosError<ApiResponse>(error)
-        ? error.response?.data?.message
-        : undefined;
-      throw new Error(typeof responseMessage === "string"
-        ? responseMessage
-        : error instanceof Error ? error.message : "Payment submission failed. Please try again.");
-    }
+    if (method !== "GCash") throw new Error("Only GCash rent payments are supported.");
+    paymentSubmissionId.current ??= newRentPaymentSubmissionId();
+    await submitMyRentPayment({
+      payment_id: selected.payment_id,
+      reference,
+      screenshot,
+      submission_id: paymentSubmissionId.current,
+    });
+    paymentSubmissionId.current = null;
+    toast({ title: "GCash payment submitted for admin review" });
+    refetchHistory();
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
@@ -624,6 +615,7 @@ const TenantPayments = () => {
           setOpen(next);
           if (!next) {
             setSelected(null);
+            paymentSubmissionId.current = null;
           }
         }}
         roomName={selected ? `Payment #${selected.payment_id}` : undefined}

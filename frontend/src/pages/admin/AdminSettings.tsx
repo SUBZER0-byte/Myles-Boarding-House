@@ -5,14 +5,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { ProfilePictureCard } from "@/components/ProfilePictureCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { api, endpoints, sessionStore, API_BASE_URL, type ApiResponse } from "@/lib/api";
+import { sessionStore } from "@/lib/api";
 import { cropGcashQr } from "@/lib/cropGcashQr";
+import {
+  deleteAdminGcashQr,
+  getAdminGcashQrImage,
+  listAdminGcashQrs,
+  replaceAdminGcashQrImage,
+  updateAdminGcashQrAmount,
+  uploadAdminGcashQr,
+  type AdminGcashQrImage as GcashQrImage,
+} from "@/lib/gcashQrs";
 import { changeMyPassword } from "@/lib/profileSettings";
 import {
   getMyAdminSettingsProfile,
@@ -40,15 +48,6 @@ import {
 
 type Profile = AdminSettingsProfile & { user_type: string };
 type Settings = Record<string, string | boolean>;
-type AdminApiKeys = {
-  ollama_api_key: string;
-  textbee_api_key: string;
-  paypal_client_id: string;
-  paypal_secret: string;
-  paypal_webhook_id: string;
-};
-type PayPalMode = "SANDBOX" | "LIVE" | "Unavailable";
-type GcashQrImage = { filename: string; path: string; uploaded_at: number; is_active: boolean; amount: number | null };
 type ChatbotFaqForm = ChatbotFaqInput;
 
 const chatbotFaqCategories: { value: ChatbotFaqCategory; label: string }[] = [
@@ -76,25 +75,12 @@ const AdminSettings = () => {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [settings, setSettings] = useState<Settings>({});
-  const [apiKeys, setApiKeys] = useState<AdminApiKeys>({
-    ollama_api_key: "",
-    textbee_api_key: "",
-    paypal_client_id: "",
-    paypal_secret: "",
-    paypal_webhook_id: "",
-  });
-  const [visibleApiKeys, setVisibleApiKeys] = useState<Record<string, boolean>>({});
-  const [visibleTextbeeDeviceId, setVisibleTextbeeDeviceId] = useState(false);
   const [visiblePasswordFields, setVisiblePasswordFields] = useState({ current: false, next: false });
   const [pw, setPw] = useState({ current_password: "", new_password: "" });
-  const [paymentMode, setPaymentMode] = useState<PayPalMode | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [houseSaving, setHouseSaving] = useState(false);
   const [gpsSaving, setGpsSaving] = useState(false);
-  const [textbeeSaving, setTextbeeSaving] = useState(false);
-  const [paypalSaving, setPaypalSaving] = useState(false);
-  const [ollamaKeySaving, setOllamaKeySaving] = useState(false);
   const [qrFile, setQrFile] = useState<File | null>(null);
   const [qrAmount, setQrAmount] = useState("");
   const [qrAmountDrafts, setQrAmountDrafts] = useState<Record<string, string>>({});
@@ -128,14 +114,6 @@ const AdminSettings = () => {
     5000,
     Boolean(userId),
   );
-  const { data: liveSettings } = usePolling<Settings>(
-    `${endpoints.adminSettings}?action=get_settings`,
-    { intervalMs: 5000 }
-  );
-  const { data: livePaymentMode } = usePolling<{ mode: PayPalMode }>(
-    `${endpoints.adminSettings}?action=payment_mode`,
-    { intervalMs: 5000 }
-  );
   const qrInputRef = useRef<HTMLInputElement>(null);
   const settingText = (key: string): string => {
     const value = settings[key];
@@ -149,54 +127,12 @@ const AdminSettings = () => {
     const value = settings[key];
     return typeof value === "boolean" ? value : value === undefined ? defaultValue : value === "1";
   };
-  const updateApiKeys = useCallback(async () => {
-    const response = await api.get<ApiResponse<AdminApiKeys>>(
-      `${endpoints.adminSettings}?action=get_admin_api_keys`,
-    );
-    if (response.data.type !== "success" || !response.data.data) {
-      throw new Error(response.data.message ?? "Unable to load API keys");
-    }
-    setApiKeys(response.data.data);
-  }, []);
-
-  const apiKeyField = (label: string, name: keyof AdminApiKeys, editable = false) => (
-    <div className="grid gap-1.5" key={name}>
-      <Label htmlFor={`admin-api-key-${name}`}>{label}</Label>
-      <div className="flex gap-2">
-        <Input
-          id={`admin-api-key-${name}`}
-          type={visibleApiKeys[name] ? "text" : "password"}
-          autoComplete="off"
-          readOnly={!editable}
-          value={apiKeys[name]}
-          placeholder={apiKeys[name] ? "" : "Not configured"}
-          onChange={editable ? event => setApiKeys(current => ({ ...current, [name]: event.target.value })) : undefined}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={`${visibleApiKeys[name] ? "Hide" : "Show"} ${label}`}
-          aria-pressed={visibleApiKeys[name] === true}
-          onClick={() => setVisibleApiKeys(current => ({ ...current, [name]: !current[name] }))}
-        >
-          {visibleApiKeys[name] ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-        </Button>
-      </div>
-    </div>
-  );
-
   const reloadGcashQrImages = useCallback(async () => {
     try {
-      const res = await api.get<ApiResponse<{ images: GcashQrImage[] }>>(
-        `${endpoints.adminSettings}?action=list_gcash_qrs`,
-      );
-      if (res.data.type !== "success" || !res.data.data) {
-        throw new Error(res.data.message ?? "Unable to load GCash QR images");
-      }
-      setQrImages(res.data.data.images);
+      const images = await listAdminGcashQrs();
+      setQrImages(images);
       setQrAmountDrafts(current => Object.fromEntries(
-        res.data.data.images.map(image => [
+        images.map(image => [
           image.filename,
           current[image.filename] ?? (image.amount === null ? "" : String(image.amount)),
         ]),
@@ -248,44 +184,20 @@ const AdminSettings = () => {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const s = await api.get<ApiResponse<Settings>>(`${endpoints.adminSettings}?action=get_settings`);
-      if (s.data.type === "success" && s.data.data) setSettings(s.data.data);
       await loadChatbotFaqs();
       await loadChatbotSuggestedQuestions();
-      try {
-        await updateApiKeys();
-      } catch (error: unknown) {
-        toast({
-          title: "Unable to load API keys",
-          description: error instanceof Error ? error.message : "An unexpected error occurred",
-          variant: "destructive",
-        });
-      }
       setLoading(false);
     })();
     void reloadGcashQrImages();
-    api.get<ApiResponse<{ mode: Exclude<PayPalMode, "Unavailable"> }>>(`${endpoints.adminSettings}?action=payment_mode`)
-      .then((res) => {
-        if (res.data.type === "success" && res.data.data) setPaymentMode(res.data.data.mode);
-      })
-      .catch(() => setPaymentMode("Unavailable"));
-  }, [userId, reloadGcashQrImages, loadChatbotFaqs, loadChatbotSuggestedQuestions, updateApiKeys, toast]);
+  }, [userId, reloadGcashQrImages, loadChatbotFaqs, loadChatbotSuggestedQuestions]);
 
   useEffect(() => {
     if (liveProfile) setProfile(liveProfile);
   }, [liveProfile]);
 
   useEffect(() => {
-    if (liveSettings) {
-      setSettings(current => ({ ...liveSettings, ...current, ...(liveHouseSettings ?? {}) }));
-    } else if (liveHouseSettings) {
-      setSettings(current => ({ ...current, ...liveHouseSettings }));
-    }
-  }, [liveSettings, liveHouseSettings]);
-
-  useEffect(() => {
-    if (livePaymentMode?.mode) setPaymentMode(livePaymentMode.mode);
-  }, [livePaymentMode]);
+    if (liveHouseSettings) setSettings(current => ({ ...current, ...liveHouseSettings }));
+  }, [liveHouseSettings]);
 
   const saveProfile = async () => {
     if (!profile) return;
@@ -411,37 +323,6 @@ const AdminSettings = () => {
     }
   };
 
-  const saveSettingsGroup = async (
-    groupName: string,
-    values: Record<string, string | boolean>,
-    setGroupSaving: (isSaving: boolean) => void,
-  ): Promise<boolean> => {
-    setGroupSaving(true);
-    try {
-      const response = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=update_settings`,
-        values,
-      );
-      if (response.data.type !== "success") {
-        throw new Error(response.data.message ?? `Unable to save ${groupName}`);
-      }
-      toast({ title: response.data.message ?? `${groupName} saved` });
-      return true;
-    } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      toast({
-        title: `Unable to save ${groupName}`,
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setGroupSaving(false);
-    }
-  };
-
   const saveHouseSettings = async () => {
     const keys = [
       "house_address_line_1",
@@ -521,97 +402,17 @@ const AdminSettings = () => {
     }
   };
 
-  const saveTextbeeSettings = async () => {
-    const keys = ["textbee_api_base", "textbee_device_id", "sms_default_country_code", "registration_sms_otp_enabled"];
-    const values: Record<string, string | boolean> = Object.fromEntries(
-      keys.map(key => [key, settingText(key)]),
-    );
-    values.textbee_api_key = apiKeys.textbee_api_key;
-    await saveSettingsGroup("TextBee settings", values, setTextbeeSaving);
-  };
-
-  const savePaypalSettings = async () => {
-    const saved = await saveSettingsGroup("PayPal API Credentials", {
-      paypal_client_id: apiKeys.paypal_client_id,
-      paypal_secret: apiKeys.paypal_secret,
-      paypal_webhook_id: apiKeys.paypal_webhook_id,
-    }, setPaypalSaving);
-    if (saved) {
-      try {
-        await updateApiKeys();
-      } catch (error: unknown) {
-        toast({
-          title: "PayPal credentials saved, but could not refresh their display",
-          description: error instanceof Error ? error.message : "An unexpected error occurred",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const saveOllamaApiKey = async () => {
-    const apiKey = apiKeys.ollama_api_key.trim();
-    if (!apiKey) {
-      toast({ title: "Enter an Ollama API key", variant: "destructive" });
-      return;
-    }
-
-    setOllamaKeySaving(true);
-    try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=update_ollama_api_key`,
-        { api_key: apiKey },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "Unable to save Ollama API key", variant: "destructive" });
-        return;
-      }
-      setSettings(current => ({
-        ...current,
-        ollama_api_key: "",
-        ollama_api_key_is_set: true,
-      }));
-      toast({ title: res.data.message ?? "Ollama API key saved" });
-    } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-      toast({
-        title: "Unable to save Ollama API key",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
-        variant: "destructive",
-      });
-    } finally {
-      setOllamaKeySaving(false);
-    }
-  };
-
   const uploadGcashQr = async () => {
     if (!qrFile) return;
     const amount = Number(qrAmount);
-    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
-      toast({ title: "Enter a valid fixed amount for this GCash QR", variant: "destructive" });
-      return;
-    }
     setQrUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("gcash_qr", await cropGcashQr(qrFile));
-      formData.append("amount", String(amount));
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=upload_gcash_qr`,
-        formData,
-        { headers: { "Content-Type": undefined } },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "GCash QR upload failed", variant: "destructive" });
-        return;
-      }
+      await uploadAdminGcashQr(await cropGcashQr(qrFile), amount);
       await reloadGcashQrImages();
       setQrFile(null);
       setQrAmount("");
       if (qrInputRef.current) qrInputRef.current.value = "";
-      toast({ title: res.data.message ?? "GCash QR added" });
+      toast({ title: "GCash QR added" });
     } catch (error: unknown) {
       const message = typeof error === "object" && error !== null && "response" in error
         ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
@@ -628,21 +429,11 @@ const AdminSettings = () => {
 
   const saveGcashQrAmount = async (image: GcashQrImage) => {
     const amount = Number(qrAmountDrafts[image.filename]);
-    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
-      toast({ title: "Enter a valid fixed amount for this GCash QR", variant: "destructive" });
-      return;
-    }
     setQrAmountSaving(image.filename);
     try {
-      const response = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=update_gcash_qr`,
-        { filename: image.filename, amount },
-      );
-      if (response.data.type !== "success") {
-        throw new Error(response.data.message || "Could not save the GCash QR amount");
-      }
+      await updateAdminGcashQrAmount(image.filename, amount);
       await reloadGcashQrImages();
-      toast({ title: response.data.message || "GCash QR fixed amount saved" });
+      toast({ title: "GCash QR fixed amount saved" });
     } catch (error) {
       toast({
         title: "Unable to save GCash QR amount",
@@ -664,25 +455,13 @@ const AdminSettings = () => {
       for (const [index, image] of qrImages.entries()) {
         setQrCropProgress(`Cropping ${index + 1} of ${qrImages.length}…`);
         try {
-          const response = await fetch(
-            `${endpoints.adminSettings}?action=get_gcash_qr_image&filename=${encodeURIComponent(image.filename)}`,
-            { credentials: "include" },
-          );
+          const imageUrl = await getAdminGcashQrImage(image.filename);
+          const response = await fetch(imageUrl);
           if (!response.ok) throw new Error(`Could not load ${image.filename}`);
           const sourceBlob = await response.blob();
           const sourceFile = new File([sourceBlob], image.filename, { type: sourceBlob.type });
           const croppedFile = await cropGcashQr(sourceFile);
-          const formData = new FormData();
-          formData.append("filename", image.filename);
-          formData.append("gcash_qr", croppedFile);
-          const result = await api.post<ApiResponse>(
-            `${endpoints.adminSettings}?action=crop_gcash_qr`,
-            formData,
-            { headers: { "Content-Type": undefined } },
-          );
-          if (result.data.type !== "success") {
-            throw new Error(result.data.message ?? `Could not save cropped image ${image.filename}`);
-          }
+          await replaceAdminGcashQrImage(image.filename, croppedFile);
           croppedCount += 1;
         } catch (error: unknown) {
           const detail = error instanceof Error ? error.message : "Unexpected error";
@@ -710,26 +489,19 @@ const AdminSettings = () => {
     if (!qrToDelete) return;
     setQrDeleting(true);
     try {
-      const res = await api.post<ApiResponse>(
-        `${endpoints.adminSettings}?action=delete_gcash_qr`,
-        { filename: qrToDelete.filename },
-      );
-      if (res.data.type !== "success") {
-        toast({ title: res.data.message ?? "GCash QR deletion failed", variant: "destructive" });
-        return;
-      }
-      toast({ title: res.data.message ?? "GCash QR deleted" });
+      const { cleanupWarning } = await deleteAdminGcashQr(qrToDelete.filename);
       setQrToDelete(null);
       await reloadGcashQrImages();
+      toast(cleanupWarning
+        ? { title: "GCash QR deleted with a Storage cleanup warning", description: cleanupWarning, variant: "destructive" }
+        : { title: "GCash QR deleted" });
     } catch (error: unknown) {
-      const message = typeof error === "object" && error !== null && "response" in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
       toast({
         title: "GCash QR deletion failed",
-        description: message || (error instanceof Error ? error.message : "An unexpected error occurred"),
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive",
       });
+      await reloadGcashQrImages();
     } finally {
       setQrDeleting(false);
     }
@@ -754,7 +526,7 @@ const AdminSettings = () => {
           <p className="text-muted-foreground text-sm mt-1">Configure house information, office hours, payment options, and system integrations.</p>
         </div>
 
-        {profile && <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} storageBacked onUploaded={async () => {
+        {profile && <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} onUploaded={async () => {
           setProfile({ ...await getMyAdminSettingsProfile(), user_type: "Admin" });
         }} />}
 
@@ -826,7 +598,7 @@ const AdminSettings = () => {
                       </span>
                     </div>
                     <img
-                      src={`${API_BASE_URL}/${image.path}`}
+                      src={image.path}
                       alt={image.amount === null ? "GCash QR with fixed amount not set" : `GCash QR for ₱${Number(image.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
                       className="w-full aspect-square rounded-md border bg-white object-contain p-1"
                     />
@@ -1244,76 +1016,13 @@ const AdminSettings = () => {
         </div>
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
-          <div className="pt-4 border-t border-border space-y-3">
-            <h2 className="font-semibold">Ollama Cloud Settings</h2>
-            <p className="text-sm text-muted-foreground">
-              The saved key loads masked; use the eye button to view it. This field can replace the key. A server OLLAMA_API_KEY environment variable takes precedence over the database value.
-            </p>
-            {apiKeyField("Ollama API key", "ollama_api_key", true)}
-            <Button onClick={saveOllamaApiKey} disabled={ollamaKeySaving || !apiKeys.ollama_api_key.trim()}>
-              {ollamaKeySaving ? "Saving…" : "Save Ollama Settings"}
-            </Button>
-          </div>
-          <div className="pt-4 border-t border-border space-y-3">
-            <h2 className="font-semibold">TextBee SMS Settings</h2>
-            {apiKeyField("TextBee API key", "textbee_api_key", true)}
-            <div className="grid gap-1.5"><Label>TextBee API base</Label>
-              <Input value={settingText("textbee_api_base")} onChange={e => setSettings({ ...settings, textbee_api_base: e.target.value })} /></div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="textbee-device-id">TextBee device ID (optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="textbee-device-id"
-                  type={visibleTextbeeDeviceId ? "text" : "password"}
-                  autoComplete="off"
-                  value={settingText("textbee_device_id")}
-                  onChange={e => setSettings({ ...settings, textbee_device_id: e.target.value })}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label={`${visibleTextbeeDeviceId ? "Hide" : "Show"} TextBee device ID`}
-                  aria-pressed={visibleTextbeeDeviceId}
-                  onClick={() => setVisibleTextbeeDeviceId(visible => !visible)}
-                >
-                  {visibleTextbeeDeviceId ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-                </Button>
-              </div>
-            </div>
-            <div className="grid gap-1.5"><Label>Default country code</Label>
-              <Input value={settingText("sms_default_country_code")} onChange={e => setSettings({ ...settings, sms_default_country_code: e.target.value })} /></div>
-            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div className="space-y-1">
-                <Label htmlFor="registration-sms-otp">Registration SMS OTP</Label>
-                <p className="text-xs text-muted-foreground">When off, registration uses a generated mock OTP instead of TextBee.</p>
-              </div>
-              <Switch
-                id="registration-sms-otp"
-                checked={settings.registration_sms_otp_enabled === "1"}
-                onCheckedChange={checked => setSettings({ ...settings, registration_sms_otp_enabled: checked ? "1" : "0" })}
-                aria-label="Enable registration SMS OTP"
-              />
-            </div>
-            <Button onClick={saveTextbeeSettings} disabled={textbeeSaving}>
-              {textbeeSaving ? "Saving…" : "Save TextBee Settings"}
-            </Button>
-          </div>
-          <div className="pt-4 border-t border-border space-y-3">
-            <h2 className="font-semibold">PayPal API Credentials</h2>
-            <p className="text-sm text-muted-foreground">
-              PayPal mode: {paymentMode ?? "Loading"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Values saved here are used when server environment and backend/Config/secrets.php credentials are not configured.
-            </p>
-            {apiKeyField("PayPal Client ID", "paypal_client_id", true)}
-            {apiKeyField("PayPal Secret", "paypal_secret", true)}
-            {apiKeyField("PayPal Webhook ID", "paypal_webhook_id", true)}
-            <Button onClick={savePaypalSettings} disabled={paypalSaving}>
-              {paypalSaving ? "Saving…" : "Save Paypal Settings"}
-            </Button>
-          </div>
+          <h2 className="font-semibold">Server Integration Configuration</h2>
+          <p className="text-sm text-muted-foreground">
+            API keys and provider credentials are not loaded into this browser or stored in Vite settings. Configure Supabase Edge Function secrets in the Supabase Dashboard for hosted deployments, or in <code>supabase/.env</code> for local development.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Supabase SMS and chatbot functions use <code>TEXTBEE_ENABLED</code>, <code>TEXTBEE_API_BASE</code>, <code>TEXTBEE_API_KEY</code>, <code>TEXTBEE_DEVICE_ID</code>, and <code>OLLAMA_API_KEY</code>. The legacy PHP PayPal flow still reads its server-side environment configuration; it has not been migrated.
+          </p>
         </div>
       </div>
       <AlertDialog open={qrToDelete !== null} onOpenChange={open => { if (!open && !qrDeleting) setQrToDelete(null); }}>

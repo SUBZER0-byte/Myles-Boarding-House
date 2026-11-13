@@ -123,7 +123,7 @@ const GuestSettings = () => {
       <div className="space-y-6 max-w-2xl">
         <h1 className="font-display text-2xl font-bold">Settings</h1>
 
-        <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} storageBacked onUploaded={fetchProfile} />
+        <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} onUploaded={fetchProfile} />
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
           <h2 className="font-semibold">Profile</h2>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Wallet, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { api, API_BASE_URL, endpoints, type ApiResponse } from "@/lib/api";
+import { listPublicGcashQrs } from "@/lib/gcashQrs";
 
 interface BookingPaymentDialogProps {
   open: boolean;
@@ -32,13 +32,6 @@ type Method = "gcash";
 type GcashQr = { path: string; amount: number | null };
 
 const methodLabel: Record<Method, string> = { gcash: "GCash" };
-const qrImageByAmount: Record<number, string> = {
-  2500: `${API_BASE_URL}/qr-payment/gcash-2500-crop.jpg`,
-  4000: `${API_BASE_URL}/qr-payment/gcash-4000-crop.jpg`,
-  5000: `${API_BASE_URL}/qr-payment/gcash-5000-crop.jpg`,
-  10000: `${API_BASE_URL}/qr-payment/gcash-10000-crop.jpg`,
-};
-
 export function BookingPaymentDialog({
   open, onOpenChange, roomName, amount, amountPHP = 1000,
   paymentExpiresAtEpoch,
@@ -67,11 +60,10 @@ export function BookingPaymentDialog({
     let active = true;
     setQrLoading(true);
     setQrLoadError("");
-    api.get<ApiResponse<{ images: GcashQr[] }>>(`${endpoints.publicInfo}?action=gcash_qr`)
-      .then((res) => {
+    listPublicGcashQrs()
+      .then((images) => {
         if (!active) return;
-        if (res.data.type !== "success") throw new Error(res.data.message || "Could not load the GCash QR.");
-        setGcashQrs(res.data.data?.images ?? []);
+        setGcashQrs(images);
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -104,8 +96,7 @@ export function BookingPaymentDialog({
 
   const fixedAmount = Math.round(amountPHP * 100) / 100;
   const matchingQr = gcashQrs.find(qr => qr.amount !== null && Math.abs(Number(qr.amount) - fixedAmount) < 0.01);
-  const qrImage = matchingQr ? undefined : qrImageByAmount[amountPHP];
-  const hasGcashQr = Boolean(matchingQr || qrImage);
+  const hasGcashQr = Boolean(matchingQr);
   const formattedAmount = amount ?? `₱${amountPHP.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
   const reset = () => {
@@ -208,28 +199,21 @@ export function BookingPaymentDialog({
             {hasGcashQr ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  {gcashQrs.length > 0
-                    ? `Scan this fixed-amount GCash QR to pay ${formattedAmount}.`
-                    : `Scan this GCash QR code and pay ${formattedAmount}.`}
+                  {`Scan this fixed-amount GCash QR to pay ${formattedAmount}.`}
                 </p>
-                {matchingQr ? (
+                {matchingQr && (
                   <div className="w-full rounded-lg border border-primary/20 bg-white p-3 shadow-sm">
                     <div className="mb-3 flex items-center justify-between rounded-md bg-primary/5 px-3 py-2 text-left">
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Fixed QR amount</span>
                       <span className="font-display text-sm font-bold text-primary">{formattedAmount}</span>
                     </div>
                     <img
-                      src={`${API_BASE_URL}/${matchingQr.path}`}
+                      src={matchingQr.path}
                       alt={`GCash QR code for ${formattedAmount}`}
                       className="mx-auto h-[min(62vh,600px)] w-full object-contain"
                     />
                   </div>
-                ) : qrImage ? (
-                  <div className="w-full rounded-lg border bg-white p-2">
-                    <img src={qrImage} alt={`GCash QR code for ${formattedAmount}`} className="mx-auto aspect-square w-full max-w-96 object-contain" />
-                    <p className="mt-2 text-xs text-center text-gray-600">Pay {formattedAmount} using GCash</p>
-                  </div>
-                ) : null}
+                )}
                 <div className="w-full space-y-2 text-left">
                   <Label htmlFor="gcash-reference">GCash transaction reference</Label>
                   <Input

@@ -123,6 +123,41 @@ local Supabase development. It does not update the hosted Auth URL configuration
 by itself. Existing accounts also need valid `auth_user_id` links in
 `public.users`; setting environment variables cannot backfill identity records.
 
+## Deployed chat/chatbot 404 or CORS errors
+
+The frontend, database migrations, and Edge Functions deploy separately. If the
+production browser reports `404` for `manage_my_chat` or
+`get_public_chatbot_suggestions`, first confirm that the `VITE_SUPABASE_URL`
+configured in Vercel points to the same Supabase project you are inspecting.
+Those RPCs are created by:
+
+- `20261114000000_chat_workflows.sql` (`manage_my_chat`)
+- `20261114010000_chatbot_service.sql` (`get_public_chatbot_suggestions` and the
+  chatbot rate-limit service)
+
+The Admin FAQ/question RPCs also require `20261114020000_admin_chatbot_settings.sql`.
+After confirming the intended project and reviewing every pending migration,
+use `supabase db push --dry-run` first. `supabase db push` applies all pending
+migrations, not only the two chat migrations; do not apply it until the pending
+list and target are understood.
+
+A chatbot preflight CORS failure can mean the `chatbot` Edge Function is not
+deployed or its hosted `APP_ALLOWED_ORIGINS` secret omits the exact origin
+`https://myles-boarding-house.vercel.app`. Deploy the function to the same
+project only after confirming the target:
+
+```text
+supabase functions deploy chatbot --project-ref <project-ref>
+```
+
+In the hosted project's Edge Function secrets, set `APP_ALLOWED_ORIGINS` to
+the production origin (plus only any deliberately allowed preview/local origins)
+and set `OLLAMA_API_KEY` if chatbot responses should be enabled. Keep the
+function's `verify_jwt = false` setting because the public widget is anonymous.
+The CORS allowlist, function deployment, and database migration state are
+independent; verify all three before expecting the deployed frontend to work.
+Deploy the frontend after its database and function dependencies are ready.
+
 ## References
 
 - [Supabase Auth](https://supabase.com/docs/guides/auth)
