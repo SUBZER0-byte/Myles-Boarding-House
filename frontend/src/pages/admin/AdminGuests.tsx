@@ -256,7 +256,7 @@ const AdminGuests = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center text-accent-foreground overflow-hidden">
-                      {g.profile_picture ? <img src={getProfilePictureUrl(g.user_id, g.profile_picture)} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
+                      {getProfilePictureUrl(g.profile_picture) ? <img src={getProfilePictureUrl(g.profile_picture)} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
                     </div>
                     <div>
                       <p className="font-medium text-sm">{g.full_name}</p>
@@ -336,7 +336,7 @@ const AdminGuests = () => {
                     <TableCell>
                       <div className="flex items-center gap-3 min-w-44">
                         <div className="h-9 w-9 rounded-full bg-accent/20 flex items-center justify-center text-accent-foreground overflow-hidden shrink-0">
-                          {g.profile_picture ? <img src={getProfilePictureUrl(g.user_id, g.profile_picture)} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
+                          {getProfilePictureUrl(g.profile_picture) ? <img src={getProfilePictureUrl(g.profile_picture)} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
                         </div>
                         <div>
                           <p className="font-medium">{g.full_name}</p>
@@ -491,8 +491,8 @@ const AdminGuests = () => {
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="guest-edit-picture">Profile picture</Label>
               <div className="flex items-center gap-3">
-                {selected?.profile_picture && (
-                  <img src={getProfilePictureUrl(selected.user_id, selected.profile_picture)} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
+                {selected?.profile_picture && getProfilePictureUrl(selected.profile_picture) && (
+                  <img src={getProfilePictureUrl(selected.profile_picture)} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
                 )}
                 <Input id="guest-edit-picture" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
                   const file = e.target.files?.[0] ?? null;

@@ -1,16 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
+const { rpc, getPublicUrl } = vi.hoisted(() => ({ rpc: vi.fn(), getPublicUrl: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { rpc },
+  supabase: {
+    rpc,
+    storage: { from: vi.fn(() => ({ getPublicUrl })) },
+  },
 }));
 
-import { getPublicRoomPhotos, getPublicRooms, getPublicRoomsForDates } from "@/lib/publicRooms";
+import { getPublicRoomImageUrl, getPublicRoomPhotos, getPublicRooms, getPublicRoomsForDates } from "@/lib/publicRooms";
 
 describe("public room reads", () => {
   beforeEach(() => {
     rpc.mockReset();
+    getPublicUrl.mockReset();
+    getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
+  });
+
+  it("uses Supabase Storage for room image paths and ignores legacy PHP filenames", () => {
+    expect(getPublicRoomImageUrl("covers/7/room-cover.jpg")).toBe("https://storage.example/covers/7/room-cover.jpg");
+    expect(getPublicRoomImageUrl("uploads/rooms/old-room.jpg")).toBe("");
   });
 
   it("uses the read-only public room listing RPC", async () => {

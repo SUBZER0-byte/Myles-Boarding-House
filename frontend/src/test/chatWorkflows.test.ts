@@ -79,6 +79,24 @@ describe("Supabase chat workflows", () => {
     });
   });
 
+  it("does not resolve legacy PHP attachment paths", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        type: "success",
+        data: [{
+          message_id: 6,
+          body: "",
+          image_path: "uploads/chat/old-image.png",
+          image_paths: ["uploads/chat/old-image.png"],
+        }],
+      },
+      error: null,
+    });
+
+    await expect(listChatMessages(9)).resolves.toMatchObject([{ image_urls: [] }]);
+    expect(createSignedUrl).not.toHaveBeenCalled();
+  });
+
   it("uploads supported images under the signed-in user's storage prefix", async () => {
     const file = new File(["image"], "photo.png", { type: "image/png" });
     rpc.mockResolvedValue({

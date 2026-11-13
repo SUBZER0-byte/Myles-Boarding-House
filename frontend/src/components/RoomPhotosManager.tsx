@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Loader2, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Image as ImageIcon, ImagePlus, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { API_BASE_URL } from "@/lib/api";
 import {
   addMyAdminRoomPhoto,
   deleteMyAdminRoomPhoto,
@@ -64,9 +63,7 @@ function errorMessage(error: unknown): string {
 }
 
 function photoUrl(filename: string): string {
-  const imageUrl = getAdminRoomPhotoUrl(filename);
-  if (imageUrl.startsWith("http")) return imageUrl;
-  return `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(filename)}`;
+  return getAdminRoomPhotoUrl(filename);
 }
 
 export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosManagerProps>(
@@ -381,7 +378,13 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {photos.map((photo, index) => (
               <div key={photo.image_id} className="min-w-0 space-y-2 rounded-md border border-border p-2">
-                <img src={photoUrl(photo.filename)} alt={photo.caption || "Room photo"} className="h-28 w-full rounded object-cover" />
+                {photoUrl(photo.filename) ? (
+                  <img src={photoUrl(photo.filename)} alt={photo.caption || "Room photo"} className="h-28 w-full rounded object-cover" />
+                ) : (
+                  <div className="flex h-28 w-full items-center justify-center rounded bg-muted text-muted-foreground" aria-label="Room photo unavailable">
+                    <ImageIcon size={20} />
+                  </div>
+                )}
                 <Input
                   aria-label={`Label for photo ${index + 1}`}
                   value={photo.caption || ""}

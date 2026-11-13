@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, ZoomIn, ZoomOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { API_BASE_URL } from "@/lib/api";
 import { getPublicRoomImageUrl, getPublicRoomPhotos, type PublicRoomPhoto } from "@/lib/publicRooms";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
@@ -19,10 +18,7 @@ interface Slide {
 }
 
 function imageUrl(image: string): string {
-  const resolvedImage = getPublicRoomImageUrl(image);
-  if (resolvedImage.startsWith("http")) return resolvedImage;
-  if (image.includes("/")) return `${API_BASE_URL}/${image}`;
-  return `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(image)}`;
+  return getPublicRoomImageUrl(image);
 }
 
 export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expanded = false }: GuestRoomPhotoSlideshowProps) {
@@ -59,7 +55,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
       src: imageUrl(photo.filename),
       caption: photo.caption || "Room photo",
     })),
-  ];
+  ].filter((slide) => slide.src);
   const slideCount = slides.length;
   const currentSlide = slides[activeSlide] || slides[0];
 

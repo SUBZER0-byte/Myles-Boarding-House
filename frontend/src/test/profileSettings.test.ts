@@ -5,25 +5,41 @@ const {
   getUser,
   signInWithPassword,
   updateUser,
+  getPublicUrl,
 } = vi.hoisted(() => ({
   rpc: vi.fn(),
   getUser: vi.fn(),
   signInWithPassword: vi.fn(),
   updateUser: vi.fn(),
+  getPublicUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     rpc,
     auth: { getUser, signInWithPassword, updateUser },
+    storage: { from: vi.fn(() => ({ getPublicUrl })) },
   },
 }));
 
-import { changeMyPassword, getMySettingsProfile, requestMyEmailChange, saveMySettingsProfile } from "@/lib/profileSettings";
+import {
+  changeMyPassword,
+  getMySettingsProfile,
+  getProfilePictureUrl,
+  requestMyEmailChange,
+  saveMySettingsProfile,
+} from "@/lib/profileSettings";
 
 describe("Supabase profile settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
+  });
+
+  it("only resolves profile pictures stored in Supabase Storage", () => {
+    expect(getProfilePictureUrl("00000000-0000-4000-8000-000000000001/photo.png"))
+      .toBe("https://storage.example/00000000-0000-4000-8000-000000000001/photo.png");
+    expect(getProfilePictureUrl("legacy-profile.jpg")).toBe("");
   });
 
   it("loads the current profile through the authenticated settings RPC", async () => {

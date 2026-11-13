@@ -183,8 +183,7 @@ export default function Chat() {
     () => visibleConversations.find((c) => c.user_id === peerId) ?? null,
     [visibleConversations, peerId]
   );
-  const profilePictureUrl = (userId: number, path?: string | null) =>
-    getProfilePictureUrl(userId, path);
+  const profilePictureUrl = (path?: string | null) => getProfilePictureUrl(path);
 
   return (
     <DashboardLayout role={role as "admin" | "tenant" | "guest"}>
@@ -219,8 +218,8 @@ export default function Chat() {
               >
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                    {profilePictureUrl(c.user_id, c.profile_picture) ? (
-                      <img src={profilePictureUrl(c.user_id, c.profile_picture)} alt={`${c.username} profile`} className="h-full w-full object-cover" />
+                    {profilePictureUrl(c.profile_picture) ? (
+                      <img src={profilePictureUrl(c.profile_picture)} alt={`${c.username} profile`} className="h-full w-full object-cover" />
                     ) : <UserRound size={16} className="text-muted-foreground" />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -250,8 +249,8 @@ export default function Chat() {
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                    {profilePictureUrl(activePeer.user_id, activePeer.profile_picture) ? (
-                      <img src={profilePictureUrl(activePeer.user_id, activePeer.profile_picture)} alt={`${activePeer.username} profile`} className="h-full w-full object-cover" />
+                    {profilePictureUrl(activePeer.profile_picture) ? (
+                      <img src={profilePictureUrl(activePeer.profile_picture)} alt={`${activePeer.username} profile`} className="h-full w-full object-cover" />
                     ) : <UserRound size={18} className="text-muted-foreground" />}
                   </div>
                   <div>

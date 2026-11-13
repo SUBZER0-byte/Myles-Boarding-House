@@ -4,18 +4,13 @@ import { useEffect, useState } from "react";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { Button } from "@/components/ui/button";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
-import { API_BASE_URL } from "@/lib/api";
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 
 const peso = (n: number | string) =>
   "₱" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 function roomImageUrl(image: string): string {
-  const resolvedImage = getPublicRoomImageUrl(image);
-  if (resolvedImage.startsWith("http")) return resolvedImage;
-  return image.includes("/")
-    ? `${API_BASE_URL}/${image}`
-    : `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(image)}`;
+  return getPublicRoomImageUrl(image);
 }
 
 type StatusKey = "available" | "occupied" | "reserved" | "maintenance";
@@ -71,12 +66,13 @@ const GuestSaved = () => {
             {savedRooms.map((r) => {
               const key = ((r.status || "available").toLowerCase()) as StatusKey;
               const isAvailable = key === "available";
+              const imageUrl = r.image ? roomImageUrl(r.image) : "";
 
               return (
                 <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 flex flex-col">
-                  {r.image && (
+                  {imageUrl && (
                     <img
-                      src={roomImageUrl(r.image)}
+                      src={imageUrl}
                       alt={`Room ${r.room_number}`}
                       className="w-full h-36 object-cover rounded-md mb-3"
                     />

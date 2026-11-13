@@ -12,7 +12,6 @@ import { Plus, Pencil, Trash2, BedDouble, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { API_BASE_URL } from "@/lib/api";
 import {
   deleteMyAdminRoom,
   getAdminRoomCoverUrl,
@@ -37,11 +36,7 @@ interface Room {
 const empty = { room_number: "", room_type: "Single", capacity: 1, monthly_rent: 0, status: "Available", description: "" };
 
 function roomImageUrl(image: string | null | undefined): string {
-  const resolvedImage = getAdminRoomCoverUrl(image);
-  if (/^(https?:|blob:)/i.test(resolvedImage)) return resolvedImage;
-  return resolvedImage.includes("/")
-    ? `${API_BASE_URL}/${resolvedImage}`
-    : `${API_BASE_URL}/uploads/rooms/${encodeURIComponent(resolvedImage)}`;
+  return getAdminRoomCoverUrl(image);
 }
 
 const AdminRooms = () => {
@@ -199,7 +194,7 @@ const AdminRooms = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms?.map((r) => (
             <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 space-y-3">
-              {r.image && (
+              {roomImageUrl(r.image) && (
                 <img
                   src={roomImageUrl(r.image)}
                   alt={`Room ${r.room_number}`}

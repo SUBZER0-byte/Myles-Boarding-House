@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { ProfilePictureCard } from "@/components/ProfilePictureCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -526,7 +526,7 @@ const AdminSettings = () => {
           <p className="text-muted-foreground text-sm mt-1">Configure house information, office hours, payment options, and system integrations.</p>
         </div>
 
-        {profile && <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} onUploaded={async () => {
+        {profile && <ProfilePictureCard currentPath={profile.profile_picture} onUploaded={async () => {
           setProfile({ ...await getMyAdminSettingsProfile(), user_type: "Admin" });
         }} />}
 

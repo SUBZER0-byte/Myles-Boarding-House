@@ -26,7 +26,7 @@ export function getPublicRoomImageUrl(image: string | null | undefined): string 
   if (/^(covers|photos)\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(image)) {
     return supabase.storage.from("mbh-room-images").getPublicUrl(image).data.publicUrl;
   }
-  return image;
+  return image.startsWith("blob:") ? image : "";
 }
 
 export async function getPublicRooms(): Promise<PublicRoom[]> {

@@ -122,15 +122,13 @@ Internal publisher TCP listening on 127.0.0.1:8081
 
 ---
 
-## 7. Configure Ollama Cloud (AI Chatbot)
+## 7. Configure Ollama Cloud (Supabase Chatbot)
 
-Create an API key at https://ollama.com/settings/keys. Sign in as an administrator and enter it in **Admin Panel → Settings → Ollama Cloud Settings**, then save. The key is stored in `system_settings`, masked by default in Admin Settings, and can be revealed there by an administrator. Never put it in the frontend `.env` or source control.
+Create an API key at https://ollama.com/settings/keys. For the Vercel + Supabase deployment, add `OLLAMA_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. Optionally set `OLLAMA_CLOUD_MODEL`; the current default `gemma4:31b` is supported for direct Ollama Cloud API requests. The `chatbot` Edge Function calls `https://ollama.com/api/chat` with a Bearer token, so no local Ollama installation or model download is needed.
 
-Alternatively, configure `OLLAMA_API_KEY` in the PHP server environment or add this entry inside the returned array in `backend/Config/secrets.php`:
-```php
-'OLLAMA_API_KEY' => 'your-ollama-api-key',
-```
-An environment variable takes precedence over the database key. The chatbot uses `gemma4:31b` by default; set `OLLAMA_CLOUD_MODEL` on the server to choose a different cloud model. No local Ollama installation, model download, or `ollama serve` process is needed.
+Do not store the key in Vercel environment variables, frontend `.env`, browser code, Admin settings, or the PHP host for the Supabase-backed chatbot. For local Edge Function development, put it in the ignored `supabase/.env` and run `npx.cmd supabase functions serve --env-file supabase/.env` from the repository root; local serving requires Docker Desktop.
+
+The PHP server environment or `backend/Config/secrets.php` only applies to a separately maintained legacy PHP chatbot, if one is still in use. It does not configure the Supabase Edge Function.
 
 After importing an existing database, apply `backend/migrations/018_chatbot_faqs.sql` and `backend/migrations/019_chatbot_suggested_questions.sql`. Administrators can then add, edit, deactivate, or delete chatbot answers in **Admin Panel → Settings → Public Chatbot FAQs**. FAQ questions selected as suggestions appear in the chatbot's **Suggested questions** list. The chatbot uses live room data for rates and availability, and active FAQs for the corresponding topic. Set the landlady's phone or email in **Admin Panel → Settings → House Contact Info** so unrecognized questions can direct visitors to the right contact.
 
@@ -149,7 +147,6 @@ bun install
 
 Create / verify `.env` at the project root:
 ```env
-VITE_API_BASE_URL=http://localhost/Myles-Boarding-House/backend
 VITE_WS_URL=ws://localhost:8080
 ```
 
@@ -191,10 +188,10 @@ Vite is configured to run on **http://localhost:5173** — click the link in VS 
 ## 11. Troubleshooting
 
 **"Failed to fetch" / API errors**
-→ Apache not running, or `VITE_API_BASE_URL` in `.env` is wrong.
+→ Check the Supabase URL/key in `frontend/.env` and confirm the configured Supabase project is reachable. Apache is required only for legacy PHP routes; the current frontend does not use it to resolve image paths.
 
 **Chatbot says "AI unavailable"**
-→ Check that `OLLAMA_API_KEY` is configured on the PHP server and that the selected cloud model is available to your Ollama account.
+→ For the Vercel + Supabase app, verify `OLLAMA_API_KEY` in Supabase Edge Function Secrets, confirm the `chatbot` function is deployed, check `APP_ALLOWED_ORIGINS`, and confirm the selected cloud model is available to your Ollama account. Check the function logs for provider errors. A PHP-host setting does not configure the Supabase chatbot.
 
 **Dashboards don't update live**
 → Ratchet server isn't running. Restart `php server.php` in Terminal 1.

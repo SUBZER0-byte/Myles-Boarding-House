@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 const CHAT_IMAGE_BUCKET = "mbh-chat-images";
@@ -76,12 +75,8 @@ async function signedImageUrl(path: string): Promise<string> {
 }
 
 async function imageUrls(paths: string[]): Promise<string[]> {
-  return Promise.all(paths.map(path => {
-    if (/^[0-9a-f-]{36}\/chat\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(path)) {
-      return signedImageUrl(path);
-    }
-    return `${API_BASE_URL}/${path.replace(/^\/+/, "")}`;
-  }));
+  const storagePaths = paths.filter(path => /^[0-9a-f-]{36}\/chat\/[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(path));
+  return Promise.all(storagePaths.map(signedImageUrl));
 }
 
 export async function listChatConversations(): Promise<ChatConversation[]> {

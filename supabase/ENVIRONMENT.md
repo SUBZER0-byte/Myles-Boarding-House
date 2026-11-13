@@ -1,31 +1,234 @@
 # Supabase and application environment
 
+## Production deployment runbook: Vercel + Supabase
+
+Adding environment variables alone does not deploy the database schema,
+Storage policies, or Edge Functions. Deploy those Supabase dependencies before
+pointing the Vercel frontend at the project.
+
+### Values to collect
+
+| Value | Where to get it | Where it belongs |
+|---|---|---|
+| Supabase Project URL | Supabase Dashboard > Project Settings > API | Vercel `VITE_SUPABASE_URL` |
+| Publishable key | Supabase Dashboard > Project Settings > API Keys | Vercel `VITE_SUPABASE_PUBLISHABLE_KEY` |
+| Project reference | The project reference in the Project URL / dashboard | Supabase CLI `link` and deploy commands; it is not a secret |
+| Database password | Supabase Dashboard > Connect / Database settings | Supabase CLI prompt or ignored `supabase/.env.db`; never Vercel |
+| Supabase secret key | Supabase Dashboard > Project Settings > API Keys | Supabase Edge Function Secrets as `SUPABASE_SECRET_KEY`; never Vercel |
+| Vercel production origin | Vercel > Project > Domains | Supabase Auth URLs and Edge Function `APP_ALLOWED_ORIGINS` |
+| TextBee credentials | TextBee account/device configuration | Supabase Edge Function Secrets, if SMS OTP/alerts are enabled |
+| Ollama API key | Ollama Cloud account | Supabase Edge Function Secrets, if chatbot responses are enabled |
+
+`VITE_SUPABASE_URL` is the Supabase Project URL, not the Storage S3 endpoint.
+The browser uses `supabase-js` for Auth, database API, and Storage. Do not add a
+service-role/secret key, Postgres URL, S3 access key, TextBee key, or Ollama key
+to a `VITE_*` setting.
+
+For a self-hosted Supabase deployment, see
+[SELF_HOSTED_DEPLOYMENT.md](./SELF_HOSTED_DEPLOYMENT.md). The frontend can use
+either Supabase Cloud or a self-hosted HTTPS API gateway through the same
+`VITE_SUPABASE_URL` setting; it must be the gateway base URL, not the `/rest/v1/`
+Data API URL.
+
+### 1. Confirm the target and review database migrations
+
+Use the project reference from the same Supabase project as the Vercel
+`VITE_SUPABASE_URL`. The `project_id` in `supabase/config.toml` is only a local
+project name; it is not necessarily the hosted project reference.
+
+From the repository root in PowerShell:
+
+```powershell
+npx.cmd supabase login
+npx.cmd supabase link --project-ref "YOUR_PROJECT_REF"
+npx.cmd supabase migration list --remote
+npx.cmd supabase db push --remote --dry-run
+```
+
+The repository currently contains 32 SQL migration files. Review the target
+shown by the CLI and every migration listed by the dry run. The existing
+Supabase project already has tables and Storage objects, so do not blindly
+apply all pending migrations or manually mark them as applied. The baseline
+uses `CREATE TABLE IF NOT EXISTS`, which does not prove that an existing table
+has the expected columns, constraints, or policies. Take a database backup and
+stop to reconcile the schema/history if the CLI proposes an unexpected
+baseline or migration set.
+
+Only after the project, backup, migration history, and dry-run output have been
+reviewed should you apply the pending SQL:
+
+```powershell
+npx.cmd supabase db push --remote
+npx.cmd supabase migration list --remote
+```
+
+Do not run the user-provided table-only schema snapshot as SQL. It does not
+include the application RPCs, authorization policies, or Storage policies.
+Do not put the database connection string or password in Vercel.
+
+### 2. Configure and deploy Edge Functions
+
+In Supabase Dashboard > Edge Functions > Secrets, set only the values required
+for enabled features:
+
+- `APP_ALLOWED_ORIGINS=https://myles-boarding-house.vercel.app` (add only
+  explicitly trusted local or preview origins).
+- `SUPABASE_SECRET_KEY` and `SUPABASE_PUBLISHABLE_KEY` if using the new API key
+  names. The functions retain platform-provided legacy key fallbacks.
+- TextBee: `TEXTBEE_ENABLED=true` (lowercase), `TEXTBEE_API_BASE=https://api.textbee.dev/api/v1`, and `TEXTBEE_API_KEY`. `TEXTBEE_DEVICE_ID` is optional if TextBee should use the account's default device.
+- Ollama Cloud: `OLLAMA_API_KEY`; `OLLAMA_CLOUD_MODEL` is optional and defaults to `gemma4:31b`.
+- `ADMIN_BOOTSTRAP_TOKEN` and `ADMIN_BOOTSTRAP_PASSWORD` only temporarily if
+  the one-time Admin bootstrap is still needed; remove them immediately after.
+
+Do not upload the entire local `supabase/.env` as hosted secrets: it can contain
+local-only or temporary values. The tracked `supabase/.env.example` must
+contain blank placeholders only. If any provider or Supabase secret was exposed
+in a file, terminal, or chat, revoke/rotate it and update the ignored local
+`.env` and hosted Supabase secrets. `SUPABASE_JWKS_URL` is not used by the
+current token-verification flow.
+
+The TextBee integration sends `POST ${TEXTBEE_API_BASE}/gateway/send-sms` with
+the `x-api-key` header and a JSON `recipients` array, `message`, and optional
+`deviceId`. Keep the registered Android gateway device online. A successful
+HTTP 200 means TextBee queued the message; verify delivery on a test phone
+before relying on OTP or urgent alerts.
+
+The chatbot calls Ollama Cloud at `https://ollama.com/api/chat` with
+`Authorization: Bearer <OLLAMA_API_KEY>` and `stream: false`. The default
+`gemma4:31b` model is documented by Ollama for direct cloud API requests. Keep
+the key in Supabase Function Secrets, never in Vercel or browser code.
+
+After setting the secrets, deploy all local Edge Functions (the shared helper
+is bundled into them and is not deployed separately):
+
+```powershell
+npx.cmd supabase functions deploy --remote="YOUR_PROJECT_REF" --use-api
+```
+
+The `--use-api` option avoids requiring Docker for function bundling. Confirm
+that all 16 application functions appear in the intended Supabase project.
+Function deployment and SQL migration deployment are separate operations.
+
+### 3. Configure Auth and Storage
+
+In Supabase Dashboard > Authentication > URL Configuration:
+
+1. Set **Site URL** to `https://myles-boarding-house.vercel.app`.
+2. Add `https://myles-boarding-house.vercel.app/**` to the redirect allowlist.
+3. Add `http://localhost:5173/**` only for local development; add exact trusted
+   preview URLs only if previews need authentication.
+4. Enable the Email provider for password sign-in. Configure SMTP if users need
+   email-change confirmations.
+5. Configure the TextBee Edge Function secrets before relying on the current
+   phone-OTP registration flow. Register an Android gateway device and keep it
+   online; TextBee's HTTP 200 response confirms queueing, not carrier delivery.
+
+The migrations create these application Storage buckets and scoped policies:
+
+| Bucket | Access | Use |
+|---|---|---|
+| `mbh-profile-pictures` | Public reads; owner-scoped writes | Profile images |
+| `mbh-room-images` | Public reads; Admin writes | Room covers and photos |
+| `mbh-request-photos` | Private | Tenant complaint/maintenance photos |
+| `mbh-financial-evidence` | Private, owner/Admin checks | Rent, full-payment, and refund evidence |
+| `mbh-payment-qrs` | Private, role-checked | GCash QR images |
+| `mbh-booking-payment-proofs` | Private, Guest/Admin checks | Guest booking payment proofs |
+| `mbh-chat-images` | Private, conversation-participant checks | Chat attachments |
+
+The Storage screenshots shared for this setup show only
+`mbh-request-photos` and `mbh-profile-pictures`. The other buckets are created
+by their SQL migrations; verify all seven exist after migrations are applied.
+Do not replace them with one general-purpose public bucket or broaden their
+policies. The Storage S3 endpoint and access keys are not needed by this
+browser app; its uploads use `supabase-js`.
+
+### 4. Configure and deploy the Vercel frontend
+
+In Vercel > Project > Settings > General, set:
+
+- **Root Directory:** `frontend`
+- **Framework Preset:** Vite
+- **Install Command:** `npm install`
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+
+Add these **Production** environment variables (and Preview only if needed):
+
+```text
+VITE_SUPABASE_URL=<Project URL from Supabase>
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key from the same project>
+```
+
+Save the variables and redeploy. `frontend/vercel.json` supplies the SPA rewrite
+for direct navigation to React routes.
+
+### 5. Smoke-test and decide whether cutover is complete
+
+Use test accounts and payment-provider sandbox/test modes:
+
+1. Open the public site and confirm room listings and public images load.
+2. Register a Guest using the configured OTP delivery; sign in, reset password,
+   refresh, and sign out.
+3. Test Admin, Tenant, and Guest role access with separate accounts.
+4. Upload a profile image, room photo, request photo, chat attachment, payment
+   proof, and Admin GCash QR; confirm each uses the bucket above and the
+   expected public or signed/private access.
+5. Test guest booking, Tenant payments/requests, Admin review, notifications,
+   and chatbot if enabled. Use test data and sandbox payment credentials.
+6. In browser Network tools, verify data/Auth/Storage requests go to the
+   intended Supabase project. The PHP URL should be used only by legacy image
+   fallbacks while those remain.
+
+### Current migration readiness
+
+The local Admin/Tenant/Guest data and Auth paths are largely Supabase-backed,
+but this workspace cannot certify a complete production cutover:
+
+- The 32 SQL migrations and 16 Edge Functions have not been verified against
+  the remote project's migration history and function list in this deployment.
+- The screenshots show only two of the seven Storage buckets expected by the
+  current code. Apply and verify the corresponding migrations before depending
+  on the missing buckets.
+- PHP-relative image fallbacks have been removed from the frontend. Existing
+  PHP-relative image paths will not display until their files are copied to
+  Supabase Storage and their database paths are updated.
+- The legacy PayPal payment/configuration workflow remains PHP-backed. Do not
+  retire the PHP host while PayPal is enabled; migrate that workflow or
+  explicitly disable it and remove its UI references first.
+- Existing user-to-Auth identity links, historical payment/evidence records,
+  GCash QR images/amounts, and chat attachments need authorized backfill and
+  reconciliation before switching production traffic.
+- The local Supabase CLI is available, but Docker is not; local PostgreSQL/
+  pgTAP integration tests have not been run. No remote migration, function
+  deployment, or Vercel release was performed as part of this setup guide.
+
+Treat production as **not fully migrated** until these blockers are resolved
+and the smoke tests pass. See the [configuration inventory](../.github/modernize/assessment/engines/facts/configuration-inventory.md)
+for the complete list of configuration sources and secret locations.
+
 ## Frontend (`frontend/.env`)
 
 Copy `frontend/.env.example` to `frontend/.env` for local Vite development.
 The frontend reads only:
 
-- `VITE_API_BASE_URL`: the external PHP API base URL while PHP-backed features
-  remain.
 - `VITE_SUPABASE_URL`: the Supabase Project URL.
 - `VITE_SUPABASE_PUBLISHABLE_KEY`: the project's publishable key (legacy `anon`
   key is also supported).
 
-For the Vercel deployment, set these same three names in **Project Settings >
-Environment Variables**. The project root directory must be `frontend`. Vercel
-provides them to the Vite build; changing a value requires a new deployment.
+For Vercel, set `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` in **Project Settings > Environment
+Variables**. The project root directory must be `frontend`. Vercel provides
+these values to the Vite build; changing a value requires a new deployment.
 The local `frontend/.env` file is not uploaded to Vercel.
 
-`VITE_API_BASE_URL` is only the base URL for the remaining legacy PHP API and
-PHP-hosted assets. It must not be the Supabase URL. `VITE_SUPABASE_URL` and
-`VITE_SUPABASE_PUBLISHABLE_KEY` configure the browser's Supabase client and are
-intended to be public; Supabase Row-Level Security and Auth policies protect
-data access. The app already reads these variables at build time.
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` configure the browser's
+Supabase client and are intended to be public; Supabase Row-Level Security and
+Auth policies protect data access. The app already reads these variables at
+build time.
 
 Vite embeds `VITE_*` variables in browser assets. These must never contain a
 database password, `service_role` key, Edge Function secret, or payment/SMS/AI
-provider credential. Do not set `VITE_API_BASE_URL` to the Supabase URL; it is
-for the remaining PHP API.
+provider credential.
 
 ## Edge Function secrets
 
@@ -39,8 +242,14 @@ Copy `supabase/.env.example` to `supabase/.env` for local Edge Function
 development. Start the functions with:
 
 ```powershell
-supabase functions serve --env-file supabase/.env
+npx.cmd supabase functions serve --env-file supabase/.env
 ```
+
+The repository includes the Supabase CLI as a local npm dependency, so use
+`npx.cmd` in PowerShell unless you have separately installed the CLI globally.
+Local function serving also requires Docker Desktop to be installed and
+running. To deploy functions to the hosted project instead, use the deployment
+command in the production runbook; local `functions serve` is not required.
 
 Supabase CLI provides project keys for local functions. Keep provider credentials
 in this file only for local testing. Functions now prefer `SUPABASE_SECRET_KEY`
@@ -49,8 +258,10 @@ prefers `SUPABASE_PUBLISHABLE_KEY` over `SUPABASE_ANON_KEY`. In the hosted
 project, set these keys and the required values under **Supabase Dashboard >
 Edge Functions > Secrets** or through the authenticated Supabase CLI. The `auth`
 function needs `APP_ALLOWED_ORIGINS` and, for SMS OTP, `TEXTBEE_API_BASE`,
-`TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, and `TEXTBEE_ENABLED=true`. The chatbot
-needs `OLLAMA_API_KEY` and the allowed production origin. Set `ADMIN_BOOTSTRAP_TOKEN` and
+`TEXTBEE_API_KEY`, and the exact lowercase value `TEXTBEE_ENABLED=true`;
+`TEXTBEE_DEVICE_ID` is optional when using the default TextBee device. The
+chatbot needs `OLLAMA_API_KEY` and the allowed production origin; its optional
+model setting defaults to `gemma4:31b`. Set `ADMIN_BOOTSTRAP_TOKEN` and
 `ADMIN_BOOTSTRAP_PASSWORD` only temporarily when performing the documented
 one-time bootstrap, then remove them.
 
@@ -63,9 +274,24 @@ tokens through Supabase Auth (`auth.getUser`), while the Edge Function gateway
 verifies functions configured with `verify_jwt = true`. Only configure JWKS if
 adding code that directly verifies JWTs with the project's public signing keys.
 
+## Supabase Storage S3 endpoint
+
+The app already uploads files directly to Supabase Storage buckets with
+`supabase-js` (for example, room photos go to `mbh-room-images`, and profile
+pictures go to `mbh-profile-pictures`). The browser needs only
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; Supabase routes those
+requests to Storage. No S3 endpoint or S3 region setting is needed for this app.
+
+`SUPABASE_STORAGE_S3_ENDPOINT` and `SUPABASE_STORAGE_S3_REGION` are for a
+separate trusted server-side S3-compatible client. Setting them alone does not
+upload files, select a bucket, or migrate PHP-hosted files. Such a client also
+needs S3 access credentials, which must stay server-side and must never be
+added to `frontend/.env`, Vercel `VITE_*` settings, or browser code. Do not use
+the S3 endpoint as the Supabase API URL.
+
 ## Legacy PHP backend
 
-The remaining PHP API is a separate server and does not automatically read
+The PHP backend is a separate server and does not automatically read
 `frontend/.env` or `supabase/.env`. Configure its process environment in the PHP
 host for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`,
 `PAYPAL_ENV`, `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_WEBHOOK_ID`,
@@ -112,12 +338,16 @@ $env:DATABASE_URL = $line.Substring('DATABASE_URL='.Length)
 Then review the migrations and target before using the Supabase CLI:
 
 ```powershell
-supabase db push "--remote=$env:DATABASE_URL" --dry-run
+npx.cmd supabase db push "--remote=$env:DATABASE_URL" --dry-run
 ```
 
 Remove `--dry-run` only after reviewing the target and pending migrations;
 applying migrations changes the remote database. Do not use a production URL
-for local tests.
+for local tests. The matching apply command is:
+
+```powershell
+npx.cmd supabase db push "--remote=$env:DATABASE_URL"
+```
 
 ## Authentication setup
 
@@ -161,9 +391,9 @@ Those RPCs are created by:
 
 The Admin FAQ/question RPCs also require `20261114020000_admin_chatbot_settings.sql`.
 After confirming the intended project and reviewing every pending migration,
-use `supabase db push --dry-run` first. `supabase db push` applies all pending
-migrations, not only the two chat migrations; do not apply it until the pending
-list and target are understood.
+use `npx.cmd supabase db push --remote --dry-run` first. `npx.cmd supabase db push`
+applies all pending migrations, not only the two chat migrations; do not apply
+it until the pending list and target are understood.
 
 An Edge Function request that appears as a CORS failure can also mean the
 requested function is missing or the deployed code does not allow the browser
@@ -172,8 +402,8 @@ project's Edge Functions list, then deploy any missing functions only after
 confirming the project reference:
 
 ```text
-supabase functions deploy admin-tenants --project-ref <project-ref>
-supabase functions deploy chatbot --project-ref <project-ref>
+npx.cmd supabase functions deploy admin-tenants --remote="YOUR_PROJECT_REF" --use-api
+npx.cmd supabase functions deploy chatbot --remote="YOUR_PROJECT_REF" --use-api
 ```
 
 `APP_ALLOWED_ORIGINS` is a secret name/value pair under **Edge Functions >
@@ -196,3 +426,7 @@ ready.
 - [Auth redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)
 - [Connect to Postgres](https://supabase.com/docs/guides/database/connecting-to-postgres)
 - [Supabase CLI](https://supabase.com/docs/reference/cli/supabase-db-push)
+- [TextBee SMS sending](https://textbee.dev/docs/sending-sms/sending-sms)
+- [TextBee API keys](https://textbee.dev/docs/getting-started/api-keys)
+- [Ollama Cloud API keys and requests](https://docs.ollama.com/cloud/api.md)
+- [Ollama Cloud models](https://docs.ollama.com/cloud/models.md)

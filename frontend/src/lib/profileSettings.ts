@@ -1,4 +1,3 @@
-import { API_BASE_URL } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 export interface SettingsProfile {
@@ -122,12 +121,12 @@ export async function changeMyPassword(currentPassword: string, newPassword: str
   if (updateError) throw new Error(updateError.message || "Could not update your password.");
 }
 
-export function getProfilePictureUrl(userId: number, path: string | null | undefined): string {
+export function getProfilePictureUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[A-Za-z0-9._-]+$/i.test(path)) {
     return supabase.storage.from("mbh-profile-pictures").getPublicUrl(path).data.publicUrl;
   }
-  return `${API_BASE_URL}/Config/profile_picture.php?user_id=${userId}&v=${encodeURIComponent(path)}`;
+  return "";
 }
 
 export async function uploadMyProfilePicture(file: File, currentPath?: string | null): Promise<void> {

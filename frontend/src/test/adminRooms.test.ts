@@ -98,9 +98,9 @@ describe("Admin rooms", () => {
     expect(remove).toHaveBeenCalledWith([expect.stringMatching(/^covers\/4\//)]);
   });
 
-  it("uses Supabase public URLs for new covers while preserving legacy URLs", () => {
+  it("uses Supabase URLs for stored covers and ignores legacy paths", () => {
     getPublicUrl.mockReturnValue({ data: { publicUrl: "https://storage.example/room.jpg" } });
     expect(getAdminRoomCoverUrl("covers/4/a-b.jpg")).toBe("https://storage.example/room.jpg");
-    expect(getAdminRoomCoverUrl("legacy-cover.jpg")).toBe("legacy-cover.jpg");
+    expect(getAdminRoomCoverUrl("legacy-cover.jpg")).toBe("");
   });
 });

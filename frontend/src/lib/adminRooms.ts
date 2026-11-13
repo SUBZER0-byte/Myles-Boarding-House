@@ -78,7 +78,7 @@ export function getAdminRoomPhotoUrl(filename: string): string {
   if (/^photos\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(filename)) {
     return supabase.storage.from("mbh-room-images").getPublicUrl(filename).data.publicUrl;
   }
-  return filename;
+  return filename.startsWith("blob:") ? filename : "";
 }
 
 export async function addMyAdminRoomPhoto(

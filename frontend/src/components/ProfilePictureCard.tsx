@@ -5,18 +5,17 @@ import { useToast } from "@/hooks/use-toast";
 import { getProfilePictureUrl, uploadMyProfilePicture } from "@/lib/profileSettings";
 
 interface ProfilePictureCardProps {
-  userId: number;
   currentPath?: string | null;
   canUpload?: boolean;
   onUploaded: () => Promise<void> | void;
 }
 
-export function ProfilePictureCard({ userId, currentPath, canUpload = true, onUploaded }: ProfilePictureCardProps) {
+export function ProfilePictureCard({ currentPath, canUpload = true, onUploaded }: ProfilePictureCardProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUrl = getProfilePictureUrl(userId, currentPath);
+  const imageUrl = getProfilePictureUrl(currentPath);
 
   useEffect(() => {
     setImageFailed(false);

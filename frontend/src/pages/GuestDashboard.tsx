@@ -24,8 +24,8 @@ const statusStyles: Record<StatusKey, { badge: string; icon: React.ReactNode }> 
   },
 };
 
-const peso = (n: number) =>
-  "₱" + (n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const peso = (n: number | string) =>
+  "₱" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const GuestDashboard = () => {
   const session = sessionStore.get();
