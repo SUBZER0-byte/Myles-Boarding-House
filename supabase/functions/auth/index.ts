@@ -1,8 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createSupabaseAdminClient,
+  getSupabasePublishableKey,
+  getSupabaseServerKey,
+  getSupabaseUrl,
+} from "../_shared/supabase.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const supabaseUrl = getSupabaseUrl();
+const anonKey = getSupabasePublishableKey();
+const serviceRoleKey = getSupabaseServerKey();
 const allowedOrigins = new Set(
   (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "https://myles-boarding-house.vercel.app,http://localhost:5173")
     .split(",")
@@ -10,13 +16,7 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 
-if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-  throw new Error("Supabase function secrets are not configured.");
-}
-
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const admin = createSupabaseAdminClient();
 
 const encoder = new TextEncoder();
 const otpLifetimeMs = 10 * 60 * 1000;

@@ -16,7 +16,9 @@ The bootstrap creates a confirmed Supabase Auth user for `public.users.user_id =
    - `ADMIN_BOOTSTRAP_TOKEN`: a random secret at least 32 characters long.
    - `ADMIN_BOOTSTRAP_PASSWORD`: a unique password at least 12 characters long.
 
-   The deployed Auth function already uses the project's server-side `SUPABASE_SERVICE_ROLE_KEY`. Never add that key to a `VITE_*` variable.
+   The deployed Auth function prefers the project's server-side
+   `SUPABASE_SECRET_KEY` and falls back to `SUPABASE_SERVICE_ROLE_KEY`. Never add
+   either key to a `VITE_*` variable.
 
 3. Apply [`migrations/20261113001500_auth_admin_bootstrap_nonce.sql`](./migrations/20261113001500_auth_admin_bootstrap_nonce.sql) to the linked project. The profile/auth migration and initial bootstrap migration should already be applied. If using the Dashboard, open **SQL Editor**, paste the contents of this migration, and run it. Do not rerun the previous migrations. If using the CLI, follow the project's migration process; `supabase db push` applies all pending migrations, not only this file.
 

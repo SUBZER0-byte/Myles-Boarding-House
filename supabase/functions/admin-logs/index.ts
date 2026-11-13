@@ -1,7 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createSupabaseAdminClient } from "../_shared/supabase.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const allowedOrigins = new Set(
   (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "https://myles-boarding-house.vercel.app")
     .split(",")
@@ -9,13 +7,7 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Supabase function secrets are not configured.");
-}
-
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const admin = createSupabaseAdminClient();
 const actions = new Set(["list", "delete"]);
 
 function jsonResponse(body: unknown, status: number, origin: string | null): Response {

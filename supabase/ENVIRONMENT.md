@@ -11,12 +11,29 @@ The frontend reads only:
 - `VITE_SUPABASE_PUBLISHABLE_KEY`: the project's publishable key (legacy `anon`
   key is also supported).
 
+For the Vercel deployment, set these same three names in **Project Settings >
+Environment Variables**. The project root directory must be `frontend`. Vercel
+provides them to the Vite build; changing a value requires a new deployment.
+The local `frontend/.env` file is not uploaded to Vercel.
+
+`VITE_API_BASE_URL` is only the base URL for the remaining legacy PHP API and
+PHP-hosted assets. It must not be the Supabase URL. `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` configure the browser's Supabase client and are
+intended to be public; Supabase Row-Level Security and Auth policies protect
+data access. The app already reads these variables at build time.
+
 Vite embeds `VITE_*` variables in browser assets. These must never contain a
 database password, `service_role` key, Edge Function secret, or payment/SMS/AI
 provider credential. Do not set `VITE_API_BASE_URL` to the Supabase URL; it is
 for the remaining PHP API.
 
 ## Edge Function secrets
+
+Vercel environment variables are not automatically available to Supabase Edge
+Functions. A variable without the `VITE_` prefix is not exposed to this static
+frontend, and setting one in Vercel does not configure the Supabase runtime.
+Keep provider credentials and other private values in the Supabase project's
+Edge Function secrets.
 
 Copy `supabase/.env.example` to `supabase/.env` for local Edge Function
 development. Start the functions with:
@@ -26,18 +43,25 @@ supabase functions serve --env-file supabase/.env
 ```
 
 Supabase CLI provides project keys for local functions. Keep provider credentials
-in this file only for local testing. In the hosted project, set the required
-values under **Supabase Dashboard > Edge Functions > Secrets** or through the
-authenticated Supabase CLI. The `auth` function needs `APP_ALLOWED_ORIGINS` and,
-for SMS OTP, `TEXTBEE_API_BASE`, `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, and
-`TEXTBEE_ENABLED=true`. The chatbot needs `OLLAMA_API_KEY` and the allowed
-production origin. Set `ADMIN_BOOTSTRAP_TOKEN` and
+in this file only for local testing. Functions now prefer `SUPABASE_SECRET_KEY`
+over the platform-provided legacy `SUPABASE_SERVICE_ROLE_KEY`; the auth function
+prefers `SUPABASE_PUBLISHABLE_KEY` over `SUPABASE_ANON_KEY`. In the hosted
+project, set these keys and the required values under **Supabase Dashboard >
+Edge Functions > Secrets** or through the authenticated Supabase CLI. The `auth`
+function needs `APP_ALLOWED_ORIGINS` and, for SMS OTP, `TEXTBEE_API_BASE`,
+`TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, and `TEXTBEE_ENABLED=true`. The chatbot
+needs `OLLAMA_API_KEY` and the allowed production origin. Set `ADMIN_BOOTSTRAP_TOKEN` and
 `ADMIN_BOOTSTRAP_PASSWORD` only temporarily when performing the documented
 one-time bootstrap, then remove them.
 
 Do not upload local bootstrap credentials or development-only values as hosted
 secrets. Edge Function deployment and secret changes are separate from Vercel
-deployments.
+deployments. The browser does not use `SUPABASE_SECRET_KEY`; never prefix it
+with `VITE_` or put it in a frontend build environment. `SUPABASE_JWKS_URL` is
+not required by the current functions: authenticated endpoints validate access
+tokens through Supabase Auth (`auth.getUser`), while the Edge Function gateway
+verifies functions configured with `verify_jwt = true`. Only configure JWKS if
+adding code that directly verifies JWTs with the project's public signing keys.
 
 ## Legacy PHP backend
 
@@ -141,22 +165,29 @@ use `supabase db push --dry-run` first. `supabase db push` applies all pending
 migrations, not only the two chat migrations; do not apply it until the pending
 list and target are understood.
 
-A chatbot preflight CORS failure can mean the `chatbot` Edge Function is not
-deployed or its hosted `APP_ALLOWED_ORIGINS` secret omits the exact origin
-`https://myles-boarding-house.vercel.app`. Deploy the function to the same
-project only after confirming the target:
+An Edge Function request that appears as a CORS failure can also mean the
+requested function is missing or the deployed code does not allow the browser
+origin. Confirm that `admin-tenants` and `chatbot` appear in the intended
+project's Edge Functions list, then deploy any missing functions only after
+confirming the project reference:
 
 ```text
+supabase functions deploy admin-tenants --project-ref <project-ref>
 supabase functions deploy chatbot --project-ref <project-ref>
 ```
 
-In the hosted project's Edge Function secrets, set `APP_ALLOWED_ORIGINS` to
-the production origin (plus only any deliberately allowed preview/local origins)
-and set `OLLAMA_API_KEY` if chatbot responses should be enabled. Keep the
-function's `verify_jwt = false` setting because the public widget is anonymous.
-The CORS allowlist, function deployment, and database migration state are
-independent; verify all three before expecting the deployed frontend to work.
-Deploy the frontend after its database and function dependencies are ready.
+`APP_ALLOWED_ORIGINS` is a secret name/value pair under **Edge Functions >
+Secrets**, not an Edge Function name. Set its value to the exact production
+origin `https://myles-boarding-house.vercel.app` (plus only deliberately allowed
+preview/local origins). A function named like
+`APP_ALLOWED_ORIGINS-https---myles-boarding-house-vercel-app` does not configure
+CORS; if it was created accidentally, remove it only after confirming it is not
+used. Set `OLLAMA_API_KEY` there too if chatbot responses should be enabled.
+Keep the chatbot's `verify_jwt = false` setting because the public widget is
+anonymous. The CORS allowlist, function deployment, and database migration
+state are independent; verify all three before expecting the deployed frontend
+to work. Deploy the frontend after its database and function dependencies are
+ready.
 
 ## References
 

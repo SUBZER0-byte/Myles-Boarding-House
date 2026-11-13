@@ -1,7 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createSupabaseAdminClient } from "../_shared/supabase.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const ollamaApiKey = Deno.env.get("OLLAMA_API_KEY")?.trim() ?? "";
 const ollamaModel = Deno.env.get("OLLAMA_CLOUD_MODEL")?.trim() || "gemma4:31b";
 const allowedOrigins = new Set(
@@ -11,11 +9,7 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 
-if (!supabaseUrl || !serviceRoleKey) throw new Error("Supabase function secrets are not configured.");
-
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const admin = createSupabaseAdminClient();
 
 type ChatRole = "system" | "user" | "assistant";
 type ChatLanguage = "auto" | "english" | "tagalog";

@@ -1,14 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createSupabaseAdminClient } from "../_shared/supabase.ts";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const bootstrapToken = Deno.env.get("ADMIN_BOOTSTRAP_TOKEN");
 const bootstrapPassword = Deno.env.get("ADMIN_BOOTSTRAP_PASSWORD");
 
 if (
-  !supabaseUrl
-  || !serviceRoleKey
-  || !bootstrapToken
+  !bootstrapToken
   || bootstrapToken.length < 32
   || !bootstrapPassword
   || bootstrapPassword.length < 12
@@ -17,9 +13,7 @@ if (
   throw new Error("Admin bootstrap secrets are not configured.");
 }
 
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const admin = createSupabaseAdminClient();
 const encoder = new TextEncoder();
 
 function jsonResponse(body: unknown, status: number): Response {
