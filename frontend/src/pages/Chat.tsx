@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, ImagePlus, Send, Smile, Trash2, UserRound, X
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { API_BASE_URL } from "@/lib/api";
+import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -232,7 +233,7 @@ export default function Chat() {
     [visibleConversations, peerId]
   );
   const profilePictureUrl = (userId: number, path?: string | null) =>
-    path ? `${API_BASE_URL}/Config/profile_picture.php?user_id=${userId}&v=${encodeURIComponent(path)}` : "";
+    getProfilePictureUrl(userId, path);
 
   return (
     <DashboardLayout role={role as "admin" | "tenant" | "guest"}>

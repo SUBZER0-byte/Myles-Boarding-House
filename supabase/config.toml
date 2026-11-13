@@ -11,3 +11,33 @@ verify_jwt = false
 
 [functions.admin-bootstrap]
 verify_jwt = false
+
+[functions.admin-dashboard]
+verify_jwt = true
+
+[functions.tenant-dashboard]
+verify_jwt = true
+
+[functions.admin-announcements]
+verify_jwt = true
+
+[functions.tenant-ratings]
+verify_jwt = true
+
+[functions.user-notifications]
+verify_jwt = true
+
+[functions.admin-notifications]
+verify_jwt = true
+
+[functions.admin-analytics]
+verify_jwt = true
+
+[functions.tenant-requests]
+verify_jwt = true
+
+[functions.stay-extensions]
+verify_jwt = true
+
+[functions.admin-ratings]
+verify_jwt = true

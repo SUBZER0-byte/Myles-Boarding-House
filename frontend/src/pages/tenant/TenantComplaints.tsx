@@ -7,32 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, MessageSquareWarning, X, Loader2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
-
-interface Complaint {
-  complaint_id: number;
-  title: string;
-  description: string;
-  category: string;
-  is_urgent: number;
-  photo_path: string | null;
-  status: string;
-  admin_reply: string | null;
-  created_at: string;
-  status_history?: { status: string; changed_at: string; changed_by_name: string | null }[];
-}
+import { sessionStore } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { cancelTenantComplaint, createTenantComplaint, listTenantComplaints } from "@/lib/tenantRequests";
 
 const TenantComplaints = () => {
   const { toast } = useToast();
   const session = sessionStore.get();
   const userId = session?.user_id;
-  const { data, refetch, error } = usePolling<Complaint[]>(
-    userId ? `${endpoints.tenantComplaints}?action=list&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  const loadComplaints = useCallback(() => listTenantComplaints(), []);
+  const { data, refetch, error } = useSupabasePolling(loadComplaints, 5000, Boolean(userId));
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", category: "Other", is_urgent: false });
   const [photo, setPhoto] = useState<File | null>(null);
@@ -42,34 +28,39 @@ const TenantComplaints = () => {
     if (!userId) return;
     setSaving(true);
     try {
-      const formData = new FormData();
-      formData.append("title", form.title);
-      formData.append("description", form.description);
-      formData.append("category", form.category);
-      formData.append("is_urgent", form.is_urgent ? "1" : "0");
-      if (photo) formData.append("photo", photo);
-      const res = await api.post<ApiResponse<{ sms_sent?: number; sms_failures?: number }>>(
-        `${endpoints.tenantComplaints}?action=create`, formData, { headers: { "Content-Type": undefined } }
-      );
-      if (res.data.type === "success") {
-        const smsFailures = Number(res.data.sms_failures ?? 0);
-        toast({
-          title: form.is_urgent && smsFailures > 0 ? "Complaint filed; SMS alert could not be confirmed" : "Complaint filed",
-          description: form.is_urgent ? "If there is immediate danger, contact local emergency services. This alert does not replace them." : undefined,
-          variant: form.is_urgent && smsFailures > 0 ? "destructive" : "default",
-        });
-        setOpen(false);
-        setForm({ title: "", description: "", category: "Other", is_urgent: false });
-        setPhoto(null);
-        refetch();
-      }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
-    } finally { setSaving(false); }
+      const result = await createTenantComplaint(form, photo);
+      const smsFailures = Number(result.sms_failures ?? 0);
+      toast({
+        title: form.is_urgent && smsFailures > 0 ? "Complaint filed; SMS alert could not be confirmed" : "Complaint filed",
+        description: form.is_urgent ? "If there is immediate danger, contact local emergency services. This alert does not replace them." : undefined,
+        variant: form.is_urgent && smsFailures > 0 ? "destructive" : "default",
+      });
+      setOpen(false);
+      setForm({ title: "", description: "", category: "Other", is_urgent: false });
+      setPhoto(null);
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to file complaint",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const cancel = async (c: Complaint) => {
-    await api.get<ApiResponse>(`${endpoints.tenantComplaints}?action=cancel&complaint_id=${c.complaint_id}`);
-    refetch();
+  const cancel = async (complaintId: number) => {
+    try {
+      await cancelTenantComplaint(complaintId);
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to cancel complaint",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
@@ -104,13 +95,13 @@ const TenantComplaints = () => {
                   <Badge variant={variant(c.status)} className="text-xs">{c.status}</Badge>
                   {c.is_urgent === 1 && <Badge variant="destructive" className="text-xs">Urgent</Badge>}
                   {c.status === "Submitted" && (
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => cancel(c)}><X size={14} /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void cancel(c.complaint_id)}><X size={14} /></Button>
                   )}
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">{c.description}</p>
-              {c.photo_path && (
-                <img src={`${API_BASE_URL}/Tenant/request_photo.php?type=complaint&id=${c.complaint_id}`} alt="Complaint attachment" className="mt-3 max-h-72 max-w-full rounded-md border border-border object-contain" />
+              {c.photo_url && (
+                <img src={c.photo_url} alt="Complaint attachment" className="mt-3 max-h-72 max-w-full rounded-md border border-border object-contain" />
               )}
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mt-3 border-l-2 border-border pl-3 space-y-2">

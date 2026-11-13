@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CreditCard, Trash2, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { usePolling } from "@/hooks/usePolling";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { API_BASE_URL, api, type ApiResponse } from "@/lib/api";
+import { decideStayExtension, listStayExtensionRequests } from "@/lib/stayExtensions";
+import type { StayExtensionRequest } from "@/lib/stayExtensions";
 
 interface Booking {
   booking_id: number;
@@ -35,23 +38,12 @@ interface Booking {
   gcash_submitted_screenshot?: string | null;
 }
 
-interface ExtensionRequest {
-  request_id: number;
-  booking_id: number;
-  original_check_out_date: string;
-  requested_check_out_date: string;
-  status: "Pending" | "Approved" | "Rejected";
-  created_at: string;
-  full_name: string;
-  email: string;
-  room_number: string | null;
-  monthly_rent: number | null;
-}
-
 const AdminGuestBookingPayments = () => {
   const { toast } = useToast();
   const { data: bookings, refetch, error } = usePolling<Booking[]>("/Admin/bookings.php?action=list", { intervalMs: 5000 });
-  const { data: extensionRequests, refetch: refetchExtensions } = usePolling<ExtensionRequest[]>("/Admin/bookings.php?action=extension_requests", { intervalMs: 5000 });
+  const loadExtensionRequests = useCallback(() => listStayExtensionRequests(), []);
+  const { data: extensionRequests, refetch: refetchExtensions, error: extensionError } =
+    useSupabasePolling(loadExtensionRequests, 5000);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -127,17 +119,17 @@ const AdminGuestBookingPayments = () => {
     }
   };
 
-  const decideExtension = async (request: ExtensionRequest, decision: "Approved" | "Rejected") => {
-    const res = await api.post<ApiResponse>("/Admin/bookings.php?action=extension_decision", {
-      request_id: request.request_id,
-      decision,
-    });
-    if (res.data.type === "success") {
-      toast({ title: res.data.message || `Extension ${decision.toLowerCase()}` });
+  const decideExtension = async (request: StayExtensionRequest, decision: "Approved" | "Rejected") => {
+    try {
+      const message = await decideStayExtension(request.request_id, decision);
+      toast({ title: message });
       refetchExtensions();
-      refetch();
-    } else {
-      toast({ title: res.data.message || "Could not process extension request", variant: "destructive" });
+    } catch (cause) {
+      toast({
+        title: "Could not process extension request",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -154,6 +146,7 @@ const AdminGuestBookingPayments = () => {
           </div>
         </div>
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
+        {extensionError && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{extensionError}</div>}
         {!bookings && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         {!!extensionRequests?.length && (

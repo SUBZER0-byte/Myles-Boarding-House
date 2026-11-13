@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { endpoints, sessionStore } from "@/lib/api";
+import { sessionStore } from "@/lib/api";
 import { signOutSupabase } from "@/lib/auth";
 import { usePolling } from "@/hooks/usePolling";
+import { useUserUnreadNotificationCount } from "@/hooks/useUserNotifications";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -83,13 +84,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
   const navRef = useRef<HTMLElement | null>(null);
   const scrollKey = `sidebarScroll:${role}`;
   const userId = Number((sessionStore.get() as { user_id?: number | string } | null)?.user_id ?? 0);
-  const notificationCountUrl = role === "admin"
-    ? `${endpoints.adminNotifications}?action=unread_count`
-    : `${endpoints.tenantNotifications}?action=unread_count&user_id=${userId}`;
-  const { data: unreadNotifications } = usePolling<{ count: number }>(
-    userId > 0 ? notificationCountUrl : null,
-    { alwaysPoll: true, intervalMs: 10000 },
-  );
+  const { count: unreadNotifications } = useUserUnreadNotificationCount(10000);
   const { data: unreadMessages } = usePolling<{ count: number }>(
     userId > 0 ? `/Chat/messages.php?action=unread_count&user_id=${userId}` : null,
     { alwaysPoll: true, intervalMs: 10000 },
@@ -178,7 +173,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
           const unreadCount = item.label === "Messages"
             ? Number(unreadMessages?.count ?? 0)
             : item.label === "Notifications"
-              ? Number(unreadNotifications?.count ?? 0)
+              ? unreadNotifications
               : 0;
           return (
             <Link

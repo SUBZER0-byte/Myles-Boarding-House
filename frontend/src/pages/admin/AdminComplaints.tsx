@@ -6,60 +6,74 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, MessageSquareWarning, Loader2, Send, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, type ApiResponse } from "@/lib/api";
-
-interface Complaint {
-  complaint_id: number;
-  tenant_id: number;
-  full_name: string;
-  title: string;
-  description: string;
-  status: string;
-  category: string;
-  room_number: string | null;
-  is_urgent: number;
-  photo_path: string | null;
-  admin_reply: string | null;
-  created_at: string;
-  status_history?: { status: string; changed_at: string; changed_by_name: string | null }[];
-}
-
-interface RecurringIssue {
-  category: string;
-  room_number: string;
-  complaint_count: number | string;
-  latest_report: string;
-}
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import {
+  deleteComplaint,
+  listAdminComplaints,
+  listRecurringComplaints,
+  replyToComplaint,
+  updateComplaintStatus,
+  type TenantComplaint,
+  type RecurringComplaint,
+} from "@/lib/tenantRequests";
 
 const AdminComplaints = () => {
   const { toast } = useToast();
   const [filter, setFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [roomFilter, setRoomFilter] = useState("all");
-  const { data: items, refetch, error } = usePolling<Complaint[]>(`${endpoints.adminComplaints}?action=list`, { intervalMs: 5000 });
-  const { data: recurringIssues } = usePolling<RecurringIssue[]>(`${endpoints.adminComplaints}?action=report`, { intervalMs: 30000 });
+  const loadComplaints = useCallback(() => listAdminComplaints(), []);
+  const loadRecurringComplaints = useCallback(() => listRecurringComplaints(), []);
+  const { data: items, refetch, error } = useSupabasePolling(loadComplaints, 5000);
+  const { data: recurringIssues, error: recurringError } = useSupabasePolling(loadRecurringComplaints, 30000);
   const [replyOpen, setReplyOpen] = useState(false);
-  const [selected, setSelected] = useState<Complaint | null>(null);
+  const [selected, setSelected] = useState<TenantComplaint | null>(null);
   const [reply, setReply] = useState("");
 
-  const setStatus = async (c: Complaint, status: string) => {
-    await api.post<ApiResponse>(`${endpoints.adminComplaints}?action=update_status`, { complaint_id: c.complaint_id, status });
-    refetch();
+  const setStatus = async (complaint: TenantComplaint, status: string) => {
+    try {
+      await updateComplaintStatus(complaint.complaint_id, status);
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to update complaint",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const sendReply = async () => {
     if (!selected) return;
-    const res = await api.post<ApiResponse>(`${endpoints.adminComplaints}?action=reply`, { complaint_id: selected.complaint_id, reply });
-    toast({ title: res.data.message || "Sent" });
-    setReplyOpen(false); setReply(""); refetch();
+    try {
+      const message = await replyToComplaint(selected.complaint_id, reply);
+      toast({ title: message });
+      setReplyOpen(false);
+      setReply("");
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to send reply",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const remove = async (c: Complaint) => {
-    await api.get<ApiResponse>(`${endpoints.adminComplaints}?action=delete&complaint_id=${c.complaint_id}`);
-    refetch();
+  const remove = async (complaint: TenantComplaint) => {
+    try {
+      const message = await deleteComplaint(complaint.complaint_id);
+      toast({ title: message, variant: message.includes("could not be removed") ? "destructive" : "default" });
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to delete complaint",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
@@ -116,6 +130,7 @@ const AdminComplaints = () => {
             <p className="text-xs text-muted-foreground">Categories reported more than once for the same room.</p>
           </div>
           {!recurringIssues && <p className="text-sm text-muted-foreground">Loading report…</p>}
+          {recurringError && <p className="text-sm text-destructive">{recurringError}</p>}
           {recurringIssues?.length === 0 && <p className="text-sm text-muted-foreground">No recurring issues found.</p>}
           {recurringIssues && recurringIssues.length > 0 && (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -147,7 +162,7 @@ const AdminComplaints = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{c.description}</p>
-              {c.photo_path && <img src={`${API_BASE_URL}/Tenant/request_photo.php?type=complaint&id=${c.complaint_id}`} alt="Complaint attachment" className="mb-3 max-h-72 max-w-full rounded-md border border-border object-contain" />}
+              {c.photo_url && <img src={c.photo_url} alt="Complaint attachment" className="mb-3 max-h-72 max-w-full rounded-md border border-border object-contain" />}
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mb-3 border-l-2 border-border pl-3 space-y-1.5">
                   {c.status_history.map((entry, index) => (
@@ -165,7 +180,7 @@ const AdminComplaints = () => {
                 </div>
               )}
               <div className="flex items-center gap-2 flex-wrap">
-                <Select value={c.status} onValueChange={(v) => setStatus(c, v)}>
+                <Select value={c.status} onValueChange={(v) => void setStatus(c, v)}>
                   <SelectTrigger className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Submitted">Submitted</SelectItem>
@@ -178,7 +193,7 @@ const AdminComplaints = () => {
                 <Button size="sm" variant="secondary" className="gap-1" onClick={() => { setSelected(c); setReply(c.admin_reply ?? ""); setReplyOpen(true); }}>
                   <Send size={12} /> Reply
                 </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => remove(c)}><Trash2 size={14} /></Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => void remove(c)}><Trash2 size={14} /></Button>
               </div>
             </div>
           ))}

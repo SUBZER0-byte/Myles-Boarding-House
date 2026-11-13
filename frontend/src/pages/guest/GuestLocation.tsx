@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Clock, MapPin, Navigation, Phone } from "lucide-react";
-import { endpoints } from "@/lib/api";
-import { usePolling } from "@/hooks/usePolling";
+import { usePublicHouseInfo } from "@/hooks/usePublicInfo";
 
 const defaultHouseInfo = {
   house_address_line_1: "Lerma St., Brgy. Bañadero,",
@@ -15,10 +14,7 @@ const defaultHouseInfo = {
 };
 
 const GuestLocation = () => {
-  const { data: liveHouseInfo } = usePolling<Partial<typeof defaultHouseInfo>>(
-    `${endpoints.publicInfo}?action=house_info`,
-    { intervalMs: 5000 }
-  );
+  const { houseInfo: liveHouseInfo, error } = usePublicHouseInfo();
   const houseInfo = { ...defaultHouseInfo, ...liveHouseInfo };
   const latitude = Number(houseInfo.house_map_lat);
   const longitude = Number(houseInfo.house_map_lng);
@@ -35,6 +31,12 @@ const GuestLocation = () => {
           <h1 className="font-display text-2xl font-bold">Location</h1>
           <p className="text-muted-foreground text-sm mt-1">Find Myle's Boarding House from the guest portal.</p>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+            Could not load the latest house information: {error.message}
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="grid lg:grid-cols-[1fr_1.6fr] gap-6">

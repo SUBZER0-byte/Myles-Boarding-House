@@ -9,87 +9,94 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Bell, Trash2, Send, Loader2, Radio, AlertTriangle, XCircle, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
-
-interface UserRecipient {
-  user_id: number;
-  username: string | null;
-  full_name: string | null;
-  user_type: string | null;
-  email: string | null;
-  label: string;
-}
-
-interface Notif {
-  notification_id: number;
-  user_id: number;
-  username: string | null;
-  title: string;
-  message: string;
-  type: string;
-  is_read: number;
-  created_at: string;
-}
+import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import {
+  listNotificationRecipients,
+  sendAdminNotification,
+  type NotificationRecipient,
+  type AdminNotification,
+} from "@/lib/adminNotifications";
+import {
+  deleteUserNotification,
+  markAllUserNotificationsRead,
+  markUserNotificationRead,
+} from "@/lib/userNotifications";
 
 const AdminNotifications = () => {
   const { toast } = useToast();
-  const session = sessionStore.get();
-  const userId = session?.user_id;
-  const { data: items, refetch, error } = usePolling<Notif[]>(
-    userId ? `${endpoints.adminNotifications}?action=list&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  const { items, refetch, error, loading } = useAdminNotifications();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"send" | "broadcast">("send");
-  const [recipients, setRecipients] = useState<UserRecipient[]>([]);
+  const [recipients, setRecipients] = useState<NotificationRecipient[]>([]);
+  const [recipientsError, setRecipientsError] = useState<string | null>(null);
   const [form, setForm] = useState({ user_id: "", user_type: "Tenant", title: "", message: "", type: "info" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const loadRecipients = async () => {
       try {
-        const res = await api.get<ApiResponse<UserRecipient[]>>(`${endpoints.adminNotifications}?action=users`);
-        if (res.data.type === "success") {
-          setRecipients(res.data.data ?? []);
+        const users = await listNotificationRecipients();
+        if (active) {
+          setRecipients(users);
+          setRecipientsError(null);
         }
-      } catch {
-        setRecipients([]);
+      } catch (caught) {
+        if (active) {
+          setRecipientsError(caught instanceof Error ? caught.message : "Could not load active users.");
+        }
       }
     };
 
-    loadRecipients();
+    void loadRecipients();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const submit = async () => {
     setSaving(true);
     try {
-      const url = mode === "send"
-        ? `${endpoints.adminNotifications}?action=send`
-        : `${endpoints.adminNotifications}?action=broadcast`;
-      const res = await api.post<ApiResponse>(url, form);
-      if (res.data.type === "success") { toast({ title: res.data.message ?? "Sent" }); setOpen(false); refetch(); }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      const message = mode === "send"
+        ? await sendAdminNotification({
+            user_id: Number(form.user_id),
+            title: form.title,
+            message: form.message,
+            type: form.type,
+          })
+        : await sendAdminNotification({
+            user_type: form.user_type,
+            title: form.title,
+            message: form.message,
+            type: form.type,
+          });
+      toast({ title: message });
+      setOpen(false);
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not send notification.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
-  const remove = async (n: Notif) => {
-    if (!userId) return;
-    await api.get<ApiResponse>(`${endpoints.adminNotifications}?action=delete&notification_id=${n.notification_id}&user_id=${userId}`);
-    refetch();
+  const runUserNotificationAction = async (action: () => Promise<void>) => {
+    try {
+      await action();
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not update notification.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const markRead = async (n: Notif) => {
-    if (!userId) return;
-    await api.get<ApiResponse>(`${endpoints.adminNotifications}?action=mark_read&notification_id=${n.notification_id}&user_id=${userId}`);
-    refetch();
-  };
-
-  const markAllRead = async () => {
-    if (!userId) return;
-    await api.get<ApiResponse>(`${endpoints.adminNotifications}?action=mark_all_read&user_id=${userId}`);
-    refetch();
-  };
+  const remove = (notification: AdminNotification) =>
+    runUserNotificationAction(() => deleteUserNotification(notification.notification_id));
+  const markRead = (notification: AdminNotification) =>
+    runUserNotificationAction(() => markUserNotificationRead(notification.notification_id));
 
   return (
     <DashboardLayout role="admin">
@@ -99,13 +106,19 @@ const AdminNotifications = () => {
             <h1 className="font-display text-2xl font-bold">Notifications</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={markAllRead} className="gap-2"><Check size={14} /> Mark my notifications read</Button>
+            <Button
+              variant="secondary"
+              onClick={() => void runUserNotificationAction(markAllUserNotificationsRead)}
+              className="gap-2"
+            >
+              <Check size={14} /> Mark my notifications read
+            </Button>
             <Button variant="secondary" onClick={() => { setMode("send"); setOpen(true); }} className="gap-2"><Send size={14} /> Send</Button>
             <Button onClick={() => { setMode("broadcast"); setOpen(true); }} className="gap-2"><Radio size={14} /> Broadcast</Button>
           </div>
         </div>
-        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
-        {!items && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
+        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error.message}</div>}
+        {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         <div className="space-y-2">
           {items?.length === 0 && (
@@ -163,14 +176,14 @@ const AdminNotifications = () => {
                     variant="ghost"
                     className="h-8 w-8 shrink-0"
                     aria-label="Mark notification as read"
-                    onClick={() => markRead(n)}
+                    onClick={() => void markRead(n)}
                   >
                     <Check size={14} />
                   </Button>
                 )}
                 <button
                   className="h-8 w-8 flex items-center justify-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                  onClick={() => remove(n)}
+                  onClick={() => void remove(n)}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -190,10 +203,10 @@ const AdminNotifications = () => {
             {mode === "send" ? (
               <div className="grid gap-1.5"><Label>Recipient</Label>
                 <Select value={form.user_id} onValueChange={v => setForm({ ...form, user_id: v })}>
-                  <SelectTrigger><SelectValue placeholder={recipients.length ? "Choose recipient" : "Loading users..."} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={recipientsError ? "Could not load users" : recipients.length ? "Choose recipient" : "Loading users..."} /></SelectTrigger>
                   <SelectContent>
                     {recipients.length === 0 ? (
-                      <div className="px-2 py-2 text-sm text-muted-foreground">No active users available.</div>
+                      <div className="px-2 py-2 text-sm text-muted-foreground">{recipientsError || "No active users available."}</div>
                     ) : recipients.map((user) => (
                       <SelectItem key={user.user_id} value={String(user.user_id)}>
                         {user.full_name || user.username || `User #${user.user_id}`} ({user.user_type || "User"})

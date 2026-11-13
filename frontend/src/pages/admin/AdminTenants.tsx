@@ -10,7 +10,8 @@ import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, Loade
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, type ApiResponse } from "@/lib/api";
+import { api, endpoints, type ApiResponse } from "@/lib/api";
+import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Tenant {
@@ -335,7 +336,7 @@ const AdminTenants = () => {
         ) : (
           <div className="flex items-center gap-3">
             {editOpen && selected?.profile_picture && selected.user_id != null && (
-              <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${selected.user_id}&v=${encodeURIComponent(selected.profile_picture)}`} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
+              <img src={getProfilePictureUrl(selected.user_id, selected.profile_picture)} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
             )}
             <Input id="tenant-profile-picture" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
               const file = e.target.files?.[0] ?? null;
@@ -390,7 +391,7 @@ const AdminTenants = () => {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm overflow-hidden">
-                    {t.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${t.user_id}&v=${encodeURIComponent(t.profile_picture)}`} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
+                    {t.user_id != null && t.profile_picture ? <img src={getProfilePictureUrl(t.user_id, t.profile_picture)} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{t.full_name}</p>
@@ -459,7 +460,7 @@ const AdminTenants = () => {
                     <TableCell>
                       <div className="flex items-center gap-3 min-w-44">
                         <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden shrink-0">
-                          {t.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${t.user_id}&v=${encodeURIComponent(t.profile_picture)}`} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
+                          {t.user_id != null && t.profile_picture ? <img src={getProfilePictureUrl(t.user_id, t.profile_picture)} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
                         </div>
                         <div>
                           <p className="font-medium">{t.full_name}</p>

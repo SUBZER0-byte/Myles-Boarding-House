@@ -7,31 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Wrench, X, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
-
-interface Request {
-  request_id: number;
-  title: string;
-  category: string;
-  description: string;
-  priority: string;
-  status: string;
-  photo_path: string | null;
-  created_at: string;
-  status_history?: { status: string; changed_at: string; changed_by_name: string | null }[];
-}
+import { sessionStore } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { cancelTenantMaintenanceRequest, createTenantMaintenanceRequest, listTenantMaintenanceRequests } from "@/lib/tenantRequests";
 
 const TenantMaintenance = () => {
   const { toast } = useToast();
   const session = sessionStore.get();
   const userId = session?.user_id;
-  const { data, refetch, error } = usePolling<Request[]>(
-    userId ? `${endpoints.tenantMaintenance}?action=list&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  const loadRequests = useCallback(() => listTenantMaintenanceRequests(), []);
+  const { data, refetch, error } = useSupabasePolling(loadRequests, 5000, Boolean(userId));
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Other", description: "", priority: "Medium" });
   const [photo, setPhoto] = useState<File | null>(null);
@@ -41,21 +28,34 @@ const TenantMaintenance = () => {
     if (!userId) return;
     setSaving(true);
     try {
-      const formData = new FormData();
-      formData.append("title", form.title);
-      formData.append("category", form.category);
-      formData.append("description", form.description);
-      formData.append("priority", form.priority);
-      if (photo) formData.append("photo", photo);
-      const res = await api.post<ApiResponse>(`${endpoints.tenantMaintenance}?action=create`, formData, { headers: { "Content-Type": undefined } });
-      if (res.data.type === "success") { toast({ title: "Request submitted" }); setOpen(false); setForm({ title: "", category: "Other", description: "", priority: "Medium" }); setPhoto(null); refetch(); }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
-    } finally { setSaving(false); }
+      await createTenantMaintenanceRequest(form, photo);
+      toast({ title: "Request submitted" });
+      setOpen(false);
+      setForm({ title: "", category: "Other", description: "", priority: "Medium" });
+      setPhoto(null);
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to submit request",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const cancel = async (r: Request) => {
-    await api.get<ApiResponse>(`${endpoints.tenantMaintenance}?action=cancel&request_id=${r.request_id}`);
-    refetch();
+  const cancel = async (requestId: number) => {
+    try {
+      await cancelTenantMaintenanceRequest(requestId);
+      await refetch();
+    } catch (error) {
+      toast({
+        title: "Unable to cancel request",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
@@ -91,13 +91,13 @@ const TenantMaintenance = () => {
                   <Badge variant="secondary" className="text-xs">{r.priority}</Badge>
                   <Badge variant={variant(r.status)} className="text-xs">{displayStatus(r.status)}</Badge>
                   {r.status === "Submitted" && (
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => cancel(r)}><X size={14} /></Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => void cancel(r.request_id)}><X size={14} /></Button>
                   )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-2">{r.category} · {r.priority}</p>
               <p className="text-sm text-muted-foreground">{r.description}</p>
-              {r.photo_path && <img src={`${API_BASE_URL}/Tenant/request_photo.php?type=maintenance&id=${r.request_id}`} alt="Maintenance request attachment" className="mt-3 max-h-72 max-w-full rounded-md border border-border object-contain" />}
+              {r.photo_url && <img src={r.photo_url} alt="Maintenance request attachment" className="mt-3 max-h-72 max-w-full rounded-md border border-border object-contain" />}
               {r.status_history && r.status_history.length > 0 && (
                 <div className="mt-3 border-l-2 border-border pl-3 space-y-2">
                   {r.status_history.map((entry, index) => (

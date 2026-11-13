@@ -10,31 +10,27 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, Megaphone, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
-
-interface Announcement {
-  announcement_id: number;
-  title: string;
-  body: string;
-  is_published: number;
-  created_at: string;
-}
+import { useAdminAnnouncements } from "@/hooks/useAdminAnnouncements";
+import {
+  deleteAdminAnnouncement,
+  saveAdminAnnouncement,
+  setAdminAnnouncementPublished,
+  type AdminAnnouncement,
+} from "@/lib/adminAnnouncements";
 
 const AdminAnnouncements = () => {
   const { toast } = useToast();
-  const session = sessionStore.get();
-  const { data: items, refetch, error } = usePolling<Announcement[]>(`${endpoints.adminAnnouncements}?action=list`, { intervalMs: 5000 });
+  const { items, refetch, error, loading } = useAdminAnnouncements();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Announcement | null>(null);
+  const [editing, setEditing] = useState<AdminAnnouncement | null>(null);
   const [form, setForm] = useState({ title: "", body: "", is_published: 1 });
   const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AdminAnnouncement | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
   const openAdd = () => { setEditing(null); setForm({ title: "", body: "", is_published: 1 }); setOpen(true); };
-  const openEdit = (a: Announcement) => {
+  const openEdit = (a: AdminAnnouncement) => {
     setEditing(a); setForm({ title: a.title, body: a.body, is_published: a.is_published });
     setOpen(true);
   };
@@ -42,24 +38,31 @@ const AdminAnnouncements = () => {
   const save = async () => {
     setSaving(true);
     try {
-      const url = editing
-        ? `${endpoints.adminAnnouncements}?action=update`
-        : `${endpoints.adminAnnouncements}?action=create`;
-      const body = editing
-        ? { ...form, announcement_id: editing.announcement_id }
-        : { ...form, author_id: session?.user_id ?? 0 };
-      const res = await api.post<ApiResponse>(url, body);
-      if (res.data.type === "success") { toast({ title: editing ? "Updated" : "Created" }); setOpen(false); refetch(); }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      await saveAdminAnnouncement(form, editing?.announcement_id);
+      toast({ title: editing ? "Updated" : "Created" });
+      setOpen(false);
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not save announcement.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
-  const togglePublish = async (a: Announcement) => {
-    await api.get(`${endpoints.adminAnnouncements}?action=publish&announcement_id=${a.announcement_id}&is_published=${a.is_published ? 0 : 1}`);
-    refetch();
+  const togglePublish = async (a: AdminAnnouncement) => {
+    try {
+      await setAdminAnnouncementPublished(a.announcement_id, a.is_published ? 0 : 1);
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not update announcement.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const openDelete = (a: Announcement) => {
+  const openDelete = (a: AdminAnnouncement) => {
     setSelectedAnnouncement(a);
     setConfirmText("");
     setDeleteOpen(true);
@@ -67,12 +70,19 @@ const AdminAnnouncements = () => {
 
   const remove = async () => {
     if (!selectedAnnouncement) return;
-    const res = await api.get<ApiResponse>(`${endpoints.adminAnnouncements}?action=delete&announcement_id=${selectedAnnouncement.announcement_id}`);
-    setDeleteOpen(false);
-    setSelectedAnnouncement(null);
-    setConfirmText("");
-    toast({ title: res.data.message || "Deleted" });
-    refetch();
+    try {
+      await deleteAdminAnnouncement(selectedAnnouncement.announcement_id);
+      setDeleteOpen(false);
+      setSelectedAnnouncement(null);
+      setConfirmText("");
+      toast({ title: "Deleted" });
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not delete announcement.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -85,8 +95,8 @@ const AdminAnnouncements = () => {
           </div>
           <Button onClick={openAdd} className="gap-2"><Plus size={16} /> New</Button>
         </div>
-        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
-        {!items && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
+        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error.message}</div>}
+        {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         <div className="space-y-3">
           {items?.map((a) => (

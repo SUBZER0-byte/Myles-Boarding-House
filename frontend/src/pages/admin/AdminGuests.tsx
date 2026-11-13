@@ -15,7 +15,8 @@ import { Search, MoreHorizontal, Phone, Mail, Trash2, UserX, UserCheck, Loader2,
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { usePolling } from "@/hooks/usePolling";
-import { api, API_BASE_URL, type ApiResponse } from "@/lib/api";
+import { api, type ApiResponse } from "@/lib/api";
+import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Guest {
@@ -273,7 +274,7 @@ const AdminGuests = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-accent/20 flex items-center justify-center text-accent-foreground overflow-hidden">
-                      {g.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${g.user_id}&v=${encodeURIComponent(g.profile_picture)}`} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
+                      {g.profile_picture ? <img src={getProfilePictureUrl(g.user_id, g.profile_picture)} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
                     </div>
                     <div>
                       <p className="font-medium text-sm">{g.full_name}</p>
@@ -353,7 +354,7 @@ const AdminGuests = () => {
                     <TableCell>
                       <div className="flex items-center gap-3 min-w-44">
                         <div className="h-9 w-9 rounded-full bg-accent/20 flex items-center justify-center text-accent-foreground overflow-hidden shrink-0">
-                          {g.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${g.user_id}&v=${encodeURIComponent(g.profile_picture)}`} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
+                          {g.profile_picture ? <img src={getProfilePictureUrl(g.user_id, g.profile_picture)} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
                         </div>
                         <div>
                           <p className="font-medium">{g.full_name}</p>
@@ -509,7 +510,7 @@ const AdminGuests = () => {
               <Label htmlFor="guest-edit-picture">Profile picture</Label>
               <div className="flex items-center gap-3">
                 {selected?.profile_picture && (
-                  <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${selected.user_id}&v=${encodeURIComponent(selected.profile_picture)}`} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
+                  <img src={getProfilePictureUrl(selected.user_id, selected.profile_picture)} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
                 )}
                 <Input id="guest-edit-picture" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
                   const file = e.target.files?.[0] ?? null;

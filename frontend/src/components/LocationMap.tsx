@@ -1,6 +1,5 @@
 import { MapPin, Phone, Clock, Navigation } from "lucide-react";
-import { endpoints } from "@/lib/api";
-import { usePolling } from "@/hooks/usePolling";
+import { usePublicHouseInfo } from "@/hooks/usePublicInfo";
 
 const defaultHouseInfo = {
   house_address_line_1: "Lerma St., Brgy. Bañadero,",
@@ -14,10 +13,7 @@ const defaultHouseInfo = {
 };
 
 export const LocationMap = () => {
-  const { data: liveHouseInfo } = usePolling<Partial<typeof defaultHouseInfo>>(
-    `${endpoints.publicInfo}?action=house_info`,
-    { intervalMs: 5000 },
-  );
+  const { houseInfo: liveHouseInfo, error } = usePublicHouseInfo();
   const houseInfo = { ...defaultHouseInfo, ...liveHouseInfo };
   const latitude = Number(houseInfo.house_map_lat);
   const longitude = Number(houseInfo.house_map_lng);
@@ -35,6 +31,11 @@ export const LocationMap = () => {
         <p className="text-muted-foreground text-center mt-2 max-w-md mx-auto">
           Conveniently located near universities, malls, and public transport.
         </p>
+        {error && (
+          <p className="text-destructive text-xs text-center mt-2">
+            Could not load the latest house information: {error.message}
+          </p>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8 mt-10">
           <div className="space-y-4">

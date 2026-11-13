@@ -7,26 +7,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BedDouble, CalendarPlus, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse } from "@/lib/api";
-
-interface Room { room_id: number; tenant_id: number; booking_id?: number | null; room_number: string; room_type: string; capacity: number; monthly_rent: number; status: string; description: string; move_in_date?: string; move_out_date?: string | null; check_out_date?: string | null; requested_move_out_date?: string | null; extension_request_status?: string | null; tenant_name?: string; }
+import { sessionStore } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { getAvailableTenantRooms, getMyTenantRoom } from "@/lib/tenantRoom";
+import { requestStayExtension } from "@/lib/stayExtensions";
+import { createTenantRoomChangeRequest } from "@/lib/tenantRequests";
 
 const TenantRoom = () => {
   const { toast } = useToast();
   const session = sessionStore.get();
   const userId = session?.user_id;
-  const { data: myRoom, error, refetch: refetchRoom } = usePolling<Room>(
-    userId ? `${endpoints.tenantRoom}?action=my_room&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
-  const { data: availableData } = usePolling<Room[]>(
-    `${endpoints.tenantRoom}?action=available`,
-    { intervalMs: 5000 }
-  );
-  const available = Array.isArray(availableData) ? availableData : [];
+  const loadMyRoom = useCallback(() => getMyTenantRoom(), []);
+  const loadAvailableRooms = useCallback(() => getAvailableTenantRooms(), []);
+  const { data: myRoom, error, refetch: refetchRoom } = useSupabasePolling(loadMyRoom, 5000, Boolean(userId));
+  const { data: availableData } = useSupabasePolling(loadAvailableRooms, 5000);
+  const available = availableData ?? [];
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState<string>("");
   const [reason, setReason] = useState("");
@@ -43,27 +40,35 @@ const TenantRoom = () => {
 
   const request = async () => {
     if (!myRoom || !target) return;
-    const res = await api.post<ApiResponse>(`${endpoints.tenantRoom}?action=request_change`, {
-      user_id: Number(userId), requested_room_id: Number(target), reason,
-    });
-    toast({ title: res.data.message ?? "Sent", variant: res.data.type === "success" ? "default" : "destructive" });
-    if (res.data.type === "success") {
+    try {
+      const message = await createTenantRoomChangeRequest(Number(target), reason);
+      toast({ title: message });
       setOpen(false);
       setReason("");
       setTarget("");
+    } catch (cause) {
+      toast({
+        title: "Could not submit room-change request",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const requestExtension = async () => {
     if (!requestedMoveOutDate) return;
-    const res = await api.post<ApiResponse>(`${endpoints.tenantRoom}?action=request_extension`, {
-      requested_check_out_date: requestedMoveOutDate,
-    });
-    toast({ title: res.data.message ?? "Request submitted", variant: res.data.type === "success" ? "default" : "destructive" });
-    if (res.data.type === "success") {
+    try {
+      const message = await requestStayExtension(requestedMoveOutDate);
+      toast({ title: message });
       setExtensionOpen(false);
       setRequestedMoveOutDate("");
       refetchRoom();
+    } catch (cause) {
+      toast({
+        title: "Could not submit stay extension request",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

@@ -2,8 +2,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatCard } from "@/components/StatCard";
 import { Users, BedDouble, CreditCard, Wrench, MessageSquareWarning, AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { usePolling } from "@/hooks/usePolling";
-import { endpoints } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 interface DashData {
   totalRooms: number;
@@ -33,18 +33,59 @@ interface Activity {
   timestamp: string;
 }
 
+interface DashboardResponse {
+  type: "success" | "error";
+  message?: string;
+  data?: DashData;
+  activities?: Activity[];
+}
+
 const peso = (n: number) =>
   "₱" + (n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const AdminDashboard = () => {
-  const { data, error } = usePolling<DashData>(
-    `${endpoints.adminDashboard}?action=get_dashboard_data`,
-    { intervalMs: 5000 }
-  );
-  const { data: activities } = usePolling<Activity[]>(
-    `${endpoints.adminDashboard}?action=get_recent_activity`,
-    { intervalMs: 5000 }
-  );
+  const [data, setData] = useState<DashData | null>(null);
+  const [activities, setActivities] = useState<Activity[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let requestPending = false;
+
+    const loadDashboard = async () => {
+      if (requestPending) return;
+      requestPending = true;
+      try {
+        const { data: response, error: requestError } = await supabase.functions.invoke<DashboardResponse>(
+          "admin-dashboard",
+          { body: {} },
+        );
+        if (requestError) throw requestError;
+        if (response?.type !== "success" || !response.data || !response.activities) {
+          throw new Error(response?.message || "Supabase returned an invalid dashboard response.");
+        }
+        if (!active) return;
+        setData(response.data);
+        setActivities(response.activities);
+        setError(null);
+      } catch (requestError) {
+        if (!active) return;
+        setError(requestError instanceof Error ? requestError.message : "Could not load dashboard data.");
+      } finally {
+        requestPending = false;
+      }
+    };
+
+    void loadDashboard();
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) void loadDashboard();
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <DashboardLayout role="admin">
@@ -58,7 +99,7 @@ const AdminDashboard = () => {
 
         {error && (
           <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
-            Backend unreachable: {error}. Make sure XAMPP is running and <code>VITE_API_BASE_URL</code> points to your backend.
+            Supabase dashboard request failed: {error}
           </div>
         )}
 

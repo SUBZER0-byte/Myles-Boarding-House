@@ -1,21 +1,10 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Megaphone, Loader2 } from "lucide-react";
-import { usePolling } from "@/hooks/usePolling";
-import { endpoints } from "@/lib/api";
-
-interface PublicAnnouncement {
-  announcement_id: number;
-  title: string;
-  body: string;
-  created_at: string;
-}
+import { usePublicAnnouncements } from "@/hooks/usePublicInfo";
 
 const GuestAnnouncements = () => {
-  const { data, error } = usePolling<PublicAnnouncement[]>(
-    `${endpoints.publicInfo}?action=announcements`,
-    { intervalMs: 15000 }
-  );
-  const items = data || [];
+  const { announcements, error, loading } = usePublicAnnouncements();
+  const items = (announcements ?? []).slice(0, 5);
 
   return (
     <DashboardLayout role="guest">
@@ -27,17 +16,17 @@ const GuestAnnouncements = () => {
 
         {error && (
           <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
-            Backend unreachable: {error}
+            Could not load announcements: {error.message}
           </div>
         )}
 
         <div className="space-y-3">
-          {!data && (
+          {loading && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 size={14} className="animate-spin" /> Loading…
             </div>
           )}
-          {data && items.length === 0 && (
+          {!loading && !error && items.length === 0 && (
             <p className="text-sm text-muted-foreground">No announcements yet.</p>
           )}
           {items.map((a) => (

@@ -2,36 +2,49 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { StatCard } from "@/components/StatCard";
 import { BedDouble, CreditCard, Megaphone, Wrench, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { usePolling } from "@/hooks/usePolling";
-import { endpoints, sessionStore } from "@/lib/api";
+import { getTenantDashboard, type TenantDashboardData } from "@/lib/tenantDashboard";
+import { useEffect, useState } from "react";
 
-interface TenantDash {
-  tenant_name: string;
-  room_info: { room_id: number; room_number: string; room_type: string; monthly_rent: number; status: string } | null;
-  current_balance: number;
-  next_due_payment: { payment_id: number; amount: number; due_date: string; status: string } | null;
-  last_payment: { payment_id: number; amount: number; paid_at: string; method: string } | null;
-  announcements: { announcement_id: number; title: string; body: string; created_at: string }[];
-  maintenance: { request_id: number; title: string; status: string; created_at: string }[];
-  complaints: { complaint_id: number; title: string; status: string; created_at: string }[];
-  maintenance_summary: Record<string, number>;
-  complaint_summary: Record<string, number>;
-}
-
-const complaintStatuses = ["Open", "In Progress", "Resolved", "Cancelled"];
-const maintenanceStatuses = ["Pending", "In Progress", "Completed", "Cancelled"];
+const complaintStatuses = ["Submitted", "Acknowledged", "In Progress", "Resolved", "Cancelled"];
+const maintenanceStatuses = ["Submitted", "Acknowledged", "In Progress", "Resolved", "Cancelled"];
 
 const peso = (n: number) =>
   "₱" + (n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const TenantDashboard = () => {
-  const session = sessionStore.get();
-  const userId = session?.user_id;
+  const [data, setData] = useState<TenantDashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data, error } = usePolling<TenantDash>(
-    userId ? `${endpoints.tenantDashboard}?action=get_dashboard_data&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  useEffect(() => {
+    let active = true;
+    let requestPending = false;
+
+    const loadDashboard = async () => {
+      if (requestPending) return;
+      requestPending = true;
+      try {
+        const dashboardData = await getTenantDashboard();
+        if (!active) return;
+        setData(dashboardData);
+        setError(null);
+      } catch (requestError) {
+        if (!active) return;
+        setError(requestError instanceof Error ? requestError.message : "Could not load dashboard data.");
+      } finally {
+        requestPending = false;
+      }
+    };
+
+    void loadDashboard();
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) void loadDashboard();
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <DashboardLayout role="tenant">
@@ -52,14 +65,9 @@ const TenantDashboard = () => {
           </div>
         </div>
 
-        {!userId && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200">
-            You're not signed in. Please <a className="underline" href="/login">sign in</a> to load your dashboard.
-          </div>
-        )}
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200">
-            Backend unreachable: {error}
+            Supabase dashboard request failed: {error}
           </div>
         )}
 
@@ -69,16 +77,24 @@ const TenantDashboard = () => {
             title="Next Payment"
             value={data?.next_due_payment ? peso(data.next_due_payment.amount) : "—"}
             icon={CreditCard}
-            trend={data?.next_due_payment ? `Due ${data.next_due_payment.due_date}` : undefined}
+            trend={
+              data?.next_due_payment
+                ? data.next_due_payment.due_date
+                  ? `Due ${data.next_due_payment.due_date}`
+                  : "Due date unavailable"
+                : undefined
+            }
             variant="warning"
           />
           <StatCard title="Announcements" value={data?.announcements.length ?? 0} icon={Megaphone} variant="default" />
           <StatCard
             title="Open Requests"
             value={
-              (data?.complaint_summary?.Open ?? 0) +
+              (data?.complaint_summary?.Submitted ?? 0) +
+              (data?.complaint_summary?.Acknowledged ?? 0) +
               (data?.complaint_summary?.["In Progress"] ?? 0) +
-              (data?.maintenance_summary?.Pending ?? 0) +
+              (data?.maintenance_summary?.Submitted ?? 0) +
+              (data?.maintenance_summary?.Acknowledged ?? 0) +
               (data?.maintenance_summary?.["In Progress"] ?? 0)
             }
             icon={Wrench}
@@ -99,7 +115,7 @@ const TenantDashboard = () => {
               </span>
             </div>
             <div className="space-y-3">
-              {!data && (
+              {!data && !error && (
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-muted-foreground">
                   <Loader2 size={14} className="animate-spin" /> Loading…
                 </div>
@@ -146,7 +162,9 @@ const TenantDashboard = () => {
                   <div>
                     <p className="text-sm font-medium text-slate-700 dark:text-foreground">Last payment</p>
                     <p className="text-xs text-slate-500 dark:text-muted-foreground">
-                      {new Date(data.last_payment.paid_at).toLocaleDateString()} · {data.last_payment.method}
+                      {data.last_payment.paid_at
+                        ? new Date(data.last_payment.paid_at).toLocaleDateString()
+                        : "Date unavailable"} · {data.last_payment.method}
                     </p>
                   </div>
                   <Badge variant="secondary" className="border border-emerald-200 bg-white text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">

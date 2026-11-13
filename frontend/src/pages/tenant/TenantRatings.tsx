@@ -7,42 +7,32 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, sessionStore, type ApiResponse, API_BASE_URL } from "@/lib/api";
+import { useTenantRatings } from "@/hooks/useTenantRatings";
+import { submitTenantRating } from "@/lib/tenantRatings";
 import { RatingStars } from "@/components/RatingStars";
-
-interface Rating {
-  rating_id: number;
-  user_id?: number | null;
-  profile_picture?: string | null;
-  category: string;
-  moderation_status: string;
-  admin_reply: string | null;
-  stars: number;
-  comment: string;
-  created_at: string;
-}
 
 const TenantRatings = () => {
   const { toast } = useToast();
-  const session = sessionStore.get();
-  const userId = session?.user_id;
-  const { data, refetch, error } = usePolling<Rating[]>(
-    userId ? `${endpoints.tenantRatings}?action=mine&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  const { ratings, refetch, error, loading } = useTenantRatings();
   const [stars, setStars] = useState(5);
   const [category, setCategory] = useState("Overall Satisfaction");
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
-    if (!userId) return;
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${endpoints.tenantRatings}?action=submit`, { user_id: userId, stars, category, comment });
-      if (res.data.type === "success") { toast({ title: res.data.message ?? "Thanks!" }); setComment(""); setStars(5); setCategory("Overall Satisfaction"); refetch(); }
-      else toast({ title: res.data.message || "Failed", variant: "destructive" });
+      await submitTenantRating({ stars, category, comment });
+      toast({ title: "Feedback submitted for review" });
+      setComment("");
+      setStars(5);
+      setCategory("Overall Satisfaction");
+      void refetch();
+    } catch (caught) {
+      toast({
+        title: caught instanceof Error ? caught.message : "Could not submit rating.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
@@ -53,8 +43,7 @@ const TenantRatings = () => {
           <h1 className="font-display text-2xl font-bold">Ratings & Feedback</h1>
           <p className="text-muted-foreground text-sm mt-1">Tell us how we're doing.</p>
         </div>
-        {!userId && <div className="p-3 rounded-md border border-warning/30 bg-warning/10 text-warning text-xs">Sign in to leave a rating.</div>}
-        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
+        {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error.message}</div>}
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
           <h2 className="font-semibold">New Rating</h2>
@@ -77,18 +66,18 @@ const TenantRatings = () => {
             <Label>Written feedback</Label>
             <Textarea rows={3} maxLength={3000} placeholder="Share your feedback…" value={comment} onChange={e => setComment(e.target.value)} />
           </div>
-          <Button onClick={submit} disabled={saving || !userId || !comment.trim()}>{saving ? "Sending…" : "Submit Rating"}</Button>
+          <Button onClick={submit} disabled={saving || !comment.trim()}>{saving ? "Sending…" : "Submit Rating"}</Button>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="font-semibold mb-3">My Past Ratings</h2>
-          {userId && !data && <Loader2 size={14} className="animate-spin" />}
-          {data?.length === 0 && <p className="text-sm text-muted-foreground">No ratings yet.</p>}
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          {!loading && !error && ratings?.length === 0 && <p className="text-sm text-muted-foreground">No ratings yet.</p>}
           <div className="space-y-3">
-            {data?.map(r => (
+            {ratings?.map(r => (
               <div key={r.rating_id} className="p-3 rounded-md bg-muted/50 flex items-start gap-3">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                  {r.user_id && r.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${r.user_id}&v=${encodeURIComponent(r.profile_picture)}`} alt="Your profile" className="h-full w-full object-cover" /> : <UserRound size={16} className="text-muted-foreground" />}
+                  <UserRound size={16} className="text-muted-foreground" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

@@ -4,80 +4,85 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Loader2, UserRound, Eye, EyeOff, Send } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, type ApiResponse, API_BASE_URL } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { RatingStars } from "@/components/RatingStars";
-
-interface Rating {
-  rating_id: number;
-  user_id?: number | null;
-  profile_picture?: string | null;
-  full_name: string | null;
-  category: string;
-  moderation_status: string;
-  admin_reply: string | null;
-  stars: number;
-  comment: string;
-  created_at: string;
-}
-interface Summary {
-  total: number;
-  average: number;
-  five: number;
-  four_half: number;
-  four: number;
-  three_half: number;
-  three: number;
-  two_half: number;
-  two: number;
-  one_half: number;
-  one: number;
-}
-interface CategorySummary { category: string; total: number | string; average: number | string; }
+import {
+  deleteAdminRating,
+  getAdminRatingCategorySummary,
+  getAdminRatingSummary,
+  listAdminRatings,
+  moderateAdminRating,
+  replyToAdminRating,
+  type AdminRating,
+  type AdminRatingSummary,
+} from "@/lib/adminRatings";
 
 const AdminRatings = () => {
   const { toast } = useToast();
-  const { data: ratings, refetch, error } = usePolling<Rating[]>(`${endpoints.adminRatings}?action=list`, { intervalMs: 5000 });
-  const { data: summary } = usePolling<Summary>(`${endpoints.adminRatings}?action=summary`, { intervalMs: 5000 });
-  const { data: categorySummary, refetch: refetchCategorySummary } = usePolling<CategorySummary[]>(`${endpoints.adminRatings}?action=category_summary`, { intervalMs: 10000 });
+  const loadRatings = useCallback(() => listAdminRatings(), []);
+  const loadSummary = useCallback(() => getAdminRatingSummary(), []);
+  const loadCategorySummary = useCallback(() => getAdminRatingCategorySummary(), []);
+  const { data: ratings, refetch, error } = useSupabasePolling(loadRatings, 5000);
+  const { data: summary, error: summaryError } = useSupabasePolling(loadSummary, 5000);
+  const {
+    data: categorySummary,
+    refetch: refetchCategorySummary,
+    error: categorySummaryError,
+  } = useSupabasePolling(loadCategorySummary, 10000);
   const [replyOpen, setReplyOpen] = useState(false);
-  const [selected, setSelected] = useState<Rating | null>(null);
+  const [selected, setSelected] = useState<AdminRating | null>(null);
   const [reply, setReply] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const remove = async (r: Rating) => {
-    await api.get<ApiResponse>(`${endpoints.adminRatings}?action=delete&rating_id=${r.rating_id}`);
-    refetch();
-    refetchCategorySummary();
+  const remove = async (r: AdminRating) => {
+    try {
+      const message = await deleteAdminRating(r.rating_id);
+      toast({ title: message });
+      refetch();
+      refetchCategorySummary();
+    } catch (cause) {
+      toast({
+        title: "Could not delete rating",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const moderate = async (r: Rating, moderationStatus: "Approved" | "Hidden") => {
-    const response = await api.post<ApiResponse>(`${endpoints.adminRatings}?action=moderate`, {
-      rating_id: r.rating_id,
-      moderation_status: moderationStatus,
-    });
-    toast({ title: response.data.message || "Moderation updated", variant: response.data.type === "success" ? "default" : "destructive" });
-    refetch();
-    refetchCategorySummary();
+  const moderate = async (r: AdminRating, moderationStatus: "Approved" | "Hidden") => {
+    try {
+      const message = await moderateAdminRating(r.rating_id, moderationStatus);
+      toast({ title: message });
+      refetch();
+      refetchCategorySummary();
+    } catch (cause) {
+      toast({
+        title: "Could not update rating moderation",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const sendReply = async () => {
     if (!selected || !reply.trim()) return;
     setSaving(true);
     try {
-      const response = await api.post<ApiResponse>(`${endpoints.adminRatings}?action=reply`, {
-        rating_id: selected.rating_id,
-        admin_reply: reply,
+      const message = await replyToAdminRating(selected.rating_id, reply);
+      toast({ title: message });
+      setReplyOpen(false);
+      setReply("");
+      setSelected(null);
+      refetch();
+    } catch (cause) {
+      toast({
+        title: "Could not send reply",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
       });
-      toast({ title: response.data.message || "Reply sent", variant: response.data.type === "success" ? "default" : "destructive" });
-      if (response.data.type === "success") {
-        setReplyOpen(false);
-        setReply("");
-        setSelected(null);
-        refetch();
-      }
     } finally {
       setSaving(false);
     }
@@ -91,6 +96,8 @@ const AdminRatings = () => {
           <p className="text-muted-foreground text-sm mt-1">Moderate tenant feedback about facilities, services, and overall satisfaction.</p>
         </div>
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
+        {summaryError && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{summaryError}</div>}
+        {categorySummaryError && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{categorySummaryError}</div>}
 
         {summary && (
           <div className="grid sm:grid-cols-3 gap-4">
@@ -115,7 +122,7 @@ const AdminRatings = () => {
                 { label: "1.5", key: "one_half" },
                 { label: "1", key: "one" },
               ].map(({ label, key }) => {
-                const count = Number(summary[key as keyof Summary]);
+                const count = Number(summary[key as keyof AdminRatingSummary]);
                 return (
                   <div key={key} className="flex items-center gap-2 text-xs">
                     <span className="w-6">{label}★</span>
@@ -154,7 +161,7 @@ const AdminRatings = () => {
           {ratings?.map((r) => (
             <div key={r.rating_id} className="bg-card border border-border rounded-lg p-4 flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {r.user_id && r.profile_picture ? <img src={`${API_BASE_URL}/Config/profile_picture.php?user_id=${r.user_id}&v=${encodeURIComponent(r.profile_picture)}`} alt={`${r.full_name ?? "User"} profile`} className="h-full w-full object-cover" /> : <UserRound size={18} className="text-muted-foreground" />}
+                {r.user_id && r.profile_picture ? <img src={getProfilePictureUrl(r.user_id, r.profile_picture)} alt={`${r.full_name ?? "User"} profile`} className="h-full w-full object-cover" /> : <UserRound size={18} className="text-muted-foreground" />}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">

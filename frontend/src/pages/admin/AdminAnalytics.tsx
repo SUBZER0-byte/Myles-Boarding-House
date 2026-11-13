@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Loader2, TrendingUp, Users, MessageSquareWarning, Wrench, BarChart3, CalendarDays, CreditCard } from "lucide-react";
-import { usePolling } from "@/hooks/usePolling";
-import { endpoints } from "@/lib/api";
+import { useAdminAnalytics } from "@/hooks/useAdminAnalytics";
 import { Badge } from "@/components/ui/badge";
 import {
   Area,
@@ -20,10 +19,6 @@ import {
   YAxis,
 } from "recharts";
 
-interface MonthAgg { month: string; total?: number; new_tenants?: number; }
-interface StatusAgg { status: string; cnt: number; }
-interface TopTenant { tenant_id: number; full_name: string; total_paid: number; }
-
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const formatMonthLabel = (month: string) => {
   if (!month || !month.includes("-")) return month;
@@ -36,12 +31,13 @@ const formatMonthLabel = (month: string) => {
 const peso = (n: number | string) => "₱" + Number(n).toLocaleString();
 
 const AdminAnalytics = () => {
-  const { data: revenue } = usePolling<MonthAgg[]>(`${endpoints.adminAnalytics}?action=revenue_by_month`, { intervalMs: 5000 });
-  const { data: bookings } = usePolling<MonthAgg[]>(`${endpoints.adminAnalytics}?action=bookings_by_month`, { intervalMs: 5000 });
-  const { data: occupancy } = usePolling<MonthAgg[]>(`${endpoints.adminAnalytics}?action=occupancy_trend`, { intervalMs: 5000 });
-  const { data: complaints } = usePolling<StatusAgg[]>(`${endpoints.adminAnalytics}?action=complaints_by_status`, { intervalMs: 5000 });
-  const { data: maintenance } = usePolling<StatusAgg[]>(`${endpoints.adminAnalytics}?action=maintenance_by_status`, { intervalMs: 5000 });
-  const { data: top } = usePolling<TopTenant[]>(`${endpoints.adminAnalytics}?action=top_paying_tenants`, { intervalMs: 5000 });
+  const { data, error } = useAdminAnalytics();
+  const revenue = data?.revenue;
+  const bookings = data?.bookings;
+  const occupancy = data?.occupancy;
+  const complaints = data?.complaints;
+  const maintenance = data?.maintenance;
+  const top = data?.top_tenants;
 
   const totalRevenue = revenue?.reduce((sum, item) => sum + Number(item.total ?? 0), 0) ?? 0;
   const totalNewTenants = occupancy?.reduce((sum, item) => sum + Number(item.new_tenants ?? 0), 0) ?? 0;
@@ -70,6 +66,12 @@ const AdminAnalytics = () => {
             Overview
           </div>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+            Supabase analytics request failed: {error.message}
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard title="Revenue" value={peso(totalRevenue)} icon={TrendingUp} tone="primary" />
