@@ -41,3 +41,9 @@ verify_jwt = true
 
 [functions.admin-ratings]
 verify_jwt = true
+
+[functions.admin-logs]
+verify_jwt = true
+
+[functions.admin-guests]
+verify_jwt = true

@@ -10,10 +10,18 @@ import { ProfilePictureCard } from "@/components/ProfilePictureCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { usePolling } from "@/hooks/usePolling";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { api, endpoints, sessionStore, API_BASE_URL, type ApiResponse } from "@/lib/api";
 import { cropGcashQr } from "@/lib/cropGcashQr";
+import { changeMyPassword } from "@/lib/profileSettings";
+import {
+  getMyAdminSettingsProfile,
+  requestAdminEmailChange,
+  saveMyAdminSettingsProfile,
+  type AdminSettingsProfile,
+} from "@/lib/adminProfile";
 
-interface Profile { user_id: number; full_name: string; username: string; email: string; phone: string; user_type: string; profile_picture?: string | null; }
+type Profile = AdminSettingsProfile & { user_type: string };
 type Settings = Record<string, string | boolean>;
 type AdminApiKeys = {
   ollama_api_key: string;
@@ -95,10 +103,11 @@ const AdminSettings = () => {
   const [chatbotSuggestedQuestionEditing, setChatbotSuggestedQuestionEditing] = useState<number | null>(null);
   const [chatbotSuggestedQuestionSaving, setChatbotSuggestedQuestionSaving] = useState(false);
   const [chatbotSuggestedQuestionDeleting, setChatbotSuggestedQuestionDeleting] = useState<number | null>(null);
-  const { data: liveProfile } = usePolling<Profile>(
-    userId ? `${endpoints.adminSettings}?action=get_profile&user_id=${userId}` : null,
-    { intervalMs: 5000 }
-  );
+  const loadAdminProfile = useCallback(async () => ({
+    ...await getMyAdminSettingsProfile(),
+    user_type: "Admin",
+  }), []);
+  const { data: liveProfile } = useSupabasePolling(loadAdminProfile, 5000, Boolean(userId));
   const { data: liveSettings } = usePolling<Settings>(
     `${endpoints.adminSettings}?action=get_settings`,
     { intervalMs: 5000 }
@@ -237,11 +246,7 @@ const AdminSettings = () => {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const [p, s] = await Promise.all([
-        api.get<ApiResponse<Profile>>(`${endpoints.adminSettings}?action=get_profile&user_id=${userId}`),
-        api.get<ApiResponse<Settings>>(`${endpoints.adminSettings}?action=get_settings`),
-      ]);
-      if (p.data.type === "success" && p.data.data) setProfile(p.data.data);
+      const s = await api.get<ApiResponse<Settings>>(`${endpoints.adminSettings}?action=get_settings`);
       if (s.data.type === "success" && s.data.data) setSettings(s.data.data);
       await loadChatbotFaqs();
       await loadChatbotSuggestedQuestions();
@@ -279,9 +284,22 @@ const AdminSettings = () => {
   const saveProfile = async () => {
     if (!profile) return;
     setSaving(true);
-    const res = await api.post<ApiResponse>(`${endpoints.adminSettings}?action=update_profile`, profile);
-    toast({ title: res.data.message ?? "Saved" });
-    setSaving(false);
+    try {
+      await saveMyAdminSettingsProfile(profile);
+      const emailChangeRequested = await requestAdminEmailChange(profile.email);
+      toast({
+        title: emailChangeRequested ? "Profile saved; confirm your email change" : "Profile saved",
+        description: emailChangeRequested ? "Check your inbox to confirm the new sign-in email." : undefined,
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to save administrator profile",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveChatbotFaq = async () => {
@@ -414,9 +432,17 @@ const AdminSettings = () => {
 
   const changePassword = async () => {
     if (!profile) return;
-    const res = await api.post<ApiResponse>(`${endpoints.adminSettings}?action=change_password`, { user_id: profile.user_id, ...pw });
-    toast({ title: res.data.message ?? "Updated", variant: res.data.type === "success" ? "default" : "destructive" });
-    if (res.data.type === "success") setPw({ current_password: "", new_password: "" });
+    try {
+      await changeMyPassword(pw.current_password, pw.new_password);
+      toast({ title: "Password updated" });
+      setPw({ current_password: "", new_password: "" });
+    } catch (error) {
+      toast({
+        title: "Unable to update password",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const saveSettingsGroup = async (
@@ -740,9 +766,8 @@ const AdminSettings = () => {
           <p className="text-muted-foreground text-sm mt-1">Configure house information, office hours, payment options, and system integrations.</p>
         </div>
 
-        {profile && <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} endpoint={`${endpoints.adminSettings}?action=upload_profile_picture`} onUploaded={async () => {
-          const res = await api.get<ApiResponse<Profile>>(`${endpoints.adminSettings}?action=get_profile&user_id=${profile.user_id}`);
-          if (res.data.type === "success" && res.data.data) setProfile(res.data.data);
+        {profile && <ProfilePictureCard userId={profile.user_id} currentPath={profile.profile_picture} storageBacked onUploaded={async () => {
+          setProfile({ ...await getMyAdminSettingsProfile(), user_type: "Admin" });
         }} />}
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">

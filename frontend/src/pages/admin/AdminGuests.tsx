@@ -12,37 +12,27 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, MoreHorizontal, Phone, Mail, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { usePolling } from "@/hooks/usePolling";
-import { api, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  createAdminGuest,
+  deleteAdminGuest,
+  listAdminGuests,
+  setAdminGuestActive,
+  updateAdminGuest,
+  uploadAdminGuestPicture,
+  type AdminGuest,
+} from "@/lib/adminGuests";
 
-interface Guest {
-  user_id: number;
-  full_name: string;
-  username: string;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  age: number | string | null;
-  birthday: string | null;
-  emergency_contact_name: string | null;
-  emergency_contact_phone: string | null;
-  is_active: number;
-  created_at: string;
-  profile_picture?: string | null;
-}
-
-const ENDPOINT = "/Admin/guests.php";
+type Guest = AdminGuest;
 
 const AdminGuests = () => {
   const { toast } = useToast();
-  const { data: guests, refetch, error } = usePolling<Guest[]>(
-    `${ENDPOINT}?action=list`,
-    { intervalMs: 5000 }
-  );
+  const loadGuests = useCallback(() => listAdminGuests(), []);
+  const { data: guests, refetch, error } = useSupabasePolling(loadGuests, 5000);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"cards" | "table">("cards");
   const [addOpen, setAddOpen] = useState(false);
@@ -81,16 +71,6 @@ const AdminGuests = () => {
     String(currentDate.getDate()).padStart(2, "0"),
   ].join("-");
 
-  const uploadProfilePicture = async (userId: number, file: File) => {
-    const formData = new FormData();
-    formData.append("user_id", String(userId));
-    formData.append("profile_picture", file);
-    const res = await api.post<ApiResponse>("/Admin/settings.php?action=upload_user_profile_picture", formData, {
-      headers: { "Content-Type": undefined },
-    });
-    if (res.data.type !== "success") throw new Error(res.data.message || "Unable to upload profile picture");
-  };
-
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
 
   const openEdit = (guest: Guest) => {
@@ -127,27 +107,25 @@ const AdminGuests = () => {
     if (!selected) return;
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${ENDPOINT}?action=update`, {
+      await updateAdminGuest({
         ...editForm,
         user_id: selected.user_id,
       });
-      if (res.data.type === "success") {
-        let pictureFailed = false;
-        if (editPicture) {
-          try {
-            await uploadProfilePicture(selected.user_id, editPicture);
-          } catch {
-            pictureFailed = true;
-          }
+      let pictureFailed = false;
+      if (editPicture) {
+        try {
+          await uploadAdminGuestPicture(selected.user_id, editPicture);
+        } catch {
+          pictureFailed = true;
         }
-        toast({
-          title: pictureFailed ? "Guest updated, but picture upload failed" : "Guest account updated",
-          variant: pictureFailed ? "destructive" : "default",
-        });
-        setEditOpen(false);
-        setEditPicture(null);
-        refetch();
-      } else toast({ title: res.data.message || "Update failed", variant: "destructive" });
+      }
+      toast({
+        title: pictureFailed ? "Guest updated, but picture upload failed" : "Guest account updated",
+        variant: pictureFailed ? "destructive" : "default",
+      });
+      setEditOpen(false);
+      setEditPicture(null);
+      refetch();
     } catch (error) {
       toast({
         title: error instanceof Error ? error.message : "Unable to update guest account",
@@ -161,26 +139,23 @@ const AdminGuests = () => {
   const createGuest = async () => {
     setSaving(true);
     try {
-      const res = await api.post<ApiResponse>(`${ENDPOINT}?action=create`, addForm);
-      if (res.data.type === "success") {
-        const userId = Number(res.data.user_id);
-        let pictureFailed = false;
-        if (addPicture && userId > 0) {
-          try {
-            await uploadProfilePicture(userId, addPicture);
-          } catch {
-            pictureFailed = true;
-          }
+      const userId = await createAdminGuest(addForm);
+      let pictureFailed = false;
+      if (addPicture && userId > 0) {
+        try {
+          await uploadAdminGuestPicture(userId, addPicture);
+        } catch {
+          pictureFailed = true;
         }
-        toast({
-          title: pictureFailed ? "Guest created, but picture upload failed" : "Guest account created",
-          variant: pictureFailed ? "destructive" : "default",
-        });
-        setAddOpen(false);
-        setAddPicture(null);
-        setAddForm({ full_name: "", username: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
-        refetch();
-      } else toast({ title: res.data.message || "Creation failed", variant: "destructive" });
+      }
+      toast({
+        title: pictureFailed ? "Guest created, but picture upload failed" : "Guest account created",
+        variant: pictureFailed ? "destructive" : "default",
+      });
+      setAddOpen(false);
+      setAddPicture(null);
+      setAddForm({ full_name: "", username: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
+      refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to create guest account", variant: "destructive" });
     } finally {
@@ -189,21 +164,28 @@ const AdminGuests = () => {
   };
 
   const handleToggle = async (g: Guest) => {
-    const action = g.is_active ? "deactivate" : "activate";
-    const res = await api.get<ApiResponse>(`${ENDPOINT}?action=${action}&user_id=${g.user_id}`);
-    toast({ title: res.data.message || "Updated" });
-    refetch();
+    try {
+      await setAdminGuestActive(g.user_id, !g.is_active);
+      toast({ title: g.is_active ? "Guest deactivated" : "Guest activated" });
+      refetch();
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "Unable to update guest status", variant: "destructive" });
+    }
   };
 
   const handleDelete = async () => {
     if (!selected) return;
-    const res = await api.get<ApiResponse>(`${ENDPOINT}?action=delete&user_id=${selected.user_id}`);
-    toast({
-      title: res.data.message || (res.data.type === "success" ? "Deleted" : "Failed"),
-      variant: res.data.type === "success" ? "default" : "destructive",
-    });
-    setDelOpen(false);
-    refetch();
+    try {
+      await deleteAdminGuest(selected.user_id);
+      toast({ title: "Guest account deleted" });
+      setDelOpen(false);
+      refetch();
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Unable to delete guest account",
+        variant: "destructive",
+      });
+    }
   };
 
   const filtered = (guests ?? []).filter((g) =>

@@ -4,26 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePolling } from "@/hooks/usePolling";
-import { api, endpoints, type ApiResponse } from "@/lib/api";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { useToast } from "@/hooks/use-toast";
+import { deleteAdminLog, listAdminLogs, type AdminLog } from "@/lib/adminLogs";
 import { ScrollText, Loader2, ShieldAlert, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
-interface LogRow {
-  log_id: number;
-  actor_id: number | null;
-  actor_username: string | null;
-  category: string;
-  action: string;
-  level: "info" | "warning" | "error" | "security";
-  message: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  request_path: string | null;
-  created_at: string;
-}
-
-const levelTone: Record<LogRow["level"], string> = {
+const levelTone: Record<AdminLog["level"], string> = {
   info: "bg-primary/10 text-primary border-primary/30",
   warning: "bg-warning/15 text-warning border-warning/30",
   error: "bg-destructive/15 text-destructive border-destructive/30",
@@ -31,30 +18,32 @@ const levelTone: Record<LogRow["level"], string> = {
 };
 
 const AdminLogs = () => {
+  const { toast } = useToast();
   const [level, setLevel] = useState<string>("");
   const [category, setCategory] = useState<string>("");
   const [q, setQ] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [selectedLog, setSelectedLog] = useState<LogRow | null>(null);
-
-  const url = useMemo(() => {
-    const p = new URLSearchParams({ action: "list", limit: "300" });
-    if (level) p.set("level", level);
-    if (category) p.set("category", category);
-    if (q.trim()) p.set("q", q.trim());
-    return `${endpoints.adminLogs}?${p.toString()}`;
-  }, [level, category, q]);
-
-  const { data: logs, error, refetch } = usePolling<LogRow[]>(url, { intervalMs: 5000 });
+  const [selectedLog, setSelectedLog] = useState<AdminLog | null>(null);
+  const loadLogs = useCallback(
+    () => listAdminLogs({ limit: 300, level, category, query: q }),
+    [category, level, q],
+  );
+  const { data: logs, error, refetch } = useSupabasePolling(loadLogs, 5000);
 
   const deleteLog = async () => {
     if (!selectedLog) return;
-    const res = await api.get<ApiResponse>(`${endpoints.adminLogs}?action=delete&log_id=${selectedLog.log_id}`);
-    setDeleteOpen(false);
-    setSelectedLog(null);
-    refetch();
-    if (res.data.type !== "success") {
-      console.error("Failed to delete log", res.data.message);
+    try {
+      const message = await deleteAdminLog(selectedLog.log_id);
+      toast({ title: message });
+      setDeleteOpen(false);
+      setSelectedLog(null);
+      refetch();
+    } catch (cause) {
+      toast({
+        title: "Could not delete log entry",
+        description: cause instanceof Error ? cause.message : "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -74,7 +63,7 @@ const AdminLogs = () => {
 
         {error && (
           <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
-            Backend unreachable: {error}
+            Could not load Supabase log history: {error}
           </div>
         )}
 
