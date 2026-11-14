@@ -148,15 +148,23 @@ SELECT ok(
         'booking_id', (SELECT booking_id FROM guest_booking_test_state),
         'method', 'GCash',
         'reference', 'TEST-REFERENCE-001',
+        'screenshot_path',
+            (SELECT guest_auth_id::text FROM guest_booking_test_state) || '/'
+            || (SELECT booking_id::text FROM guest_booking_test_state)
+            || '/ffe10000-0000-4000-8000-000000000011.png',
         'submission_key', 'ffe10000-0000-4000-8000-000000000011'
     ))->>'type') = 'success',
-    'guest can submit an initial payment reference'
+    'guest can submit an initial payment reference and screenshot'
 );
 SELECT ok(
     (public.manage_guest_booking('submit_initial_payment', jsonb_build_object(
         'booking_id', (SELECT booking_id FROM guest_booking_test_state),
         'method', 'GCash',
         'reference', 'TEST-REFERENCE-001',
+        'screenshot_path',
+            (SELECT guest_auth_id::text FROM guest_booking_test_state) || '/'
+            || (SELECT booking_id::text FROM guest_booking_test_state)
+            || '/ffe10000-0000-4000-8000-000000000011.png',
         'submission_key', 'ffe10000-0000-4000-8000-000000000011'
     ))->>'type') = 'success',
     'replayed payment submission is idempotent'
@@ -224,6 +232,16 @@ SELECT set_config('request.jwt.claim.sub', (SELECT admin_auth_id::text FROM gues
 SELECT ok(
     (public.manage_guest_booking('admin_list', '{}'::jsonb)->>'type') = 'success',
     'authenticated Admin can review bookings'
+);
+SELECT is(
+    (
+        SELECT booking->>'gcash_submitted_screenshot'
+          FROM jsonb_array_elements(public.manage_guest_booking('admin_list', '{}'::jsonb)->'data') AS rows(booking)
+         WHERE (booking->>'booking_id')::integer = (SELECT booking_id FROM guest_booking_test_state)
+    ),
+    (SELECT guest_auth_id::text || '/' || booking_id::text || '/ffe10000-0000-4000-8000-000000000011.png'
+       FROM guest_booking_test_state),
+    'Admin booking list includes the submitted payment screenshot path'
 );
 
 SELECT set_config('request.jwt.claim.sub', (SELECT other_guest_auth_id::text FROM guest_booking_test_state), true);
