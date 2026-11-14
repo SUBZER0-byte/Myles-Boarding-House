@@ -100,7 +100,9 @@ export async function requestMyEmailChange(nextEmail: string): Promise<boolean> 
 }
 
 export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
-  if (newPassword.length < 6) throw new Error("New password must be at least 6 characters.");
+  if (newPassword.length < 6 || newPassword.length > 200) {
+    throw new Error("Password must be 6–200 characters long.");
+  }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw new Error(userError.message || "Could not verify your account.");

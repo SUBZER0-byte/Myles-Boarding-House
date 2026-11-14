@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, KeyRound, CheckCircle2, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PasswordFields } from "@/components/PasswordFields";
 import { useAuthSlideshow } from "@/hooks/useAuthSlideshow";
 import { authAction, signInWithIdentifier } from "@/lib/auth";
+import { getPasswordValidationError } from "@/lib/passwordValidation";
 import slide1 from "../../Promotion/Promotion_2/795696821_2068750914002786_4444334205767913973_n.jpg";
 import slide2 from "../../Promotion/Promotion_2/793924181_2511856059334424_2316540071660421728_n.jpg";
 import slide3 from "../../Promotion/Promotion_2/792584856_1324396436253243_842653748892513400_n.jpg";
@@ -56,8 +58,6 @@ const Login = () => {
   const [forgotCode, setForgotCode] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
-  const [showForgotPass, setShowForgotPass] = useState(false);
-  const [showForgotConfirmPass, setShowForgotConfirmPass] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const { currentSlide, setCurrentSlide } = useAuthSlideshow(slides.length);
@@ -82,8 +82,6 @@ const Login = () => {
       setForgotCode("");
       setNewPass("");
       setConfirmPass("");
-      setShowForgotPass(false);
-      setShowForgotConfirmPass(false);
       setForgotError("");
     }, 300);
   };
@@ -122,12 +120,9 @@ const Login = () => {
       return;
     }
     if (forgotStep === "reset") {
-      if (newPass.length < 6 || newPass.length > 200) {
-        setForgotError("Password must be 6–200 characters long.");
-        return;
-      }
-      if (newPass !== confirmPass) {
-        setForgotError("Passwords do not match.");
+      const passwordError = getPasswordValidationError(newPass, confirmPass);
+      if (passwordError) {
+        setForgotError(passwordError);
         return;
       }
     }
@@ -491,47 +486,13 @@ const Login = () => {
                     </>
                   )}
                   {forgotStep === "reset" && (
-                    <>
-                      <div className="relative">
-                        <input
-                          type={showForgotPass ? "text" : "password"}
-                          autoFocus
-                          autoComplete="new-password"
-                          value={newPass}
-                          onChange={(e) => setNewPass(e.target.value)}
-                          placeholder="New password"
-                          className="w-full bg-muted rounded-md px-3 py-2.5 pr-10 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowForgotPass(current => !current)}
-                          aria-label={showForgotPass ? "Hide new password" : "Show new password"}
-                          aria-pressed={showForgotPass}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          {showForgotPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showForgotConfirmPass ? "text" : "password"}
-                          autoComplete="new-password"
-                          value={confirmPass}
-                          onChange={(e) => setConfirmPass(e.target.value)}
-                          placeholder="Confirm new password"
-                          className="w-full bg-muted rounded-md px-3 py-2.5 pr-10 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowForgotConfirmPass(current => !current)}
-                          aria-label={showForgotConfirmPass ? "Hide password confirmation" : "Show password confirmation"}
-                          aria-pressed={showForgotConfirmPass}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          {showForgotConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                    </>
+                    <PasswordFields
+                      idPrefix="forgot"
+                      newPassword={newPass}
+                      confirmPassword={confirmPass}
+                      onNewPasswordChange={setNewPass}
+                      onConfirmPasswordChange={setConfirmPass}
+                    />
                   )}
 
                   <div className="flex gap-2 pt-1">

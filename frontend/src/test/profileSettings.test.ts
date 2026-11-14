@@ -109,6 +109,15 @@ describe("Supabase profile settings", () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
+  it("rejects passwords outside the shared 6–200-character limit before verifying credentials", async () => {
+    await expect(changeMyPassword("current-password", "12345"))
+      .rejects.toThrow("Password must be 6–200 characters long.");
+    await expect(changeMyPassword("current-password", "a".repeat(201)))
+      .rejects.toThrow("Password must be 6–200 characters long.");
+    expect(getUser).not.toHaveBeenCalled();
+    expect(signInWithPassword).not.toHaveBeenCalled();
+  });
+
   it("requests email confirmation through Supabase Auth", async () => {
     getUser.mockResolvedValue({ data: { user: { email: "tenant@example.com" } }, error: null });
     rpc.mockResolvedValue({ data: true, error: null });

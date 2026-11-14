@@ -2,24 +2,25 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { PasswordFields } from "@/components/PasswordFields";
 import { ProfilePictureCard } from "@/components/ProfilePictureCard";
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { sessionStore } from "@/lib/api";
 import { changeMyPassword, getMySettingsProfile, requestMyEmailChange, saveMySettingsProfile, type SettingsProfile } from "@/lib/profileSettings";
+import { getPasswordValidationError } from "@/lib/passwordValidation";
 
 const TenantSettings = () => {
   const { toast } = useToast();
   const session = sessionStore.get();
   const userId = session?.user_id;
   const [profile, setProfile] = useState<SettingsProfile | null>(null);
-  const [pw, setPw] = useState({ current_password: "", new_password: "" });
+  const [pw, setPw] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [loading, setLoading] = useState(true);
   const [profileLoadError, setProfileLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [visiblePasswordFields, setVisiblePasswordFields] = useState({ current: false, next: false });
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
@@ -76,11 +77,20 @@ const TenantSettings = () => {
   };
 
   const changePassword = async () => {
+    if (!pw.current_password) {
+      toast({ title: "Enter your current password.", variant: "destructive" });
+      return;
+    }
+    const passwordError = getPasswordValidationError(pw.new_password, pw.confirm_password);
+    if (passwordError) {
+      toast({ title: "Unable to change password", description: passwordError, variant: "destructive" });
+      return;
+    }
     setChangingPassword(true);
     try {
       await changeMyPassword(pw.current_password, pw.new_password);
       toast({ title: "Password changed" });
-      setPw({ current_password: "", new_password: "" });
+      setPw({ current_password: "", new_password: "", confirm_password: "" });
     } catch (error) {
       toast({
         title: "Unable to change password",
@@ -166,23 +176,24 @@ const TenantSettings = () => {
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
           <h2 className="font-semibold">Change Password</h2>
-          <div className="grid gap-1.5"><Label htmlFor="tenant-current-password">Current</Label>
-            <div className="flex gap-2">
-              <Input id="tenant-current-password" type={visiblePasswordFields.current ? "text" : "password"} autoComplete="current-password" value={pw.current_password} onChange={e => setPw({ ...pw, current_password: e.target.value })} />
-              <Button type="button" variant="outline" size="icon" aria-label={visiblePasswordFields.current ? "Hide current password" : "Show current password"} aria-pressed={visiblePasswordFields.current} onClick={() => setVisiblePasswordFields(current => ({ ...current, current: !current.current }))}>
-                {visiblePasswordFields.current ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-              </Button>
-            </div>
-          </div>
-          <div className="grid gap-1.5"><Label htmlFor="tenant-new-password">New (min 6 chars)</Label>
-            <div className="flex gap-2">
-              <Input id="tenant-new-password" type={visiblePasswordFields.next ? "text" : "password"} autoComplete="new-password" value={pw.new_password} onChange={e => setPw({ ...pw, new_password: e.target.value })} />
-              <Button type="button" variant="outline" size="icon" aria-label={visiblePasswordFields.next ? "Hide new password" : "Show new password"} aria-pressed={visiblePasswordFields.next} onClick={() => setVisiblePasswordFields(current => ({ ...current, next: !current.next }))}>
-                {visiblePasswordFields.next ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-              </Button>
-            </div>
-          </div>
-          <Button onClick={changePassword} disabled={changingPassword}>{changingPassword ? "Updating…" : "Update Password"}</Button>
+          <form
+            className="space-y-3"
+            onSubmit={event => {
+              event.preventDefault();
+              void changePassword();
+            }}
+          >
+            <PasswordFields
+              idPrefix="tenant"
+              currentPassword={pw.current_password}
+              onCurrentPasswordChange={value => setPw(current => ({ ...current, current_password: value }))}
+              newPassword={pw.new_password}
+              onNewPasswordChange={value => setPw(current => ({ ...current, new_password: value }))}
+              confirmPassword={pw.confirm_password}
+              onConfirmPasswordChange={value => setPw(current => ({ ...current, confirm_password: value }))}
+            />
+            <Button type="submit" disabled={changingPassword}>{changingPassword ? "Updating…" : "Update Password"}</Button>
+          </form>
         </div>
       </div>
     </DashboardLayout>
