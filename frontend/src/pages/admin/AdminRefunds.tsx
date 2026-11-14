@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +26,7 @@ const AdminRefunds = () => {
   const [transferScreenshots, setTransferScreenshots] = useState<Record<number, File | null>>({});
   const [transferScreenshotKeys, setTransferScreenshotKeys] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<{ url: string; title: string } | null>(null);
 
   const decide = async (request: RefundRequest, decision: "Approved" | "Rejected") => {
     const transferReference = transferReferences[request.refund_id]?.trim() || "";
@@ -109,25 +111,31 @@ const AdminRefunds = () => {
                 <p><span className="text-muted-foreground">Request reason:</span> {request.reason || "Not provided"}</p>
                 <p className="text-xs text-muted-foreground">Requested {new Date(request.created_at).toLocaleString()}</p>
                 {request.screenshot_url && (
-                  <a
+                  <button
+                    type="button"
                     className="inline-flex w-fit items-center gap-2 text-primary underline underline-offset-4"
-                    href={request.screenshot_url}
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => {
+                      if (request.screenshot_url) {
+                        setScreenshotPreview({ url: request.screenshot_url, title: "GCash payment screenshot" });
+                      }
+                    }}
                   >
-                    <ExternalLink size={14} /> View GCash screenshot
-                  </a>
+                    <Eye size={14} /> View GCash screenshot
+                  </button>
                 )}
                 {request.transfer_reference && <p><span className="text-muted-foreground">Refund transfer transaction number:</span> {request.transfer_reference}</p>}
                 {request.transfer_screenshot_url && (
-                  <a
+                  <button
+                    type="button"
                     className="inline-flex w-fit items-center gap-2 text-primary underline underline-offset-4"
-                    href={request.transfer_screenshot_url}
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => {
+                      if (request.transfer_screenshot_url) {
+                        setScreenshotPreview({ url: request.transfer_screenshot_url, title: "Refund transfer proof" });
+                      }
+                    }}
                   >
-                    <ExternalLink size={14} /> View refund transfer proof
-                  </a>
+                    <Eye size={14} /> View refund transfer proof
+                  </button>
                 )}
                 {request.admin_note && <p className="text-sm"><span className="text-muted-foreground">Admin note:</span> {request.admin_note}</p>}
               </div>
@@ -186,6 +194,26 @@ const AdminRefunds = () => {
           ))}
         </div>
       </div>
+      <Dialog
+        open={Boolean(screenshotPreview)}
+        onOpenChange={open => {
+          if (!open) setScreenshotPreview(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-h-[90vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{screenshotPreview?.title}</DialogTitle>
+            <DialogDescription>Review the screenshot here without leaving the refund request.</DialogDescription>
+          </DialogHeader>
+          {screenshotPreview && (
+            <img
+              src={screenshotPreview.url}
+              alt={screenshotPreview.title}
+              className="mx-auto max-h-[70vh] max-w-full rounded-md object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
