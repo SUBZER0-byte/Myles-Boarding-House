@@ -5,6 +5,7 @@ import {
   getSupabaseServerKey,
   getSupabaseUrl,
 } from "../_shared/supabase.ts";
+import { getClientIp } from "../_shared/client-ip.ts";
 import { isTextBeeEnabled } from "../_shared/textbee.ts";
 
 const supabaseUrl = getSupabaseUrl();
@@ -157,7 +158,11 @@ async function findProfileByIdentifier(identifier: string) {
 
 type AuthLogAction = "sign_in" | "sign_up";
 
-async function recordAuthEvent(actorId: number, action: AuthLogAction): Promise<void> {
+async function recordAuthEvent(
+  actorId: number,
+  action: AuthLogAction,
+  ipAddress: string | null,
+): Promise<void> {
   try {
     const { error } = await admin.from("system_logs").insert({
       actor_id: actorId,
@@ -165,6 +170,7 @@ async function recordAuthEvent(actorId: number, action: AuthLogAction): Promise<
       action,
       level: "info",
       message: action === "sign_in" ? "User signed in successfully." : "User signed up successfully.",
+      ip_address: ipAddress,
       request_path: action === "sign_in" ? "/login" : "/signup",
     });
     if (error) console.error(`Could not record auth ${action} event:`, error);
@@ -173,7 +179,7 @@ async function recordAuthEvent(actorId: number, action: AuthLogAction): Promise<
   }
 }
 
-async function recordSignUpEvent(authUserId: string): Promise<void> {
+async function recordSignUpEvent(authUserId: string, ipAddress: string | null): Promise<void> {
   try {
     const { data: profile, error } = await admin
       .from("users")
@@ -182,7 +188,7 @@ async function recordSignUpEvent(authUserId: string): Promise<void> {
       .maybeSingle();
     if (error) throw error;
     if (!profile) throw new Error("New account profile was not found.");
-    await recordAuthEvent(profile.user_id, "sign_up");
+    await recordAuthEvent(profile.user_id, "sign_up", ipAddress);
   } catch (error) {
     console.error("Could not record auth sign_up event:", error);
   }
@@ -281,7 +287,7 @@ async function verifyChallenge(
   return verified && Boolean(update.data);
 }
 
-async function handleSignIn(body: RequestBody) {
+async function handleSignIn(body: RequestBody, ipAddress: string | null) {
   const identifier = typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!identifier || !password || password.length > 200) {
@@ -309,7 +315,7 @@ async function handleSignIn(body: RequestBody) {
       body: { type: "error", message: "Your account is deactivated. Please contact the administrator." },
     };
   }
-  await recordAuthEvent(profile.user_id, "sign_in");
+  await recordAuthEvent(profile.user_id, "sign_in", ipAddress);
 
   return {
     status: 200,
@@ -323,7 +329,7 @@ async function handleSignIn(body: RequestBody) {
   };
 }
 
-async function handleSignUp(body: RequestBody) {
+async function handleSignUp(body: RequestBody, ipAddress: string | null) {
   const fullName = typeof body.full_name === "string" ? body.full_name.trim() : "";
   const username = typeof body.username === "string" ? body.username.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -385,7 +391,7 @@ async function handleSignUp(body: RequestBody) {
     return { status: 409, body: { type: "error", message: "Account creation failed. Check whether the email or username is already in use." } };
   }
 
-  await recordSignUpEvent(created.user.id);
+  await recordSignUpEvent(created.user.id, ipAddress);
 
   const authClient = createClient(supabaseUrl!, anonKey!, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
@@ -583,10 +589,10 @@ Deno.serve(async (request) => {
     let result: { status: number; body: Record<string, unknown> };
     switch (body.action) {
       case "signin":
-        result = await handleSignIn(body);
+        result = await handleSignIn(body, getClientIp(request));
         break;
       case "signup":
-        result = await handleSignUp(body);
+        result = await handleSignUp(body, getClientIp(request));
         break;
       case "check_username":
         if (typeof body.username !== "string" || body.username.trim().length < 3) {

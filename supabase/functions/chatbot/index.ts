@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "../_shared/supabase.ts";
+import { getClientIp } from "../_shared/client-ip.ts";
 import { buildChatbotSystemPrompt, type ChatLanguage } from "../_shared/chatbot_prompt.ts";
 import { buildGeminiRequestBody, extractGeminiReply } from "../_shared/gemini.ts";
 
@@ -71,15 +72,6 @@ async function consumeRateLimit(ip: string, windowName: "minute" | "hour"): Prom
   if (error) throw error;
   if (typeof data !== "boolean") throw new Error("The chatbot rate limiter returned an invalid response.");
   return data;
-}
-
-async function callerIp(request: Request): Promise<string | null> {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const value = request.headers.get("cf-connecting-ip")
-    ?? request.headers.get("x-real-ip")
-    ?? forwarded;
-  const ip = value?.trim().slice(0, 100);
-  return ip || null;
 }
 
 async function publicContext(): Promise<string> {
@@ -157,7 +149,7 @@ async function chatResponse(
     }, 200, origin);
   }
 
-  const ip = await callerIp(request);
+  const ip = getClientIp(request);
   if (!ip) {
     return jsonResponse({
       type: "error",
