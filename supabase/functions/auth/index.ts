@@ -155,6 +155,39 @@ async function findProfileByIdentifier(identifier: string) {
   return byEmail.data;
 }
 
+type AuthLogAction = "sign_in" | "sign_up";
+
+async function recordAuthEvent(actorId: number, action: AuthLogAction): Promise<void> {
+  try {
+    const { error } = await admin.from("system_logs").insert({
+      actor_id: actorId,
+      category: "auth",
+      action,
+      level: "info",
+      message: action === "sign_in" ? "User signed in successfully." : "User signed up successfully.",
+      request_path: action === "sign_in" ? "/login" : "/signup",
+    });
+    if (error) console.error(`Could not record auth ${action} event:`, error);
+  } catch (error) {
+    console.error(`Could not record auth ${action} event:`, error);
+  }
+}
+
+async function recordSignUpEvent(authUserId: string): Promise<void> {
+  try {
+    const { data: profile, error } = await admin
+      .from("users")
+      .select("user_id")
+      .eq("auth_user_id", authUserId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!profile) throw new Error("New account profile was not found.");
+    await recordAuthEvent(profile.user_id, "sign_up");
+  } catch (error) {
+    console.error("Could not record auth sign_up event:", error);
+  }
+}
+
 async function checkAvailability(column: "username" | "email", value: string) {
   const query = admin.from("users").select("user_id").eq(column, value).limit(1);
   const { data, error } = await query;
@@ -276,6 +309,7 @@ async function handleSignIn(body: RequestBody) {
       body: { type: "error", message: "Your account is deactivated. Please contact the administrator." },
     };
   }
+  await recordAuthEvent(profile.user_id, "sign_in");
 
   return {
     status: 200,
@@ -350,6 +384,8 @@ async function handleSignUp(body: RequestBody) {
     console.error("Supabase Auth account creation failed:", createError);
     return { status: 409, body: { type: "error", message: "Account creation failed. Check whether the email or username is already in use." } };
   }
+
+  await recordSignUpEvent(created.user.id);
 
   const authClient = createClient(supabaseUrl!, anonKey!, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
