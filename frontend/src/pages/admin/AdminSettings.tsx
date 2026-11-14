@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -597,10 +598,11 @@ const AdminSettings = () => {
                         {image.amount === null ? "Not set" : `₱${Number(image.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
                       </span>
                     </div>
-                    <img
+                    <ImagePreview
                       src={image.path}
                       alt={image.amount === null ? "GCash QR with fixed amount not set" : `GCash QR for ₱${Number(image.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
-                      className="w-full aspect-square rounded-md border bg-white object-contain p-1"
+                      triggerClassName="w-full overflow-hidden rounded-md border bg-white"
+                      imageClassName="aspect-square w-full object-contain p-1"
                     />
                     <div className="grid gap-1.5">
                       <Label htmlFor={`qr-amount-${image.filename}`} className="text-xs">Set or change amount (₱)</Label>

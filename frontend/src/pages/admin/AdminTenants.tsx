@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -295,7 +296,12 @@ const AdminTenants = () => {
         ) : (
           <div className="flex items-center gap-3">
             {editOpen && selected?.profile_picture && getProfilePictureUrl(selected.profile_picture) && (
-              <img src={getProfilePictureUrl(selected.profile_picture)} alt="Current profile" className="h-12 w-12 rounded-full object-cover" />
+            <ImagePreview
+              src={getProfilePictureUrl(selected.profile_picture)}
+              alt="Current profile picture"
+              triggerClassName="h-12 w-12 shrink-0 overflow-hidden rounded-full"
+              imageClassName="h-full w-full object-cover"
+            />
             )}
             <Input id="tenant-profile-picture" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
               const file = e.target.files?.[0] ?? null;
@@ -350,7 +356,14 @@ const AdminTenants = () => {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm overflow-hidden">
-                    {t.user_id != null && getProfilePictureUrl(t.profile_picture) ? <img src={getProfilePictureUrl(t.profile_picture)} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={18} />}
+                    {t.user_id != null && getProfilePictureUrl(t.profile_picture) ? (
+                      <ImagePreview
+                        src={getProfilePictureUrl(t.profile_picture)}
+                        alt={`${t.full_name} profile picture`}
+                        triggerClassName="h-full w-full rounded-full"
+                        imageClassName="h-full w-full object-cover"
+                      />
+                    ) : <UserRound size={18} />}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{t.full_name}</p>
@@ -419,7 +432,14 @@ const AdminTenants = () => {
                     <TableCell>
                       <div className="flex items-center gap-3 min-w-44">
                         <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden shrink-0">
-                          {t.user_id != null && getProfilePictureUrl(t.profile_picture) ? <img src={getProfilePictureUrl(t.profile_picture)} alt="" className="h-full w-full object-cover" /> : <UserRound size={16} />}
+                          {t.user_id != null && getProfilePictureUrl(t.profile_picture) ? (
+                            <ImagePreview
+                              src={getProfilePictureUrl(t.profile_picture)}
+                              alt={`${t.full_name} profile picture`}
+                              triggerClassName="h-full w-full rounded-full"
+                              imageClassName="h-full w-full object-cover"
+                            />
+                          ) : <UserRound size={16} />}
                         </div>
                         <div>
                           <p className="font-medium">{t.full_name}</p>

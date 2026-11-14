@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,35 +59,37 @@ export function RefundRequestHistory() {
   }
   if (!requests?.length) return null;
   return (
-    <section className="bg-card border border-border rounded-lg p-5 space-y-3">
-      <div>
-        <h2 className="font-display font-semibold text-lg">Refund requests</h2>
-        <p className="text-sm text-muted-foreground">Check the status of your submitted requests.</p>
-      </div>
-      {requests.map(request => (
-        <div key={request.refund_id} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-          <div>
-            <p className="font-medium text-sm">{request.description || `Payment #${request.payment_id}`}</p>
-            <p className="text-xs text-muted-foreground">{new Date(request.created_at).toLocaleDateString()} · {peso(Number(request.refund_amount))}</p>
-            {request.transfer_reference && <p className="text-xs text-muted-foreground mt-1">Refund transfer transaction number: {request.transfer_reference}</p>}
-            {request.transfer_screenshot_url && (
-              <a
-                className="text-xs text-primary underline underline-offset-4"
-                href={request.transfer_screenshot_url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View refund transfer proof
-              </a>
-            )}
-            {request.admin_note && <p className="text-xs text-muted-foreground mt-1">Admin note: {request.admin_note}</p>}
-          </div>
-          <Badge variant={request.status === "Approved" ? "default" : request.status === "Rejected" ? "destructive" : "secondary"}>
-            {request.status}
-          </Badge>
+    <>
+      <section className="bg-card border border-border rounded-lg p-5 space-y-3">
+        <div>
+          <h2 className="font-display font-semibold text-lg">Refund requests</h2>
+          <p className="text-sm text-muted-foreground">Check the status of your submitted requests.</p>
         </div>
-      ))}
-    </section>
+        {requests.map(request => (
+          <div key={request.refund_id} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <div>
+              <p className="font-medium text-sm">{request.description || `Payment #${request.payment_id}`}</p>
+              <p className="text-xs text-muted-foreground">{new Date(request.created_at).toLocaleDateString()} · {peso(Number(request.refund_amount))}</p>
+              {request.transfer_reference && <p className="text-xs text-muted-foreground mt-1">Refund transfer transaction number: {request.transfer_reference}</p>}
+              {request.transfer_screenshot_url && (
+                <ImagePreview
+                  src={request.transfer_screenshot_url}
+                  alt="Refund transfer proof"
+                  triggerLabel="View refund transfer proof"
+                  triggerClassName="text-xs text-primary underline underline-offset-4"
+                >
+                  View refund transfer proof
+                </ImagePreview>
+              )}
+              {request.admin_note && <p className="text-xs text-muted-foreground mt-1">Admin note: {request.admin_note}</p>}
+            </div>
+            <Badge variant={request.status === "Approved" ? "default" : request.status === "Rejected" ? "destructive" : "secondary"}>
+              {request.status}
+            </Badge>
+          </div>
+        ))}
+      </section>
+    </>
   );
 }
 

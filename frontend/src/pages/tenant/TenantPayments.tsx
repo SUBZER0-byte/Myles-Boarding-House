@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Loader2, CheckCircle2, Download, Wallet, XCircle } from "lucide-react";
@@ -523,7 +524,12 @@ const TenantPayments = () => {
                 {fullPayment.qr_url && (
                   <div className="rounded-lg border border-border bg-white p-3">
                     <p className="mb-2 text-center text-sm text-gray-700">Pay this fixed amount using the GCash QR.</p>
-                    <img src={fullPayment.qr_url} alt="Fixed-amount GCash QR" className="mx-auto max-h-[420px] max-w-full object-contain" />
+                    <ImagePreview
+                      src={fullPayment.qr_url}
+                      alt="Fixed-amount GCash QR"
+                      triggerClassName="mx-auto"
+                      imageClassName="max-h-[420px] max-w-full object-contain"
+                    />
                   </div>
                 )}
                 {fullPayment.admin_note && <p className="text-sm text-muted-foreground">Admin note: {fullPayment.admin_note}</p>}

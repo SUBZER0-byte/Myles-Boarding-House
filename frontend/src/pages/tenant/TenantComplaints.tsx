@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -101,7 +102,12 @@ const TenantComplaints = () => {
               </div>
               <p className="text-sm text-muted-foreground">{c.description}</p>
               {c.photo_url && (
-                <img src={c.photo_url} alt="Complaint attachment" className="mt-3 max-h-72 max-w-full rounded-md border border-border object-contain" />
+                <ImagePreview
+                  src={c.photo_url}
+                  alt="Complaint attachment"
+                  triggerClassName="mt-3 max-w-full overflow-hidden rounded-md border border-border"
+                  imageClassName="max-h-72 max-w-full object-contain"
+                />
               )}
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mt-3 border-l-2 border-border pl-3 space-y-2">

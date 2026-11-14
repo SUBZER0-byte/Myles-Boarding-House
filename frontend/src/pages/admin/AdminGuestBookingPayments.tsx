@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -242,14 +243,14 @@ const AdminGuestBookingPayments = () => {
                       {b.gcash_submitted_reference && <> · Reference: <strong>{b.gcash_submitted_reference}</strong></>}
                     </p>
                     {b.gcash_submitted_screenshot && (
-                      <a
-                        className="text-primary underline"
-                        href={b.gcash_submitted_screenshot}
-                        target="_blank"
-                        rel="noreferrer"
+                      <ImagePreview
+                        src={b.gcash_submitted_screenshot}
+                        alt={`GCash payment proof for booking ${b.booking_id}`}
+                        triggerLabel="View payment proof"
+                        triggerClassName="text-primary underline"
                       >
                         View payment proof
-                      </a>
+                      </ImagePreview>
                     )}
                     {b.proof_unavailable && (
                       <p className="text-xs text-destructive">

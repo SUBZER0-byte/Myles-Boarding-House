@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Wallet, CheckCircle2, XCircle } from "lucide-react";
@@ -207,10 +208,11 @@ export function BookingPaymentDialog({
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Fixed QR amount</span>
                       <span className="font-display text-sm font-bold text-primary">{formattedAmount}</span>
                     </div>
-                    <img
+                    <ImagePreview
                       src={matchingQr.path}
                       alt={`GCash QR code for ${formattedAmount}`}
-                      className="mx-auto h-[min(62vh,600px)] w-full object-contain"
+                      triggerClassName="w-full"
+                      imageClassName="mx-auto h-[min(62vh,600px)] w-full object-contain"
                     />
                   </div>
                 )}

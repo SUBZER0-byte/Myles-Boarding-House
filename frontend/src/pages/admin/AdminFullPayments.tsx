@@ -3,10 +3,11 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ExternalLink, Loader2, Search, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Search, XCircle } from "lucide-react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -232,22 +233,14 @@ const AdminFullPayments = () => {
                   {request.has_screenshot && (
                     <>
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment screenshot</p>
-                      <a
-                        className="block overflow-hidden rounded-md border border-border bg-white"
-                        href={request.screenshot_url || undefined}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="Open payment proof in a new tab"
-                      >
-                        <img
-                          src={request.screenshot_url || undefined}
+                      {request.screenshot_url && (
+                        <ImagePreview
+                          src={request.screenshot_url}
                           alt={`GCash payment proof for full payment request ${request.request_id}`}
-                          className="max-h-72 w-full object-contain"
+                          triggerClassName="block w-full overflow-hidden rounded-md border border-border bg-white"
+                          imageClassName="max-h-72 w-full object-contain"
                         />
-                      </a>
-                      <a className="inline-flex items-center gap-2 text-primary underline underline-offset-4" href={request.screenshot_url || undefined} target="_blank" rel="noreferrer">
-                        <ExternalLink size={14} /> Open full-size screenshot
-                      </a>
+                      )}
                     </>
                   )}
                   <p className="text-xs text-muted-foreground">Compare the transaction evidence with the fixed amount above before confirming.</p>
@@ -268,7 +261,12 @@ const AdminFullPayments = () => {
                   {qrPreviewUrl && (
                     <div className="rounded-md border border-border bg-white p-3">
                       <p className="mb-2 text-xs font-medium text-muted-foreground">QR preview · Tenant will pay {peso(Number(request.total_amount))}</p>
-                      <img src={qrPreviewUrl} alt="Preview of the GCash QR to send to the tenant" className="mx-auto max-h-56 object-contain" />
+                      <ImagePreview
+                        src={qrPreviewUrl}
+                        alt="Preview of the GCash QR to send to the tenant"
+                        triggerClassName="mx-auto"
+                        imageClassName="max-h-56 object-contain"
+                      />
                     </div>
                   )}
                   <Textarea maxLength={2000} rows={2} placeholder="Optional note to the tenant" value={note} onChange={event => setNote(event.target.value)} />

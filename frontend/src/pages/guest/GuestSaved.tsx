@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Heart, BedDouble, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
@@ -71,10 +72,11 @@ const GuestSaved = () => {
               return (
                 <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 flex flex-col">
                   {imageUrl && (
-                    <img
+                    <ImagePreview
                       src={imageUrl}
                       alt={`Room ${r.room_number}`}
-                      className="w-full h-36 object-cover rounded-md mb-3"
+                      triggerClassName="mb-3 w-full overflow-hidden rounded-md"
+                      imageClassName="h-36 w-full object-cover"
                     />
                   )}
 

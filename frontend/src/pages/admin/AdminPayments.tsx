@@ -437,9 +437,7 @@ const AdminPayments = () => {
             <DialogDescription>Private payment evidence; this link expires automatically.</DialogDescription>
           </DialogHeader>
           {screenshotPreview && (
-            <a href={screenshotPreview} target="_blank" rel="noreferrer" className="block">
-              <img src={screenshotPreview} alt="GCash payment proof" className="mx-auto max-h-[70vh] max-w-full object-contain" />
-            </a>
+            <img src={screenshotPreview} alt="GCash payment proof" className="mx-auto max-h-[70vh] max-w-full object-contain" />
           )}
         </DialogContent>
       </Dialog>

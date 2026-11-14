@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ImagePreview } from "@/components/ImagePreview";
 import { useToast } from "@/hooks/use-toast";
 import { getProfilePictureUrl, uploadMyProfilePicture } from "@/lib/profileSettings";
 
@@ -51,7 +52,15 @@ export function ProfilePictureCard({ currentPath, canUpload = true, onUploaded }
       <h2 className="font-semibold">Profile Picture</h2>
       <div className="flex items-center gap-4">
         <div className="h-20 w-20 overflow-hidden rounded-full border border-border bg-muted flex items-center justify-center shrink-0">
-          {imageUrl && !imageFailed ? <img src={imageUrl} alt="Profile" className="h-full w-full object-cover" onError={() => setImageFailed(true)} /> : <span className="text-2xl text-muted-foreground">?</span>}
+        {imageUrl && !imageFailed ? (
+          <ImagePreview
+            src={imageUrl}
+            alt="Profile picture"
+            triggerClassName="h-full w-full rounded-full"
+            imageClassName="h-full w-full object-cover"
+            onImageError={() => setImageFailed(true)}
+          />
+        ) : <span className="text-2xl text-muted-foreground">?</span>}
         </div>
         {canUpload && <div>
           <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="gap-2">

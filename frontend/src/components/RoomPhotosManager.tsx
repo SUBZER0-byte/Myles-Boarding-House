@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { ArrowDown, ArrowUp, Image as ImageIcon, ImagePlus, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -379,7 +380,12 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
             {photos.map((photo, index) => (
               <div key={photo.image_id} className="min-w-0 space-y-2 rounded-md border border-border p-2">
                 {photoUrl(photo.filename) ? (
-                  <img src={photoUrl(photo.filename)} alt={photo.caption || "Room photo"} className="h-28 w-full rounded object-cover" />
+                  <ImagePreview
+                    src={photoUrl(photo.filename)}
+                    alt={photo.caption || "Room photo"}
+                    triggerClassName="w-full overflow-hidden rounded"
+                    imageClassName="h-28 w-full object-cover"
+                  />
                 ) : (
                   <div className="flex h-28 w-full items-center justify-center rounded bg-muted text-muted-foreground" aria-label="Room photo unavailable">
                     <ImageIcon size={20} />
@@ -445,7 +451,12 @@ export const RoomPhotosManager = forwardRef<RoomPhotosManagerHandle, RoomPhotosM
 
             {pending.map((photo, index) => (
               <div key={photo.id} className="min-w-0 space-y-2 rounded-md border border-dashed border-primary/50 p-2">
-                <img src={photo.preview} alt={photo.caption || photo.file.name} className="h-28 w-full rounded object-cover" />
+                <ImagePreview
+                  src={photo.preview}
+                  alt={photo.caption || photo.file.name}
+                  triggerClassName="w-full overflow-hidden rounded"
+                  imageClassName="h-28 w-full object-cover"
+                />
                 <Input
                   aria-label={`Label for new photo ${index + 1}`}
                   value={photo.caption}

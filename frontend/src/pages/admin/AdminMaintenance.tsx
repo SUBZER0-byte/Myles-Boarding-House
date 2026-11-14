@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -72,7 +73,14 @@ const AdminMaintenance = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{r.description}</p>
-              {r.photo_url && <img src={r.photo_url} alt="Maintenance request attachment" className="mb-3 max-h-72 max-w-full rounded-md border border-border object-contain" />}
+              {r.photo_url && (
+                <ImagePreview
+                  src={r.photo_url}
+                  alt="Maintenance request attachment"
+                  triggerClassName="mb-3 max-w-full overflow-hidden rounded-md border border-border"
+                  imageClassName="max-h-72 max-w-full object-contain"
+                />
+              )}
               {r.status_history && r.status_history.length > 0 && (
                 <div className="mb-3 border-l-2 border-border pl-3 space-y-1.5">
                   {r.status_history.map((entry, index) => (

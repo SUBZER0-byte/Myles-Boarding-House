@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { RoomPhotosManager, type RoomPhotosManagerHandle } from "@/components/RoomPhotosManager";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -195,10 +196,11 @@ const AdminRooms = () => {
           {rooms?.map((r) => (
             <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 space-y-3">
               {roomImageUrl(r.image) && (
-                <img
+                <ImagePreview
                   src={roomImageUrl(r.image)}
                   alt={`Room ${r.room_number}`}
-                  className="w-full h-36 object-cover rounded-md mb-2"
+                  triggerClassName="mb-2 w-full overflow-hidden rounded-md"
+                  imageClassName="h-36 w-full object-cover"
                 />
               )}
               <div className="flex items-start justify-between">
@@ -292,9 +294,11 @@ const AdminRooms = () => {
               }} /></div>
             {imagePreview && (
               <div className="grid gap-1.5">
-                <img
+                <ImagePreview
                   src={roomImageUrl(imagePreview)}
-                  className="w-full h-40 object-cover rounded-md"
+                  alt="Selected room cover preview"
+                  triggerClassName="w-full overflow-hidden rounded-md"
+                  imageClassName="h-40 w-full object-cover"
                 />
               </div>
             )}

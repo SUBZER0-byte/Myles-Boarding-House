@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { ImagePreview } from "@/components/ImagePreview";
 
 interface RoomCardProps {
   image: string;
@@ -21,7 +22,12 @@ export function RoomCard({ image, name, price, status, amenities, onView, onBook
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden group hover:shadow-lg transition-shadow animate-fade-in">
       <div className="relative overflow-hidden h-48">
-        <img src={image} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <ImagePreview
+          src={image}
+          alt={name}
+          triggerClassName="h-full w-full"
+          imageClassName="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
         {showStatus && (
           <div className="absolute top-3 right-3">
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${statusStyles[status]}`}>

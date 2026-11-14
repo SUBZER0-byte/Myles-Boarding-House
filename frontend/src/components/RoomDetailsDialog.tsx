@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { BedDouble, Users, Ruler, Clock, ShieldCheck, Wifi, Wind, Tv, Bath, Briefcase, Flower2 } from "lucide-react";
+import { ImagePreview } from "@/components/ImagePreview";
 
 interface RoomDetails {
   image: string;
@@ -93,7 +94,12 @@ export function RoomDetailsDialog({ room, open, onOpenChange, onBook }: RoomDeta
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
         <div className="relative">
-          <img src={room.image} alt={room.name} className="w-full h-56 object-cover rounded-t-lg" />
+          <ImagePreview
+            src={room.image}
+            alt={room.name}
+            triggerClassName="h-56 w-full overflow-hidden rounded-t-lg"
+            imageClassName="h-56 w-full object-cover"
+          />
         </div>
 
         <div className="p-6 pt-4">

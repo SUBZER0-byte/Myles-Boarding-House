@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ImagePreview } from "@/components/ImagePreview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -161,7 +162,14 @@ const AdminRatings = () => {
           {ratings?.map((r) => (
             <div key={r.rating_id} className="bg-card border border-border rounded-lg p-4 flex items-start gap-3">
               <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                {r.user_id && getProfilePictureUrl(r.profile_picture) ? <img src={getProfilePictureUrl(r.profile_picture)} alt={`${r.full_name ?? "User"} profile`} className="h-full w-full object-cover" /> : <UserRound size={18} className="text-muted-foreground" />}
+                {r.user_id && getProfilePictureUrl(r.profile_picture) ? (
+                  <ImagePreview
+                    src={getProfilePictureUrl(r.profile_picture)}
+                    alt={`${r.full_name ?? "User"} profile picture`}
+                    triggerClassName="h-full w-full rounded-full"
+                    imageClassName="h-full w-full object-cover"
+                  />
+                ) : <UserRound size={18} className="text-muted-foreground" />}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
