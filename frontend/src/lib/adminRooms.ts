@@ -1,5 +1,6 @@
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 import { supabase } from "@/lib/supabase";
+import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
 export interface AdminRoom {
   room_id: number;
@@ -75,7 +76,7 @@ export async function getMyAdminRoomPhotos(roomId: number): Promise<AdminRoomPho
 }
 
 export function getAdminRoomPhotoUrl(filename: string): string {
-  if (/^photos\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(filename)) {
+  if (isSupabaseStorageImagePath(filename)) {
     return supabase.storage.from("mbh-room-images").getPublicUrl(filename).data.publicUrl;
   }
   return filename.startsWith("blob:") ? filename : "";
@@ -125,7 +126,7 @@ export async function deleteMyAdminRoomPhoto(imageId: number): Promise<void> {
   if (!result || typeof result.filename !== "string") {
     throw new Error("The room photo service returned an invalid delete response.");
   }
-  if (/^photos\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(result.filename)) {
+  if (isSupabaseStorageImagePath(result.filename)) {
     const { error } = await supabase.storage.from("mbh-room-images").remove([result.filename]);
     if (error) throw new Error(`Photo record removed, but its storage file could not be deleted: ${error.message}`);
   }
@@ -208,7 +209,7 @@ export async function deleteMyAdminRoom(roomId: number): Promise<void> {
   const previousImage = rooms.find((room) => room.room_id === roomId)?.image;
   const { error } = await supabase.rpc("delete_my_admin_room", { p_room_id: roomId });
   if (error) throw new Error(error.message || "Could not delete the room.");
-  if (previousImage && /^covers\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(previousImage)) {
+  if (isSupabaseStorageImagePath(previousImage)) {
     const { error: removeError } = await supabase.storage.from("mbh-room-images").remove([previousImage]);
     if (removeError) throw new Error(`Room deleted, but its cover image could not be removed: ${removeError.message}`);
   }
@@ -240,7 +241,7 @@ export async function uploadMyAdminRoomCover(roomId: number, file: File, oldPath
     throw new Error(linkError.message || "Could not save the room image.");
   }
 
-  if (oldPath && /^covers\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(oldPath)) {
+  if (isSupabaseStorageImagePath(oldPath)) {
     const { error: removeError } = await supabase.storage.from("mbh-room-images").remove([oldPath]);
     if (removeError) console.error("Could not remove the previous room cover image:", removeError);
   }

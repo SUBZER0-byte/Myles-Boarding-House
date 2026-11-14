@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
 export interface SettingsProfile {
   user_id: number;
@@ -122,8 +123,7 @@ export async function changeMyPassword(currentPassword: string, newPassword: str
 }
 
 export function getProfilePictureUrl(path: string | null | undefined): string {
-  if (!path) return "";
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[A-Za-z0-9._-]+$/i.test(path)) {
+  if (isSupabaseStorageImagePath(path)) {
     return supabase.storage.from("mbh-profile-pictures").getPublicUrl(path).data.publicUrl;
   }
   return "";

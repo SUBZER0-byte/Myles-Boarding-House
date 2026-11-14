@@ -18,9 +18,12 @@ describe("public room reads", () => {
     getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
   });
 
-  it("uses Supabase Storage for room image paths and ignores legacy PHP filenames", () => {
+  it("resolves flat and nested Storage keys but rejects external or unsafe image paths", () => {
     expect(getPublicRoomImageUrl("covers/7/room-cover.jpg")).toBe("https://storage.example/covers/7/room-cover.jpg");
-    expect(getPublicRoomImageUrl("uploads/rooms/old-room.jpg")).toBe("");
+    expect(getPublicRoomImageUrl("room_36_legacy-cover.jpg")).toBe("https://storage.example/room_36_legacy-cover.jpg");
+    expect(getPublicRoomImageUrl("uploads/rooms/old-room.jpg")).toBe("https://storage.example/uploads/rooms/old-room.jpg");
+    expect(getPublicRoomImageUrl("https://example.com/room.jpg")).toBe("");
+    expect(getPublicRoomImageUrl("../private.jpg")).toBe("");
   });
 
   it("uses the read-only public room listing RPC", async () => {

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
 export interface PublicRoom {
   room_id: number;
@@ -23,10 +24,11 @@ export interface PublicRoomPhoto {
 
 export function getPublicRoomImageUrl(image: string | null | undefined): string {
   if (!image) return "";
-  if (/^(covers|photos)\/[1-9][0-9]*\/[A-Za-z0-9-]+\.(jpg|png|webp)$/.test(image)) {
+  if (image.startsWith("blob:")) return image;
+  if (isSupabaseStorageImagePath(image)) {
     return supabase.storage.from("mbh-room-images").getPublicUrl(image).data.publicUrl;
   }
-  return image.startsWith("blob:") ? image : "";
+  return "";
 }
 
 export async function getPublicRooms(): Promise<PublicRoom[]> {

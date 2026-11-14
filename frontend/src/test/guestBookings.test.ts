@@ -106,7 +106,7 @@ describe("Supabase guest booking service", () => {
     });
   });
 
-  it("creates only short-lived Admin proof links and does not expose legacy PHP paths", async () => {
+  it("creates short-lived Admin proof links for safe Storage paths and rejects unsafe paths", async () => {
     const id = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
     rpc.mockResolvedValue({
       data: {
@@ -114,6 +114,7 @@ describe("Supabase guest booking service", () => {
         data: [
           { booking_id: 15, gcash_submitted_screenshot: `9c9b2860-f35e-4461-a022-47bf12fe7161/15/${id}.png` },
           { booking_id: 16, gcash_submitted_screenshot: "legacy/uploads/proof.png" },
+          { booking_id: 17, gcash_submitted_screenshot: "../private/proof.png" },
         ],
       },
       error: null,
@@ -125,9 +126,11 @@ describe("Supabase guest booking service", () => {
 
     const rows = await listAdminGuestBookings();
     expect(createSignedUrl).toHaveBeenCalledWith(`9c9b2860-f35e-4461-a022-47bf12fe7161/15/${id}.png`, 300);
+    expect(createSignedUrl).toHaveBeenCalledWith("legacy/uploads/proof.png", 300);
     expect(rows).toEqual([
       { booking_id: 15, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
-      { booking_id: 16, gcash_submitted_screenshot: null, proof_unavailable: true },
+      { booking_id: 16, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
+      { booking_id: 17, gcash_submitted_screenshot: null, proof_unavailable: true },
     ]);
   });
 });

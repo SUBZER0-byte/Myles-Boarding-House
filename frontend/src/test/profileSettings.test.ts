@@ -36,10 +36,13 @@ describe("Supabase profile settings", () => {
     getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
   });
 
-  it("only resolves profile pictures stored in Supabase Storage", () => {
+  it("resolves existing and legacy relative Storage keys, rejecting external paths", () => {
     expect(getProfilePictureUrl("00000000-0000-4000-8000-000000000001/photo.png"))
       .toBe("https://storage.example/00000000-0000-4000-8000-000000000001/photo.png");
-    expect(getProfilePictureUrl("legacy-profile.jpg")).toBe("");
+    expect(getProfilePictureUrl("profile_pictures/user_3/legacy-profile.jpg"))
+      .toBe("https://storage.example/profile_pictures/user_3/legacy-profile.jpg");
+    expect(getProfilePictureUrl("https://example.com/profile.jpg")).toBe("");
+    expect(getProfilePictureUrl("../private.jpg")).toBe("");
   });
 
   it("loads the current profile through the authenticated settings RPC", async () => {

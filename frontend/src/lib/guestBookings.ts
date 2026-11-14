@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
 const proofBucket = "mbh-booking-payment-proofs";
 
@@ -188,11 +189,7 @@ export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {
   if (!Array.isArray(rows)) throw new Error("The booking service returned an invalid list.");
   return Promise.all(rows.map(async booking => {
     if (!booking.gcash_submitted_screenshot) return booking;
-    const expectedPath = new RegExp(
-      `^[0-9a-f-]{36}/${booking.booking_id}/[0-9a-f-]{36}\\.(jpg|png|webp)$`,
-      "i",
-    );
-    if (!expectedPath.test(booking.gcash_submitted_screenshot)) {
+    if (!isSupabaseStorageImagePath(booking.gcash_submitted_screenshot)) {
       return { ...booking, gcash_submitted_screenshot: null, proof_unavailable: true };
     }
     const { data, error } = await supabase.storage

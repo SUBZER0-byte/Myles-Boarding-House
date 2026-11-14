@@ -19,6 +19,7 @@ vi.mock("@/lib/supabase", () => ({
 import {
   deleteMyAdminRoom,
   getAdminRoomCoverUrl,
+  getAdminRoomPhotoUrl,
   getMyAdminRooms,
   saveMyAdminRoom,
   setMyAdminRoomStatus,
@@ -101,6 +102,8 @@ describe("Admin rooms", () => {
   it("uses Supabase URLs for stored covers and ignores legacy paths", () => {
     getPublicUrl.mockReturnValue({ data: { publicUrl: "https://storage.example/room.jpg" } });
     expect(getAdminRoomCoverUrl("covers/4/a-b.jpg")).toBe("https://storage.example/room.jpg");
-    expect(getAdminRoomCoverUrl("legacy-cover.jpg")).toBe("");
+    expect(getAdminRoomCoverUrl("legacy-cover.jpg")).toBe("https://storage.example/room.jpg");
+    expect(getAdminRoomPhotoUrl("gallery_old_3.jpg")).toBe("https://storage.example/room.jpg");
+    expect(getAdminRoomCoverUrl("../private.jpg")).toBe("");
   });
 });
