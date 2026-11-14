@@ -681,8 +681,7 @@ const SignUp = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder=" "
                   required
-                  className="peer w-full bg-muted rounded-md pl-10 pr-10 py-3 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-all duration-300 hover:scale-[1.01]"
-                  whileFocus={{ scale: 1.01 }}
+                  className="peer w-full bg-muted rounded-md pl-10 pr-10 py-3 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-colors duration-300"
                 />
                 <label
                   htmlFor="signup-password"
@@ -692,15 +691,15 @@ const SignUp = () => {
                 >
                   Password
                 </label>
-                <motion.button
+                <button
                   type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowPass(current => !current)}
+                  aria-label={showPass ? "Hide password" : "Show password"}
+                  aria-pressed={showPass}
+                  className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </motion.button>
+                  {showPass ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
               </motion.div>
 
               {/* Confirm Password - Floating Label */}
@@ -713,8 +712,7 @@ const SignUp = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder=" "
                   required
-                  className="peer w-full bg-muted rounded-md pl-10 pr-10 py-3 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-all duration-300 hover:scale-[1.01]"
-                  whileFocus={{ scale: 1.01 }}
+                  className="peer w-full bg-muted rounded-md pl-10 pr-10 py-3 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-colors duration-300"
                 />
                 <label
                   htmlFor="signup-confirm"
@@ -724,15 +722,15 @@ const SignUp = () => {
                 >
                   Confirm Password
                 </label>
-                <motion.button
+                <button
                   type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowConfirm(current => !current)}
+                  aria-label={showConfirm ? "Hide password confirmation" : "Show password confirmation"}
+                  aria-pressed={showConfirm}
+                  className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                </motion.button>
+                  {showConfirm ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                </button>
               </motion.div>
 
               <motion.div variants={itemVariants}>
