@@ -111,14 +111,14 @@ TEXTBEE_ENABLED=false
 TEXTBEE_API_BASE=https://api.textbee.dev/api/v1
 TEXTBEE_API_KEY=
 TEXTBEE_DEVICE_ID=
-OLLAMA_API_KEY=
-OLLAMA_CLOUD_MODEL=gemma4:31b
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-Set real TextBee/Ollama values only on the VPS. To enable SMS after testing,
+Set real TextBee/Gemini values only on the VPS. To enable SMS after testing,
 change `TEXTBEE_ENABLED` to the exact lowercase value `true`; the device ID is
-optional when using the account's default TextBee device. Ollama Cloud uses the
-server-side `OLLAMA_API_KEY`. Do not put either provider key in Vercel or any
+optional when using the account's default TextBee device. The Gemini chatbot
+uses the server-side `GEMINI_API_KEY`. Do not put provider keys in Vercel or any
 `VITE_*` setting.
 
 Follow the official
@@ -149,7 +149,7 @@ Use the base HTTPS gateway URL only. Do not append `/rest/v1/`, `/auth/v1/`, or
 PHP asset-base setting in the frontend. Old PHP-relative image paths are not
 loaded; copy those files into Supabase Storage and update their database paths
 if they need to be displayed. Never add a secret/service-role key, database
-connection string, TextBee key, or Ollama key to Vercel.
+connection string, TextBee key, or Gemini key to Vercel.
 
 Deploy Vercel only after the backend migration and function checks pass. Use a
 test deployment/account first, verify the browser Network panel calls the new

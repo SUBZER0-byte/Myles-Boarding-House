@@ -49,7 +49,7 @@
       "type": "transform",
       "id": "004-migrate-chat-and-chatbot-services",
       "description": "Move shared messaging and chatbot flows off PHP",
-      "reason": "Admin, Tenant, and Guest routes still use PHP message, unread-count, and Ollama chatbot endpoints.",
+      "reason": "Admin, Tenant, and Guest routes still use PHP message and unread-count endpoints; the public chatbot now calls the Gemini-backed Supabase function.",
       "requirements": "Migrate Chat.tsx, message/unread-count behavior in DashboardSidebar, and ChatbotWidget away from PHP/MySQL while preserving supported conversations, polling/realtime behavior, and error states. Enforce conversation membership and role authorization in RLS and any server-side function; keep LLM credentials and privileged provider calls in server-side Edge Function secrets. If chat attachments exist, move them to appropriately scoped Supabase Storage policies. Add tests for identity isolation, unauthorized conversation access, message validation, provider failure, and secret-free frontend bundles. Update the migration/deployment guide to describe required server-side provider configuration and verification limits.",
       "dependencies": [
         "003-migrate-tenant-and-admin-financial-workflows"

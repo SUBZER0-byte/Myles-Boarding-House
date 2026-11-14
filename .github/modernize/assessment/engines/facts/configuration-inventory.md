@@ -67,8 +67,8 @@ The local Supabase config sets the Site URL to `https://myles-boarding-house.ver
 | `APP_ALLOWED_ORIGINS` | Function-specific production-origin fallback | Local/hosted Functions | Comma-separated exact browser origins for CORS |
 | `TEXTBEE_ENABLED` | `false` in example; only exact `true` enables sends | Local/hosted Functions | Supabase Function secret |
 | `TEXTBEE_API_BASE`, `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID` | API base shown in example; key and device ID empty; device ID optional | Local/hosted Functions | TextBee service; API key is sensitive; omitting device ID uses the default device |
-| `OLLAMA_API_KEY` | Empty/not enabled | Local/hosted Functions | Ollama Cloud; sensitive |
-| `OLLAMA_CLOUD_MODEL` | `gemma4:31b` | Local/hosted chatbot | Function env |
+| `GEMINI_API_KEY` | Empty/not enabled | Local/hosted Functions | Google AI Studio; sensitive |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Local/hosted chatbot | Function env; free-tier availability/quota depends on the Google AI Studio project |
 | `ALLOW_DEV_OTP` | Unset/false | Development only | Auth Function; must not be enabled in production |
 | `ADMIN_BOOTSTRAP_TOKEN`, `ADMIN_BOOTSTRAP_PASSWORD` | Empty | Temporary bootstrap only | Supabase Function secrets; remove after one-time use |
 | `SUPABASE_STORAGE_S3_ENDPOINT`, `SUPABASE_STORAGE_S3_REGION` | Empty/optional in example | Trusted server-side S3 clients only | Supabase Storage > S3; current frontend does not consume these values |
@@ -102,7 +102,7 @@ The local Supabase config sets the Site URL to `https://myles-boarding-house.ver
 1. Install frontend dependencies, then run the Vite build; Vercel serves the static frontend from `frontend/dist`.
 2. The browser requires the matching Supabase Project URL and publishable key, then calls the Supabase Auth, Data, Storage, and Edge Function APIs over HTTPS.
 3. Supabase SQL migrations must be applied before deploying frontend code that depends on their tables, RPCs, RLS policies, and Storage buckets.
-4. Supabase Edge Functions depend on platform project keys and Auth/Postgres; SMS and chatbot functions additionally depend on TextBee/Ollama secrets when those features are enabled.
+4. Supabase Edge Functions depend on platform project keys and Auth/Postgres; SMS and chatbot functions additionally depend on TextBee/Gemini secrets when those features are enabled.
 5. Legacy PHP workflows depend on a PHP host and MySQL/MariaDB; PayPal is still PHP-backed. Legacy media paths may also depend on the PHP host until files and database references are backfilled.
 
 ## Secrets & Sensitive Configuration
@@ -111,7 +111,7 @@ The local Supabase config sets the Site URL to `https://myles-boarding-house.ver
 |---|---|---|
 | `SUPABASE_SECRET_KEY` / legacy `SUPABASE_SERVICE_ROLE_KEY` | Supabase privileged API key | Supabase Edge Function runtime secret; never Vercel/browser |
 | `DATABASE_URL` / database password | PostgreSQL credential | Ignored local CLI file or secure password prompt; never frontend |
-| `TEXTBEE_API_KEY`, `OLLAMA_API_KEY` | Provider credentials | Supabase Edge Function Secrets; local `supabase/.env` only for local testing |
+| `TEXTBEE_API_KEY`, `GEMINI_API_KEY` | Provider credentials | Supabase Edge Function Secrets; local `supabase/.env` only for local testing |
 | `PAYPAL_SECRET`, `PAYMONGO_SECRET_KEY`, webhook secrets | Payment-provider credentials | Legacy PHP host environment or ignored server-side secrets file |
 | `ADMIN_BOOTSTRAP_TOKEN`, `ADMIN_BOOTSTRAP_PASSWORD` | Temporary privileged bootstrap credentials | Supabase Function secrets only during one-time bootstrap; remove afterward |
 | S3 access key/secret | Storage S3 credentials | Supabase/S3 server-side client only; not currently consumed by this app |
@@ -127,7 +127,7 @@ Browser configuration is deliberately public and limited to the Supabase Project
 | `TEXTBEE_ENABLED` | `false` in example | Supabase Function secret; SMS sends require exact `true` |
 | `ALLOW_DEV_OTP` | Unset/false | Supabase Auth Function environment; development-only |
 | `PAYPAL_ENV` | `sandbox` | Legacy PHP environment/secrets; `live` selects production PayPal |
-| `OLLAMA_API_KEY` presence | Not configured by default | Supabase chatbot Function secret |
+| `GEMINI_API_KEY` presence | Not configured by default | Supabase chatbot Function secret |
 | Vite development mode | Enabled by `npm run dev` | Vite `import.meta.env.DEV`; controls local asset fallback and dev-only UI |
 
 ## Framework & Runtime Versions

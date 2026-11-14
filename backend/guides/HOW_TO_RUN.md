@@ -12,7 +12,7 @@ The project has **4 components** — local services must be running and the clou
 |---|-----------|------|------|---------|
 | 1 | Database + PHP API | XAMPP (Apache + MySQL) | 80 / 3306 | REST endpoints + data |
 | 2 | Realtime server | PHP CLI (Ratchet) | 8080 / 8081 | Instant push (chat, dashboards) |
-| 3 | AI Chatbot | Ollama Cloud API | HTTPS | Landing-page chatbot |
+| 3 | AI Chatbot | Gemini API | HTTPS | Landing-page chatbot |
 | 4 | Frontend | React + Vite | **5173** | The UI you interact with |
 
 > ✅ Vite is locked to port **5173** (see `vite.config.ts`) so it never collides with the Ratchet WebSocket server on 8080.
@@ -122,13 +122,13 @@ Internal publisher TCP listening on 127.0.0.1:8081
 
 ---
 
-## 7. Configure Ollama Cloud (Supabase Chatbot)
+## 7. Configure Gemini API (Supabase Chatbot)
 
-Create an API key at https://ollama.com/settings/keys. For the Vercel + Supabase deployment, add `OLLAMA_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. Optionally set `OLLAMA_CLOUD_MODEL`; the current default `gemma4:31b` is supported for direct Ollama Cloud API requests. The `chatbot` Edge Function calls `https://ollama.com/api/chat` with a Bearer token, so no local Ollama installation or model download is needed.
+Create a key in [Google AI Studio](https://aistudio.google.com/apikey). For the Vercel + Supabase deployment, add `GEMINI_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. The chatbot defaults to `GEMINI_MODEL=gemini-3.5-flash-lite`, which currently has free-tier input and output tokens subject to Google's project quotas. The Edge Function calls Gemini's `generateContent` API; no Google SDK package or local model is required.
 
-Do not store the key in Vercel environment variables, frontend `.env`, browser code, Admin settings, or the PHP host for the Supabase-backed chatbot. For local Edge Function development, put it in the ignored `supabase/.env` and run `npx.cmd supabase functions serve --env-file supabase/.env` from the repository root; local serving requires Docker Desktop.
+Do not store the key in Vercel environment variables, frontend `.env`, browser code, Admin settings, or the PHP host for the Supabase-backed chatbot. For local Edge Function development, put it in the ignored `supabase/.env` and run `npx.cmd supabase functions serve --env-file supabase/.env` from the repository root; local serving requires Docker Desktop. Google's free-tier prompts may be used to improve its products, so do not send sensitive tenant, payment, or account information.
 
-The PHP server environment or `backend/Config/secrets.php` only applies to a separately maintained legacy PHP chatbot, if one is still in use. It does not configure the Supabase Edge Function.
+The legacy PHP chatbot endpoint is retired and returns HTTP 410. Do not configure Ollama or provider credentials for the PHP chatbot; the deployed application uses the Supabase Gemini Edge Function only.
 
 After importing an existing database, apply `backend/migrations/018_chatbot_faqs.sql` and `backend/migrations/019_chatbot_suggested_questions.sql`. Administrators can then add, edit, deactivate, or delete chatbot answers in **Admin Panel → Settings → Public Chatbot FAQs**. FAQ questions selected as suggestions appear in the chatbot's **Suggested questions** list. The chatbot uses live room data for rates and availability, and active FAQs for the corresponding topic. Set the landlady's phone or email in **Admin Panel → Settings → House Contact Info** so unrecognized questions can direct visitors to the right contact.
 
@@ -164,7 +164,7 @@ Vite is configured to run on **http://localhost:5173** — click the link in VS 
 ## 9. Quick start checklist (every time you boot)
 
 1. ✅ XAMPP Control Panel → Start **Apache** + **MySQL**
-2. ✅ Configure the Ollama Cloud API key in `backend/Config/secrets.php`
+2. ✅ For the Supabase chatbot, configure `GEMINI_API_KEY` in Supabase Edge Function Secrets; for local functions, use the ignored `supabase/.env`.
 3. ✅ VS Code Terminal 1: `cd backend/Realtime && php server.php`
 4. ✅ VS Code Terminal 2: `bun run dev`
 5. ✅ Open http://localhost:5173 and sign in:
@@ -191,7 +191,7 @@ Vite is configured to run on **http://localhost:5173** — click the link in VS 
 → Check the Supabase URL/key in `frontend/.env` and confirm the configured Supabase project is reachable. Apache is required only for legacy PHP routes; the current frontend does not use it to resolve image paths.
 
 **Chatbot says "AI unavailable"**
-→ For the Vercel + Supabase app, verify `OLLAMA_API_KEY` in Supabase Edge Function Secrets, confirm the `chatbot` function is deployed, check `APP_ALLOWED_ORIGINS`, and confirm the selected cloud model is available to your Ollama account. Check the function logs for provider errors. A PHP-host setting does not configure the Supabase chatbot.
+→ For the Vercel + Supabase app, verify `GEMINI_API_KEY` in Supabase Edge Function Secrets, confirm the `chatbot` function is deployed, check `APP_ALLOWED_ORIGINS`, and verify that the configured Gemini model is enabled for your AI Studio project. Check the function logs for provider errors. A PHP-host setting does not configure the Supabase chatbot.
 
 **Dashboards don't update live**
 → Ratchet server isn't running. Restart `php server.php` in Terminal 1.

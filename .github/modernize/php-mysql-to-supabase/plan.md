@@ -62,13 +62,13 @@ below identify the remaining PHP portion, not necessarily every read on that pag
   booking-status reads. Shared Supabase chat and the chatbot are also used by
   Guest accounts.
 - **Admin Settings**: legacy PayPal configuration remains PHP-backed until its
-  payment endpoints migrate. Supabase TextBee/Ollama secrets are server-side
+  payment endpoints migrate. Supabase TextBee/Gemini secrets are server-side
   Edge Function configuration. GCash QR management now uses Supabase RPC/Storage but requires
   migration and image/amount backfill. Chatbot FAQ and suggested-question management
   now use Admin-only Supabase RPCs, but require migration and content backfill.
 - **Shared components**: `Chat.tsx` and `DashboardSidebar` now use the
   authenticated `manage_my_chat` RPC and private chat-image Storage bucket.
-  `ChatbotWidget` now uses a server-side Ollama Edge Function and public
+  `ChatbotWidget` now uses a server-side Gemini Edge Function and public
   suggested-question RPC. Audit remaining profile-image fallback URLs and API
   helpers while completing the cutover.
 
@@ -136,10 +136,10 @@ The local chat/chatbot slice adds `20261114000000_chat_workflows.sql`,
 `20261114020000_admin_chatbot_settings.sql`, the `chatbot` Edge Function, and matching
 frontend services/tests. Chat uses Supabase polling, role/participant checks,
 and private attachments; the public chatbot requires the server-side
-`OLLAMA_API_KEY` secret and an explicit `APP_ALLOWED_ORIGINS` allowlist. Existing
+`GEMINI_API_KEY` secret and an explicit `APP_ALLOWED_ORIGINS` allowlist. Existing
 PHP-hosted chat attachments still require record-linked backfill. These local
-changes do not mean the migration/function is deployed or that Ollama has been
-configured. The PHP chat, Ollama, and Admin Settings sources remain for rollback
+changes do not mean the migration/function is deployed or that Gemini has been
+configured. The PHP chat and Admin Settings sources remain for rollback
 until cutover and the remaining Admin Settings/rent-ledger work are completed.
 
 ## Open Questions & Questionnaire
@@ -148,7 +148,7 @@ until cutover and the remaining Admin Settings/rent-ledger work are completed.
   approved data-backfill/cutover window before production migration.
 - [ ] Confirm payment-provider webhook ownership and whether legacy payment
   evidence must be retained for a defined period after Storage migration.
-- [ ] Confirm which SMS and Ollama/chat provider integrations must remain enabled
+- [ ] Confirm which SMS and Gemini/chat provider integrations must remain enabled
   at cutover and who will provision their server-side secrets.
 
 ## Completion Criteria

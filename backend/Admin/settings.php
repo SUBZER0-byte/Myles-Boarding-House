@@ -30,7 +30,6 @@ switch ($action) {
     case 'delete_chatbot_suggested_question': deleteChatbotSuggestedQuestion(); break;
     case 'get_admin_api_keys': getAdminApiKeys(); break;
     case 'update_settings': updateSettings(); break;
-    case 'update_ollama_api_key': updateOllamaApiKey(); break;
     case 'payment_mode': paymentMode(); break;
     default: echo json_encode(['type'=>'error','message'=>'Invalid action']);
 }
@@ -962,27 +961,20 @@ function getAdminApiKeys(): void {
         return $fetched ? (string)$value : '';
     };
 
-    $ollamaEnvironmentValue = getenv('OLLAMA_API_KEY');
-    $ollamaDatabaseValue = $readDatabaseSetting('ollama_api_key');
     $textbeeApiKey = $readDatabaseSetting('textbee_api_key');
     $paypalClientIdDatabaseValue = $readDatabaseSetting('paypal_client_id');
     $paypalSecretDatabaseValue = $readDatabaseSetting('paypal_secret');
     $paypalWebhookIdDatabaseValue = $readDatabaseSetting('paypal_webhook_id');
-    if ($ollamaDatabaseValue === false || $textbeeApiKey === false
+    if ($textbeeApiKey === false
         || $paypalClientIdDatabaseValue === false || $paypalSecretDatabaseValue === false
         || $paypalWebhookIdDatabaseValue === false) {
         http_response_code(500);
         echo json_encode(['type'=>'error','message'=>'Unable to read stored API keys']);
         return;
     }
-    $ollamaApiKey = $ollamaEnvironmentValue !== false && trim($ollamaEnvironmentValue) !== ''
-        ? trim($ollamaEnvironmentValue)
-        : ($ollamaDatabaseValue !== '' ? $ollamaDatabaseValue : $readConfigValue('OLLAMA_API_KEY'));
-
     echo json_encode([
         'type' => 'success',
         'data' => [
-            'ollama_api_key' => $ollamaApiKey,
             'textbee_api_key' => $textbeeApiKey,
             'paypal_client_id' => $readConfigValue('PAYPAL_CLIENT_ID', $paypalClientIdDatabaseValue),
             'paypal_secret' => $readConfigValue('PAYPAL_SECRET', $paypalSecretDatabaseValue),
@@ -994,76 +986,6 @@ function getAdminApiKeys(): void {
 function paymentMode(): void {
     require_once __DIR__ . '/../Config/paypal.php';
     echo json_encode(['type'=>'success','data'=>['mode'=>strtoupper(pp_mode())]]);
-}
-
-function updateOllamaApiKey(): void {
-    global $connect;
-
-    if (!$connect instanceof mysqli) {
-        http_response_code(503);
-        echo json_encode(['type'=>'error','message'=>'Database connection unavailable']);
-        return;
-    }
-
-    $data = json_decode(file_get_contents('php://input'), true);
-    $apiKey = is_array($data) ? trim((string)($data['api_key'] ?? '')) : '';
-    if ($apiKey === '' || strlen($apiKey) > 4096) {
-        http_response_code(400);
-        echo json_encode(['type'=>'error','message'=>'Enter a valid Ollama API key']);
-        return;
-    }
-
-    $stmt = $connect->prepare("
-        INSERT INTO system_settings (setting_key, setting_value) VALUES ('ollama_api_key', ?)
-        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-    ");
-    if (!$stmt) {
-        error_log('Ollama API key save failed: unable to prepare database statement');
-        http_response_code(500);
-        echo json_encode(['type'=>'error','message'=>'Unable to prepare Ollama API key update']);
-        return;
-    }
-
-    $stmt->bind_param('s', $apiKey);
-    if (!$stmt->execute()) {
-        error_log('Ollama API key save failed: ' . $stmt->error);
-        $stmt->close();
-        http_response_code(500);
-        echo json_encode(['type'=>'error','message'=>'Unable to save Ollama API key']);
-        return;
-    }
-    $stmt->close();
-
-    $verify = $connect->prepare(
-        "SELECT setting_value FROM system_settings WHERE setting_key = 'ollama_api_key' LIMIT 1"
-    );
-    if (!$verify) {
-        error_log('Ollama API key save verification failed: unable to prepare database statement');
-        http_response_code(500);
-        echo json_encode(['type'=>'error','message'=>'Unable to verify Ollama API key update']);
-        return;
-    }
-    $storedApiKey = '';
-    if (!$verify->execute()) {
-        error_log('Ollama API key save verification failed: ' . $verify->error);
-        $verify->close();
-        http_response_code(500);
-        echo json_encode(['type'=>'error','message'=>'Unable to verify Ollama API key update']);
-        return;
-    }
-    $verify->bind_result($storedApiKey);
-    $isStored = $verify->fetch() && hash_equals($apiKey, (string)$storedApiKey);
-    $verify->close();
-
-    if (!$isStored) {
-        error_log('Ollama API key save verification failed: stored value did not match submitted value');
-        http_response_code(500);
-        echo json_encode(['type'=>'error','message'=>'Ollama API key was not saved correctly']);
-        return;
-    }
-
-    rt_publish('/Admin/settings.php');
-    echo json_encode(['type'=>'success','message'=>'Ollama API key saved']);
 }
 
 function updateSettings() {

@@ -1,0 +1,137 @@
+{
+  "planHash": "88a903ebf580f094f1c03837fbc0a2dc92a588a1664080043cc52b0f04df9b61",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-11-14T00:39:18.7178059Z",
+  "retryCount": 2,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 52019,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "production-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E vite_react_shadcn_ts@0.0.0 build\r\n\u003E vite build\r\n\r\n\u001B[36mvite v5.4.21 \u001B[32mbuilding for production...\u001B[36m\u001B[39m\r\ntransforming...\r\n\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - The class \u0060duration-[700ms]\u0060 is ambiguous and matches multiple utilities.\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - If this is content and not a class, replace it with \u0060duration-\u0026lsqb;700ms\u0026rsqb;\u0060 to silence this warning.\r\n\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - The class \u0060ease-[cubic-bezier(0.22,1,0.36,1)]\u0060 is ambiguous and matches multiple utilities.\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - If this is content and not a class, replace it with \u0060ease-\u0026lsqb;cubic-bezier(0.22,1,0.36,1)\u0026rsqb;\u0060 to silence this warning.\r\n\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - The class \u0060ease-[cubic-bezier(0.32,0.72,0,1)]\u0060 is ambiguous and matches multiple utilities.\r\n\u001B[1m\u001B[33mwarn\u001B[39m\u001B[22m - If this is content and not a class, replace it with \u0060ease-\u0026lsqb;cubic-bezier(0.32,0.72,0,1)\u0026rsqb;\u0060 to silence this warning.\r\n\u001B[32m\u2713\u001B[39m 3926 modules transformed.\r\nrendering chunks...\r\ncomputing gzip size...\r\n\u001B[2mdist/\u001B[22m\u001B[32mindex.html                                                                \u001B[39m\u001B[1m\u001B[2m    1.19 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:   0.48 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/room-single-Cy6p8YFt.jpg                                           \u001B[39m\u001B[1m\u001B[2m   43.17 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/room-suite-L1LBtfR_.jpg                                            \u001B[39m\u001B[1m\u001B[2m   56.24 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/room-double-bYPmS87J.jpg                                           \u001B[39m\u001B[1m\u001B[2m   57.72 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/776200076_1826458431856497_726356571030393406_n-fx6sBDKm.jpg       \u001B[39m\u001B[1m\u001B[2m  193.81 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/795696821_2068750914002786_4444334205767913973_n-lcuud5iZ.jpg      \u001B[39m\u001B[1m\u001B[2m  196.63 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/775047569_3053171715107193_4244530931739889398_n (1)-anlEwP8G.jpg  \u001B[39m\u001B[1m\u001B[2m  212.88 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/776252609_1735827617653592_6187239454364844364_n-DQ6DOIAd.jpg      \u001B[39m\u001B[1m\u001B[2m  219.01 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/logo-BYohC7Pm.png                                                  \u001B[39m\u001B[1m\u001B[2m  235.05 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/793924181_2511856059334424_2316540071660421728_n-D2klmeUT.jpg      \u001B[39m\u001B[1m\u001B[2m  236.08 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/780748479_1044715208204598_5619881364332714695_n-6Wr6U8Tf.jpg      \u001B[39m\u001B[1m\u001B[2m  265.93 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/792584856_1324396436253243_842653748892513400_n-DX2gyrg5.jpg       \u001B[39m\u001B[1m\u001B[2m  278.39 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/774190937_1063676902978628_1007580302922928254_n (1)-BYqTImF2.jpg  \u001B[39m\u001B[1m\u001B[2m  289.52 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/774510572_1767684557577949_4655357441577790374_n (1)-B97PkzI7.jpg  \u001B[39m\u001B[1m\u001B[2m  295.28 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/774069080_2917648111913793_64257836457754159_n-BG64qcZA.jpg        \u001B[39m\u001B[1m\u001B[2m  352.72 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[32massets/773975397_1801893280820553_5956689233169011423_n (1)-CzT1UpeU.jpg  \u001B[39m\u001B[1m\u001B[2m  391.63 kB\u001B[22m\u001B[1m\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[35massets/index-BmsLoZFV.css                                                 \u001B[39m\u001B[1m\u001B[2m  100.66 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:  16.97 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[36massets/emojis-6L3GRBAP-6FAVtucS.js                                        \u001B[39m\u001B[1m\u001B[2m    0.12 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:   0.09 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[36massets/index-DL4DB8M_.js                                                  \u001B[39m\u001B[1m\u001B[2m  364.10 kB\u001B[22m\u001B[1m\u001B[22m\u001B[2m \u2502 gzip:  93.29 kB\u001B[22m\r\n\u001B[2mdist/\u001B[22m\u001B[36massets/index-T6tHZ3-4.js                                                  \u001B[39m\u001B[1m\u001B[33m1,802.44 kB\u001B[39m\u001B[22m\u001B[2m \u2502 gzip: 484.00 kB\u001B[22m\r\n\u001B[33m\r\n(!) Some chunks are larger than 500 kB after minification. Consider:\r\n- Using dynamic import() to code-split the application\r\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\r\n- Adjust chunk size limit for this warning \n\u2026[truncated]",
+        "durationMs": 58650
+      },
+      {
+        "name": "typescript-no-emit",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "",
+        "durationMs": 17120
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\r\n\u003E vite_react_shadcn_ts@0.0.0 test\r\n\u003E vitest run\r\n\r\n\r\n\u001B[1m\u001B[46m RUN \u001B[49m\u001B[22m \u001B[36mv3.2.6 \u001B[39m\u001B[90mC:/xampp/htdocs/Myle\u0027s Boarding House/frontend\u001B[39m\r\n\r\n \u001B[32m\u2713\u001B[39m src/test/adminChatbotSettings.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 22\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/tenantRequests.test.ts \u001B[2m(\u001B[22m\u001B[2m6 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 29\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/rentPayments.test.ts \u001B[2m(\u001B[22m\u001B[2m5 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 40\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminTenants.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 44\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/profileSettings.test.ts \u001B[2m(\u001B[22m\u001B[2m6 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 40\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminGuests.test.ts \u001B[2m(\u001B[22m\u001B[2m5 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 63\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/gcashQrs.test.ts \u001B[2m(\u001B[22m\u001B[2m7 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 66\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/guestBookings.test.ts \u001B[2m(\u001B[22m\u001B[2m6 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 81\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/chatWorkflows.test.ts \u001B[2m(\u001B[22m\u001B[2m5 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 92\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/financialWorkflows.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 92\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminRooms.test.ts \u001B[2m(\u001B[22m\u001B[2m5 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 56\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/userNotifications.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 22\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/publicRooms.test.ts \u001B[2m(\u001B[22m\u001B[2m5 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 28\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminRatings.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 25\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminAnnouncements.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 31\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/chatbot.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 55\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/stayExtensions.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 28\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/tenantCancellations.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 27\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminNotifications.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 23\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminProfile.test.ts \u001B[2m(\u001B[22m\u001B[2m2 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 17\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/geminiChatbot.test.ts \u001B[2m(\u001B[22m\u001B[2m4 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 13\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/tenantDashboard.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 27\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminAnalytics.test.ts \u001B[2m(\u001B[22m\u001B[2m2 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 14\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminLogs.test.ts \u001B[2m(\u001B[22m\u001B[2m2 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 26\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/publicInfo.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 24\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/adminHouseSettings.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 26\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/tenantRatings.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 28\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/cropGcashQr.test.ts \u001B[2m(\u001B[22m\u001B[2m1 test\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 66\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/publicHomepage.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 17\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/tenantRoom.test.ts \u001B[2m(\u001B[22m\u001B[2m3 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 21\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/usePublicHomepageData.test.ts \u001B[2m(\u001B[22m\u001B[2m2 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 162\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/usePublicRooms.test.ts \u001B[2m(\u001B[22m\u001B[2m2 tests\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 164\u001B[2mms\u001B[22m\u001B[39m\r\n \u001B[32m\u2713\u001B[39m src/test/example.test.ts \u001B[2m(\u001B[22m\u001B[2m1 test\u001B[22m\u001B[2m)\u001B[22m\u001B[32m 4\u001B[2mms\u001B[22m\u001B[39m\r\n\r\n\u001B[2m Test Files \u001B[22m \u001B[1m\u001B[32m33 passed\u001B[39m\u001B[22m\u001B[90m (33)\u001B[39m\r\n\u001B[2m      Tests \u001B[22m \u001B[1m\u001B[32m119 passed\u001B[39m\u001B[22m\u001B[90m (119)\u001B[39m\r\n\u001B[2m   Start at \u001B[22m 08:38:34\r\n\u001B[2m   Duration \u001B[22m 42.70s\u001B[2m (transform 3.88s, setup 68.24s, collect 14.98s, tests 1.47s, environment 307.19s, prepare 25.14s)\u001B[22m\r\n\r\n",
+        "durationMs": 48620,
+        "testResults": {
+          "testFramework": "vitest",
+          "runnerDetectedFrom": "package_json",
+          "testsTotal": 119,
+          "testsPassed": 119,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": false
+        }
+      },
+      {
+        "name": "home-route-serves",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": null,
+        "outputSample": "HTTP 200\n\u003C!doctype html\u003E\n\u003Chtml lang=\u0022en\u0022\u003E\n  \u003Chead\u003E\n    \u003Cscript type=\u0022module\u0022\u003Eimport { injectIntoGlobalHook } from \u0022/@react-refresh\u0022;\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () =\u003E {};\nwindow.$RefreshSig$ = () =\u003E (type) =\u003E type;\u003C/script\u003E\n\n    \u003Cscript type=\u0022module\u0022 src=\u0022/@vite/client\u0022\u003E\u003C/script\u003E\n\n    \u003Cmeta charset=\u0022UTF-8\u0022 /\u003E\n    \u003Cmeta name=\u0022viewport\u0022 content=\u0022width=device-width, initial-scale=1.0, viewport-fit=cover\u0022 /\u003E\n    \u003Clink rel=\u0022icon\u0022 type=\u0022image/png\u0022 sizes=\u0022512x512\u0022 href=\u0022/logo.png?v=2\u0022 /\u003E\n    \u003Clink rel=\u0022shortcut icon\u0022 type=\u0022image/png\u0022 href=\u0022/logo.png?v=2\u0022 /\u003E\n    \u003Ctitle\u003EMyle\u0027s Boarding House\u003C/title\u003E\n    \u003Cmeta name=\u0022description\u0022 content=\u0022Myle\u0027s Boarding House - Web-based booking and tracking system\u0022 /\u003E\n    \u003Cmeta name=\u0022author\u0022 content=\u0022Myle\u0027s Boarding House\u0022 /\u003E\n\n    \u003Cmeta property=\u0022og:title\u0022 content=\u0022Myle\u0027s Boarding House\u0022 /\u003E\n    \u003Cmeta property=\u0022og:description\u0022 content=\u0022Myle\u0027s Boarding House - Web-based booking and tracking system\u0022 /\u003E\n    \u003Cmeta property=\u0022og:type\u0022 content=\u0022website\u0022 /\u003E\n    \u003Cmeta property=\u0022og:image\u0022 content=\u0022/logo.png\u0022 /\u003E\n\n    \u003Cmeta name=\u0022twitter:card\u0022 content=\u0022summary_large_image\u0022 /\u003E\n    \u003Cmeta name=\u0022twitter:site\u0022 content=\u0022@Lovable\u0022 /\u003E\n    \u003Cmeta name=\u0022twitter:image\u0022 content=\u0022/logo.png\u0022 /\u003E\n  \u003C/head\u003E\n\n  \u003Cbody\u003E\n    \u003Cdiv id=\u0022root\u0022\u003E\u003C/div\u003E\n    \u003Cscript type=\u0022module\u0022 src=\u0022/src/main.tsx\u0022\u003E\u003C/script\u003E\n  \u003C/body\u003E\n\u003C/html\u003E\n\n--- server output ---\n\r\n\u003E vite_react_shadcn_ts@0.0.0 dev\r\n\u003E vite --host 127.0.0.1 --strictPort\r\n\r\n\r\n  \u001B[32m\u001B[1mVITE\u001B[22m v5.4.21\u001B[39m  \u001B[2mready in \u001B[0m\u001B[1m663\u001B[22m\u001B[2m\u001B[0m ms\u001B[22m\r\n\r\n  \u001B[32m\u279C\u001B[39m  \u001B[1mLocal\u001B[22m:   \u001B[36mhttp://127.0.0.1:\u001B[1m5173\u001B[22m/\u001B[39m\r\n",
+        "durationMs": 1598
+      }
+    ],
+    "executions": [
+      {
+        "source": "setup[0]",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
+        "args": [
+          "ci"
+        ],
+        "cwd": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "production-build",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "typescript-no-emit",
+        "resolvedExecutable": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend\\node_modules\\.bin\\tsc.cmd",
+        "args": [
+          "--noEmit",
+          "-p",
+          "tsconfig.app.json"
+        ],
+        "cwd": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
+        "args": [
+          "test"
+        ],
+        "cwd": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      },
+      {
+        "source": "home-route-serves",
+        "resolvedExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
+        "args": [
+          "run",
+          "dev",
+          "--",
+          "--host",
+          "127.0.0.1",
+          "--strictPort"
+        ],
+        "cwd": "C:\\xampp\\htdocs\\Myle\u0027s Boarding House\\frontend",
+        "env": {},
+        "prependPath": [],
+        "platform": "win32"
+      }
+    ]
+  }
+}

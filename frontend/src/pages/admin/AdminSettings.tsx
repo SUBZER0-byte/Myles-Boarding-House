@@ -1021,7 +1021,7 @@ const AdminSettings = () => {
             The Vercel frontend reads only browser-safe <code>VITE_*</code> settings. Vercel environment variables are not passed to Supabase Edge Functions. Set <code>SUPABASE_SECRET_KEY</code> and other private credentials in Supabase Dashboard Edge Function secrets for hosted deployments, or in <code>supabase/.env</code> for local development. <code>SUPABASE_JWKS_URL</code> is unnecessary for this app's current Auth verification flow.
           </p>
           <p className="text-sm text-muted-foreground">
-            Supabase SMS and chatbot functions use <code>TEXTBEE_ENABLED</code>, <code>TEXTBEE_API_BASE</code>, <code>TEXTBEE_API_KEY</code>, <code>TEXTBEE_DEVICE_ID</code>, and <code>OLLAMA_API_KEY</code>. The legacy PHP PayPal flow still reads its server-side environment configuration; it has not been migrated.
+            Supabase SMS and chatbot functions use <code>TEXTBEE_ENABLED</code>, <code>TEXTBEE_API_BASE</code>, <code>TEXTBEE_API_KEY</code>, <code>TEXTBEE_DEVICE_ID</code>, and <code>GEMINI_API_KEY</code>. The legacy PHP PayPal flow still reads its server-side environment configuration; it has not been migrated.
           </p>
         </div>
       </div>

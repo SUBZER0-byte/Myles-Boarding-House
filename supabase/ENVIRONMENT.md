@@ -17,11 +17,11 @@ pointing the Vercel frontend at the project.
 | Supabase secret key | Supabase Dashboard > Project Settings > API Keys | Supabase Edge Function Secrets as `SUPABASE_SECRET_KEY`; never Vercel |
 | Vercel production origin | Vercel > Project > Domains | Supabase Auth URLs and Edge Function `APP_ALLOWED_ORIGINS` |
 | TextBee credentials | TextBee account/device configuration | Supabase Edge Function Secrets, if SMS OTP/alerts are enabled |
-| Ollama API key | Ollama Cloud account | Supabase Edge Function Secrets, if chatbot responses are enabled |
+| Gemini API key | Google AI Studio | Supabase Edge Function Secrets as `GEMINI_API_KEY`; never Vercel |
 
 `VITE_SUPABASE_URL` is the Supabase Project URL, not the Storage S3 endpoint.
 The browser uses `supabase-js` for Auth, database API, and Storage. Do not add a
-service-role/secret key, Postgres URL, S3 access key, TextBee key, or Ollama key
+service-role/secret key, Postgres URL, S3 access key, TextBee key, or Gemini key
 to a `VITE_*` setting.
 
 For a self-hosted Supabase deployment, see
@@ -76,7 +76,8 @@ for enabled features:
 - `SUPABASE_SECRET_KEY` and `SUPABASE_PUBLISHABLE_KEY` if using the new API key
   names. The functions retain platform-provided legacy key fallbacks.
 - TextBee: `TEXTBEE_ENABLED=true` (lowercase), `TEXTBEE_API_BASE=https://api.textbee.dev/api/v1`, and `TEXTBEE_API_KEY`. `TEXTBEE_DEVICE_ID` is optional if TextBee should use the account's default device.
-- Ollama Cloud: `OLLAMA_API_KEY`; `OLLAMA_CLOUD_MODEL` is optional and defaults to `gemma4:31b`.
+- Gemini API: `GEMINI_API_KEY`; `GEMINI_MODEL` is optional and defaults to
+  `gemini-3.5-flash-lite` (free-tier model, subject to Google's project quotas).
 - `ADMIN_BOOTSTRAP_TOKEN` and `ADMIN_BOOTSTRAP_PASSWORD` only temporarily if
   the one-time Admin bootstrap is still needed; remove them immediately after.
 
@@ -93,10 +94,13 @@ the `x-api-key` header and a JSON `recipients` array, `message`, and optional
 HTTP 200 means TextBee queued the message; verify delivery on a test phone
 before relying on OTP or urgent alerts.
 
-The chatbot calls Ollama Cloud at `https://ollama.com/api/chat` with
-`Authorization: Bearer <OLLAMA_API_KEY>` and `stream: false`. The default
-`gemma4:31b` model is documented by Ollama for direct cloud API requests. Keep
-the key in Supabase Function Secrets, never in Vercel or browser code.
+The chatbot calls Gemini's `generateContent` API at
+`https://generativelanguage.googleapis.com` with `GEMINI_API_KEY` in the
+`x-goog-api-key` header. The default `gemini-3.5-flash-lite` model currently
+offers free-tier input/output tokens subject to project quotas. Google's free
+tier may use submitted content to improve its products, so do not send private
+tenant, payment, authentication, or other sensitive information. Keep the key
+in Supabase Function Secrets, never in Vercel or browser code.
 
 After setting the secrets, deploy all local Edge Functions (the shared helper
 is bundled into them and is not deployed separately):
@@ -260,8 +264,8 @@ Edge Functions > Secrets** or through the authenticated Supabase CLI. The `auth`
 function needs `APP_ALLOWED_ORIGINS` and, for SMS OTP, `TEXTBEE_API_BASE`,
 `TEXTBEE_API_KEY`, and the exact lowercase value `TEXTBEE_ENABLED=true`;
 `TEXTBEE_DEVICE_ID` is optional when using the default TextBee device. The
-chatbot needs `OLLAMA_API_KEY` and the allowed production origin; its optional
-model setting defaults to `gemma4:31b`. Set `ADMIN_BOOTSTRAP_TOKEN` and
+chatbot needs `GEMINI_API_KEY` and the allowed production origin; its optional
+model setting defaults to `gemini-3.5-flash-lite`. Set `ADMIN_BOOTSTRAP_TOKEN` and
 `ADMIN_BOOTSTRAP_PASSWORD` only temporarily when performing the documented
 one-time bootstrap, then remove them.
 
@@ -412,7 +416,9 @@ origin `https://myles-boarding-house.vercel.app` (plus only deliberately allowed
 preview/local origins). A function named like
 `APP_ALLOWED_ORIGINS-https---myles-boarding-house-vercel-app` does not configure
 CORS; if it was created accidentally, remove it only after confirming it is not
-used. Set `OLLAMA_API_KEY` there too if chatbot responses should be enabled.
+used. Set `GEMINI_API_KEY` there too if chatbot responses should be enabled. An
+optional `GEMINI_MODEL` setting defaults to `gemini-3.5-flash-lite`; verify the
+Google AI Studio project has access to that model and its free-tier quota.
 Keep the chatbot's `verify_jwt = false` setting because the public widget is
 anonymous. The CORS allowlist, function deployment, and database migration
 state are independent; verify all three before expecting the deployed frontend
@@ -428,5 +434,6 @@ ready.
 - [Supabase CLI](https://supabase.com/docs/reference/cli/supabase-db-push)
 - [TextBee SMS sending](https://textbee.dev/docs/sending-sms/sending-sms)
 - [TextBee API keys](https://textbee.dev/docs/getting-started/api-keys)
-- [Ollama Cloud API keys and requests](https://docs.ollama.com/cloud/api.md)
-- [Ollama Cloud models](https://docs.ollama.com/cloud/models.md)
+- [Gemini API keys](https://aistudio.google.com/docs/api-key)
+- [Gemini API pricing and free-tier terms](https://ai.google.dev/gemini-api/docs/pricing)
+- [Gemini generateContent API](https://ai.google.dev/api/generate-content)
