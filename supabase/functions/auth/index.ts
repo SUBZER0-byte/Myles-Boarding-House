@@ -165,7 +165,7 @@ async function checkAvailability(column: "username" | "email", value: string) {
 async function getChallenge(phone: string, purpose: "signup" | "password_reset") {
   const { data, error } = await admin
     .from("auth_otp_challenges")
-    .select("phone,purpose,email,code_hash,expires_at,attempts,verified_at,consumed_at,created_at")
+    .select("phone,purpose,email,auth_user_id,code_hash,expires_at,attempts,verified_at,consumed_at,created_at")
     .eq("phone", phone)
     .eq("purpose", purpose)
     .maybeSingle();
@@ -178,6 +178,7 @@ async function createChallenge(
   purpose: "signup" | "password_reset",
   email: string | null,
   code: string,
+  authUserId: string | null = null,
 ) {
   const current = await getChallenge(phone, purpose);
   if (current && Date.now() - Date.parse(current.created_at) < otpCooldownMs) {
@@ -188,6 +189,7 @@ async function createChallenge(
     phone,
     purpose,
     email,
+    auth_user_id: authUserId,
     code_hash: await hmac(`${purpose}|${phone}|${code}`),
     expires_at: new Date(Date.now() + otpLifetimeMs).toISOString(),
     attempts: 0,
@@ -203,11 +205,13 @@ async function verifyChallenge(
   phone: string,
   purpose: "signup" | "password_reset",
   code: string,
+  expectedAuthUserId?: string,
 ) {
   const challenge = await getChallenge(phone, purpose);
   if (!challenge || challenge.consumed_at || Date.parse(challenge.expires_at) <= Date.now()) {
     return false;
   }
+  if (expectedAuthUserId !== undefined && challenge.auth_user_id !== expectedAuthUserId) return false;
   if (challenge.attempts >= maxOtpAttempts) return false;
 
   const expectedHash = await hmac(`${purpose}|${phone}|${code}`);
@@ -427,11 +431,15 @@ async function handlePasswordResetRequest(body: RequestBody) {
   }
 
   const code = randomOtp();
-  await createChallenge(phone, "password_reset", profile.email, code);
+  await createChallenge(phone, "password_reset", profile.email, code, profile.auth_user_id);
   try {
     await sendTextBeeSms(phone, `Your Myle's Boarding House password reset code is ${code}. It expires in 10 minutes.`);
   } catch (error) {
-    await admin.from("auth_otp_challenges").delete().eq("phone", phone).eq("purpose", "password_reset");
+    await admin.from("auth_otp_challenges")
+      .delete()
+      .eq("phone", phone)
+      .eq("purpose", "password_reset")
+      .eq("auth_user_id", profile.auth_user_id);
     throw error;
   }
   const response: Record<string, unknown> = {
@@ -451,11 +459,11 @@ async function handleVerifyPasswordReset(body: RequestBody) {
   if (!profile?.auth_user_id || !phone || !/^\d{6}$/.test(code)) {
     return { status: 400, body: { type: "error", message: "Invalid or expired reset code." } };
   }
-  const verified = await verifyChallenge(phone, "password_reset", code);
+  const verified = await verifyChallenge(phone, "password_reset", code, profile.auth_user_id);
   if (!verified) return { status: 400, body: { type: "error", message: "Invalid or expired reset code." } };
 
   const token = randomToken();
-  const { error } = await admin
+  const { data: resetChallenge, error } = await admin
     .from("auth_otp_challenges")
     .update({
       reset_token_hash: await hmac(`reset|${token}`),
@@ -463,8 +471,12 @@ async function handleVerifyPasswordReset(body: RequestBody) {
     })
     .eq("phone", phone)
     .eq("purpose", "password_reset")
-    .is("consumed_at", null);
+    .eq("auth_user_id", profile.auth_user_id)
+    .is("consumed_at", null)
+    .select("auth_user_id")
+    .maybeSingle();
   if (error) throw error;
+  if (!resetChallenge) return { status: 400, body: { type: "error", message: "Invalid or expired reset code." } };
   return {
     status: 200,
     body: { type: "success", message: "Reset code verified.", reset_token: token },
@@ -481,38 +493,32 @@ async function handlePasswordReset(body: RequestBody) {
   const resetTokenHash = await hmac(`reset|${token}`);
   const { data: challenge, error: challengeError } = await admin
     .from("auth_otp_challenges")
-    .select("phone")
+    .select("phone,auth_user_id")
     .eq("purpose", "password_reset")
     .eq("reset_token_hash", resetTokenHash)
     .is("consumed_at", null)
     .gt("reset_token_expires_at", new Date().toISOString())
     .maybeSingle();
   if (challengeError) throw challengeError;
-  if (!challenge) return { status: 403, body: { type: "error", message: "Verify a valid reset code before changing your password." } };
-
-  const { data: profile, error: profileError } = await admin
-    .from("users")
-    .select("auth_user_id")
-    .eq("phone", challenge.phone)
-    .limit(1)
-    .maybeSingle();
-  if (profileError) throw profileError;
-  if (!profile?.auth_user_id) return { status: 403, body: { type: "error", message: "Password reset is unavailable for this account." } };
+  if (!challenge?.auth_user_id) {
+    return { status: 403, body: { type: "error", message: "Verify a valid reset code before changing your password." } };
+  }
 
   const { data: consumedChallenge, error: consumeError } = await admin
     .from("auth_otp_challenges")
     .update({ consumed_at: new Date().toISOString(), reset_token_hash: null })
     .eq("phone", challenge.phone)
+    .eq("auth_user_id", challenge.auth_user_id)
     .eq("purpose", "password_reset")
     .eq("reset_token_hash", resetTokenHash)
     .is("consumed_at", null)
     .gt("reset_token_expires_at", new Date().toISOString())
-    .select("phone")
+    .select("auth_user_id")
     .maybeSingle();
   if (consumeError) throw consumeError;
   if (!consumedChallenge) return { status: 403, body: { type: "error", message: "Verify a valid reset code before changing your password." } };
 
-  const { error: updateError } = await admin.auth.admin.updateUserById(profile.auth_user_id, { password });
+  const { error: updateError } = await admin.auth.admin.updateUserById(challenge.auth_user_id, { password });
   if (updateError) throw updateError;
   return { status: 200, body: { type: "success", message: "Password changed successfully. You can now sign in." } };
 }
