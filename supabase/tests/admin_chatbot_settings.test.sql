@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(15);
+SELECT plan(19);
 
 INSERT INTO public."auth_otp_challenges" ("phone", "purpose", "email", "code_hash", "expires_at", "verified_at")
 VALUES
@@ -60,6 +60,16 @@ SELECT ok(
       WHERE "question" = 'What is the rate?' AND "is_active" = 1),
     'Admin can read saved FAQs'
 );
+SELECT is(
+    (SELECT pg_typeof("faq_id")::text FROM public.get_my_admin_chatbot_faqs() LIMIT 1),
+    'bigint',
+    'Admin FAQ IDs have a stable bigint return type'
+);
+SELECT is(
+    (SELECT pg_typeof("is_active")::text FROM public.get_my_admin_chatbot_faqs() LIMIT 1),
+    'smallint',
+    'Admin FAQ active flags have a stable smallint return type'
+);
 SELECT throws_ok(
     $$SELECT public.save_my_admin_chatbot_faq(NULL, 'unknown', 'Q', 'A', true)$$,
     'P0001',
@@ -98,6 +108,16 @@ SELECT is(
       WHERE "question" = 'What should I bring?'),
     1::bigint,
     'Admin can list saved suggested questions'
+);
+SELECT is(
+    (SELECT pg_typeof("suggested_question_id")::text FROM public.get_my_admin_chatbot_suggested_questions() LIMIT 1),
+    'bigint',
+    'suggested question IDs have a stable bigint return type'
+);
+SELECT is(
+    (SELECT pg_typeof("is_active")::text FROM public.get_my_admin_chatbot_suggested_questions() LIMIT 1),
+    'smallint',
+    'suggested question active flags have a stable smallint return type'
 );
 SELECT is(
     public.save_my_admin_chatbot_suggested_question(
