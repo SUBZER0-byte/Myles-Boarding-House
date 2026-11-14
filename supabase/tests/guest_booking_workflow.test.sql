@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(25);
+SELECT plan(27);
 
 CREATE TEMP TABLE guest_booking_test_state (
     guest_auth_id uuid NOT NULL,
@@ -96,6 +96,18 @@ UPDATE guest_booking_test_state
 
 SELECT ok((SELECT response->>'type' = 'success' FROM guest_booking_test_response),
           'booking and initial payment request are created atomically');
+SELECT is(
+    (
+        SELECT room."status"
+          FROM public.get_public_rooms_for_dates(
+              CURRENT_DATE + 29,
+              CURRENT_DATE + 91
+          ) AS room
+         WHERE room."room_id" = (SELECT room_id FROM guest_booking_test_state)
+    ),
+    'Reserved',
+    'a temporarily reserved booking marks the room Reserved'
+);
 
 SELECT is(
     (public.manage_guest_booking('create', jsonb_build_object(
@@ -170,6 +182,18 @@ SELECT ok(
         'submission_key', 'ffe10000-0000-4000-8000-000000000011'
     ))->>'type') = 'success',
     'guest can submit an initial payment reference and screenshot'
+);
+SELECT is(
+    (
+        SELECT room."status"
+          FROM public.get_public_rooms_for_dates(
+              CURRENT_DATE + 29,
+              CURRENT_DATE + 91
+          ) AS room
+         WHERE room."room_id" = (SELECT room_id FROM guest_booking_test_state)
+    ),
+    'Reserved',
+    'a payment submitted for review keeps the room Reserved'
 );
 SELECT ok(
     (public.manage_guest_booking('submit_initial_payment', jsonb_build_object(
