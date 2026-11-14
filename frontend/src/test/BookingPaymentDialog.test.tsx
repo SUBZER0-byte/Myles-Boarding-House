@@ -11,7 +11,7 @@ vi.mock("@/hooks/use-toast", () => ({ toast }));
 
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 
-describe("BookingPaymentDialog cancellation", () => {
+describe("BookingPaymentDialog close behavior", () => {
   beforeEach(() => {
     listPublicGcashQrs.mockReset().mockResolvedValue([
       { path: "https://example.com/gcash-qr.png", amount: 1000 },
@@ -21,37 +21,34 @@ describe("BookingPaymentDialog cancellation", () => {
 
   afterEach(() => cleanup());
 
-  it("uses the X button to run the cancellation action before closing", async () => {
+  it("closes through the X without submitting a payment", async () => {
     const onOpenChange = vi.fn();
-    const onBeforeClose = vi.fn().mockResolvedValue(true);
+    const onPaid = vi.fn();
 
     render(
       <BookingPaymentDialog
         open
         onOpenChange={onOpenChange}
-        onBeforeClose={onBeforeClose}
         preventOutsideClose
-        onPaid={vi.fn()}
+        onPaid={onPaid}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     await waitFor(() => {
-      expect(onBeforeClose).toHaveBeenCalledOnce();
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+    expect(onPaid).not.toHaveBeenCalled();
   });
 
   it("does not dismiss on outside interaction or Escape", async () => {
     const onOpenChange = vi.fn();
-    const onBeforeClose = vi.fn().mockResolvedValue(true);
 
     render(
       <BookingPaymentDialog
         open
         onOpenChange={onOpenChange}
-        onBeforeClose={onBeforeClose}
         preventOutsideClose
         onPaid={vi.fn()}
       />,
@@ -63,28 +60,6 @@ describe("BookingPaymentDialog cancellation", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(await screen.findByRole("dialog")).not.toBeNull();
-    expect(onBeforeClose).not.toHaveBeenCalled();
-    expect(onOpenChange).not.toHaveBeenCalled();
-  });
-
-  it("stays open if the cancellation action fails", async () => {
-    const onOpenChange = vi.fn();
-    const onBeforeClose = vi.fn().mockResolvedValue(false);
-
-    render(
-      <BookingPaymentDialog
-        open
-        onOpenChange={onOpenChange}
-        onBeforeClose={onBeforeClose}
-        preventOutsideClose
-        onPaid={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-
-    await waitFor(() => expect(onBeforeClose).toHaveBeenCalledOnce());
-    expect(screen.getByRole("dialog")).not.toBeNull();
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 });

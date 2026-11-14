@@ -27,7 +27,6 @@ interface BookingPaymentDialogProps {
   allowScreenshot?: boolean;
   requireReference?: boolean;
   preventOutsideClose?: boolean;
-  onBeforeClose?: () => boolean | Promise<boolean>;
   onPaid: (method: string, reference: string, captureId?: string, orderId?: string, screenshot?: File) => void | Promise<void>;
 }
 
@@ -48,7 +47,6 @@ export function BookingPaymentDialog({
   allowScreenshot = false,
   requireReference = false,
   preventOutsideClose = false,
-  onBeforeClose,
   onPaid,
 }: BookingPaymentDialogProps) {
   const [step, setStep] = useState<Step>("method");
@@ -57,7 +55,6 @@ export function BookingPaymentDialog({
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [saving, setSaving] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [gcashQrs, setGcashQrs] = useState<GcashQr[]>([]);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrLoadError, setQrLoadError] = useState("");
@@ -114,25 +111,11 @@ export function BookingPaymentDialog({
     setPaymentScreenshot(null);
     setErrorMsg("");
     setSaving(false);
-    setClosing(false);
   };
 
-  const handleOpenChange = async (next: boolean) => {
+  const handleOpenChange = (next: boolean) => {
     if (!next) {
-      if (saving || closing) return;
-      if (onBeforeClose) {
-        setClosing(true);
-        try {
-          if (!await onBeforeClose()) return;
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : "Could not cancel this booking.";
-          setErrorMsg(message);
-          toast({ title: "Booking cancellation failed", description: message, variant: "destructive" });
-          return;
-        } finally {
-          setClosing(false);
-        }
-      }
+      if (saving) return;
       reset();
     }
     onOpenChange(next);
@@ -291,7 +274,7 @@ export function BookingPaymentDialog({
                   {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
                   <Button
                     className="w-full"
-                    disabled={saving || closing || secondsRemaining === 0 || (requireReference
+                    disabled={saving || secondsRemaining === 0 || (requireReference
                       ? !paymentRef.trim()
                       : !paymentRef.trim() && !paymentScreenshot)}
                     onClick={submitPayment}
@@ -321,7 +304,7 @@ export function BookingPaymentDialog({
             <p className="text-xs text-muted-foreground max-w-xs">
               {successDescription}{paymentRef ? ` Reference: ${paymentRef}` : paymentScreenshot ? " Screenshot attached for admin review." : ""}
             </p>
-            <Button className="w-full mt-2" onClick={() => void handleOpenChange(false)}>Done</Button>
+            <Button className="w-full mt-2" onClick={() => handleOpenChange(false)}>Done</Button>
           </div>
         )}
 

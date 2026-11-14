@@ -76,7 +76,9 @@ export function BookingTermsDialog({ open, onOpenChange, onAccept, roomName }: B
             <div>
               <DialogTitle className="font-display text-xl">Terms & Agreement</DialogTitle>
               <DialogDescription className="text-xs mt-0.5">
-                {roomName ? `Booking: ${roomName}` : "Please review before booking"}
+                {roomName
+                  ? `Booking: ${roomName}. Closing with X cancels before any booking is saved.`
+                  : "Please review before booking. Closing with X cancels before any booking is saved."}
               </DialogDescription>
             </div>
           </div>
