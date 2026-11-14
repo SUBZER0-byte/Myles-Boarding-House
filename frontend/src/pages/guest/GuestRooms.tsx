@@ -70,6 +70,7 @@ const GuestRooms = () => {
   const [paymentDeadline, setPaymentDeadline] = useState<{ expiresAtEpoch: number; serverNowEpoch: number } | null>(null);
   const bookingRequestKey = useRef<string | null>(null);
   const paymentSubmissionKey = useRef<string | null>(null);
+  const bookingFlowRevision = useRef(0);
   const [form, setForm] = useState({
     full_name: session?.full_name || session?.username || "",
     email: session?.email || "",
@@ -188,16 +189,18 @@ const GuestRooms = () => {
   };
 
   const cancelBookingStart = () => {
+    bookingFlowRevision.current += 1;
     setTermsOpen(false);
     setDetailsOpen(false);
     setBookingRoom(null);
     setStep(1);
     bookingRequestKey.current = null;
-    void releaseRoomHold();
+    if (!acquiringHold) void releaseRoomHold();
   };
 
   const startBooking = async (room: PublicRoom) => {
     if (acquiringHold) return;
+    const flowRevision = ++bookingFlowRevision.current;
     setAcquiringHold(true);
     setAcquiringHoldRoomId(room.room_id);
     try {
@@ -208,6 +211,10 @@ const GuestRooms = () => {
           check_out_date: form.check_out_date,
         }),
       });
+      if (bookingFlowRevision.current !== flowRevision) {
+        await releaseRoomHold();
+        return;
+      }
       setQuickViewRoom(null);
       setBookingRoom(room);
       bookingRequestKey.current = null;
@@ -220,6 +227,10 @@ const GuestRooms = () => {
         description: "Continue the booking before the hold expires.",
       });
     } catch (error: unknown) {
+      if (bookingFlowRevision.current !== flowRevision) {
+        await releaseRoomHold();
+        return;
+      }
       toast({
         title: "Unable to reserve room",
         description: error instanceof Error ? error.message : "Please try again.",
@@ -234,6 +245,7 @@ const GuestRooms = () => {
 
   const continueToPaymentPlan = async () => {
     if (!bookingRoom || acquiringHold) return;
+    const flowRevision = bookingFlowRevision.current;
     setAcquiringHold(true);
     try {
       await acquireMyGuestRoomHold({
@@ -241,9 +253,17 @@ const GuestRooms = () => {
         move_in_date: form.move_in_date,
         check_out_date: form.check_out_date,
       });
+      if (bookingFlowRevision.current !== flowRevision) {
+        await releaseRoomHold();
+        return;
+      }
       setStep(2);
       refetchRooms();
     } catch (error: unknown) {
+      if (bookingFlowRevision.current !== flowRevision) {
+        await releaseRoomHold();
+        return;
+      }
       toast({
         title: "Room unavailable",
         description: error instanceof Error ? error.message : "Please choose another room or date range.",
@@ -444,7 +464,12 @@ const GuestRooms = () => {
         <Dialog
           open={quickViewRoom !== null}
           onOpenChange={(open) => {
-            if (!open) setQuickViewRoom(null);
+            if (!open) {
+              setQuickViewRoom(null);
+              if (acquiringHold && acquiringHoldRoomId !== null) {
+                bookingFlowRevision.current += 1;
+              }
+            }
           }}
         >
           {quickViewRoom && (() => {
@@ -544,11 +569,8 @@ const GuestRooms = () => {
         open={detailsOpen}
         onOpenChange={(open) => {
           if (!open && submitting) return;
-          setDetailsOpen(open);
-          if (!open) {
-            setBookingRoom(null);
-            void releaseRoomHold();
-          }
+          if (open) setDetailsOpen(true);
+          else cancelBookingStart();
         }}
       >
         <DialogContent
