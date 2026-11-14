@@ -752,6 +752,7 @@ const GuestRooms = () => {
         serverNowEpoch={paymentDeadline?.serverNowEpoch}
         allowScreenshot
         requireReference
+        requireScreenshot
         allowedMethods={["gcash"]}
         title="Initial Booking Payment"
         description="Your room is temporarily reserved. Closing this window does not cancel the saved booking. Return to My Booking to complete payment before the deadline; the reservation expires automatically if no payment is submitted."

@@ -127,27 +127,25 @@ export async function submitMyBookingInitialPayment(
   requireId(bookingId, "booking");
   const cleanReference = reference.trim();
   if (!cleanReference) throw new Error("Enter the GCash transaction reference.");
+  if (!screenshot) throw new Error("Upload the GCash payment screenshot.");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionKey)) {
     throw new Error("A valid payment submission identifier is required.");
   }
-  let screenshotPath: string | null = null;
-  if (screenshot) {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(screenshot.type)
-      || screenshot.size <= 0
-      || screenshot.size > 5 * 1024 * 1024) {
-      throw new Error("Payment proof must be a JPG, PNG, or WEBP image up to 5 MB.");
-    }
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError) throw new Error(authError.message || "Could not verify your account.");
-    if (!authData.user) throw new Error("Sign in to submit a booking payment.");
-    const extension = screenshot.type === "image/png" ? "png" : screenshot.type === "image/webp" ? "webp" : "jpg";
-    screenshotPath = `${authData.user.id}/${bookingId}/${submissionKey}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from(proofBucket)
-      .upload(screenshotPath, screenshot, { contentType: screenshot.type, upsert: false });
-    if (uploadError && !/already exists|duplicate/i.test(uploadError.message)) {
-      throw new Error(uploadError.message || "Could not upload the payment proof.");
-    }
+  if (!["image/jpeg", "image/png", "image/webp"].includes(screenshot.type)
+    || screenshot.size <= 0
+    || screenshot.size > 5 * 1024 * 1024) {
+    throw new Error("Payment proof must be a JPG, PNG, or WEBP image up to 5 MB.");
+  }
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw new Error(authError.message || "Could not verify your account.");
+  if (!authData.user) throw new Error("Sign in to submit a booking payment.");
+  const extension = screenshot.type === "image/png" ? "png" : screenshot.type === "image/webp" ? "webp" : "jpg";
+  const screenshotPath = `${authData.user.id}/${bookingId}/${submissionKey}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from(proofBucket)
+    .upload(screenshotPath, screenshot, { contentType: screenshot.type, upsert: false });
+  if (uploadError && !/already exists|duplicate/i.test(uploadError.message)) {
+    throw new Error(uploadError.message || "Could not upload the payment proof.");
   }
   await call("submit_initial_payment", {
     booking_id: bookingId,

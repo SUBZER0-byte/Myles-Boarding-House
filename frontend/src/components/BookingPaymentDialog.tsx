@@ -25,6 +25,7 @@ interface BookingPaymentDialogProps {
   successTitle?: string;
   successDescription?: string;
   allowScreenshot?: boolean;
+  requireScreenshot?: boolean;
   requireReference?: boolean;
   preventOutsideClose?: boolean;
   onPaid: (method: string, reference: string, captureId?: string, orderId?: string, screenshot?: File) => void | Promise<void>;
@@ -45,6 +46,7 @@ export function BookingPaymentDialog({
   successTitle = "Payment Submitted",
   successDescription = "Your GCash transaction reference was submitted for admin review.",
   allowScreenshot = false,
+  requireScreenshot = false,
   requireReference = false,
   preventOutsideClose = false,
   onPaid,
@@ -129,6 +131,10 @@ export function BookingPaymentDialog({
     const reference = paymentRef.trim();
     if (requireReference && !reference) {
       setErrorMsg("Enter the GCash transaction reference.");
+      return;
+    }
+    if (requireScreenshot && !paymentScreenshot) {
+      setErrorMsg("Upload the GCash payment screenshot.");
       return;
     }
     if (!reference && !paymentScreenshot) {
@@ -250,19 +256,24 @@ export function BookingPaymentDialog({
                       ? "Enter the reference from your GCash receipt"
                       : "Enter the reference from your GCash receipt (optional with screenshot)"}
                   />
-                  {allowScreenshot && (
+                  {(allowScreenshot || requireScreenshot) && (
                     <div className="space-y-1.5">
                       <Label htmlFor="gcash-screenshot">
-                        GCash payment screenshot {requireReference ? "(optional)" : "(optional with reference)"}
+                        GCash payment screenshot{requireScreenshot
+                          ? " *"
+                          : requireReference ? " (optional)" : " (optional with reference)"}
                       </Label>
                       <Input
                         id="gcash-screenshot"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
+                        required={requireScreenshot}
                         onChange={event => setPaymentScreenshot(event.target.files?.[0] ?? null)}
                       />
                       <p className="text-xs text-muted-foreground">
-                        JPG, PNG, or WEBP; maximum 5MB. {requireReference
+                        JPG, PNG, or WEBP; maximum 5MB. {requireScreenshot
+                          ? "A payment screenshot is required."
+                          : requireReference
                           ? "A transaction reference is required; the screenshot is optional."
                           : "Provide a transaction reference or screenshot."}
                       </p>
@@ -274,9 +285,10 @@ export function BookingPaymentDialog({
                   {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
                   <Button
                     className="w-full"
-                    disabled={saving || secondsRemaining === 0 || (requireReference
-                      ? !paymentRef.trim()
-                      : !paymentRef.trim() && !paymentScreenshot)}
+                    disabled={saving || secondsRemaining === 0
+                      || (requireReference && !paymentRef.trim())
+                      || (requireScreenshot && !paymentScreenshot)
+                      || (!requireReference && !paymentRef.trim() && !paymentScreenshot)}
                     onClick={submitPayment}
                   >
                     {saving ? "Submitting…" : "I’ve paid — submit for review"}

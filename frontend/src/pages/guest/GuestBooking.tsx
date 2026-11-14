@@ -398,6 +398,7 @@ const GuestBooking = () => {
         successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
         allowScreenshot
         requireReference
+        requireScreenshot
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!paymentBooking) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();

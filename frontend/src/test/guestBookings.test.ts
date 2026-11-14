@@ -118,6 +118,17 @@ describe("Supabase guest booking service", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("rejects a booking payment without a screenshot before calling Supabase", async () => {
+    const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
+
+    await expect(submitMyBookingInitialPayment(15, "GCash", "TX-123", undefined, key))
+      .rejects.toThrow("Upload the GCash payment screenshot.");
+
+    expect(getUser).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("creates short-lived Admin proof links for safe Storage paths and rejects unsafe paths", async () => {
     const id = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
     rpc.mockResolvedValue({
