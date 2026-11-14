@@ -125,6 +125,8 @@ export async function submitMyBookingInitialPayment(
   submissionKey: string,
 ) {
   requireId(bookingId, "booking");
+  const cleanReference = reference.trim();
+  if (!cleanReference) throw new Error("Enter the GCash transaction reference.");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionKey)) {
     throw new Error("A valid payment submission identifier is required.");
   }
@@ -150,7 +152,7 @@ export async function submitMyBookingInitialPayment(
   await call("submit_initial_payment", {
     booking_id: bookingId,
     method,
-    reference,
+    reference: cleanReference,
     screenshot_path: screenshotPath,
     submission_key: submissionKey,
   });

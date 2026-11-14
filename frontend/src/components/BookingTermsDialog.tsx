@@ -63,7 +63,11 @@ export function BookingTermsDialog({ open, onOpenChange, onAccept, roomName }: B
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+      <DialogContent
+        className="max-w-lg h-[85vh] flex flex-col p-0 overflow-hidden gap-0"
+        onInteractOutside={event => event.preventDefault()}
+        onEscapeKeyDown={event => event.preventDefault()}
+      >
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-md bg-primary/10 text-primary">
@@ -111,14 +115,9 @@ export function BookingTermsDialog({ open, onOpenChange, onAccept, roomName }: B
               I have read and agree to the Terms & Agreement and House Rules.
             </span>
           </label>
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => handleOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button className="flex-1" disabled={!agreed} onClick={handleAccept}>
-              Agree & Continue
-            </Button>
-          </div>
+          <Button className="w-full" disabled={!agreed} onClick={handleAccept}>
+            Agree & Continue
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

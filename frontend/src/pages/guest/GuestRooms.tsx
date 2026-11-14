@@ -19,6 +19,7 @@ import { addMonths, format } from "date-fns";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import {
   acquireMyGuestRoomHold,
+  cancelMyGuestBooking,
   createMyGuestBooking,
   getGuestBookingBoundaryDates,
   releaseMyGuestRoomHold,
@@ -70,6 +71,7 @@ const GuestRooms = () => {
   const [paymentDeadline, setPaymentDeadline] = useState<{ expiresAtEpoch: number; serverNowEpoch: number } | null>(null);
   const bookingRequestKey = useRef<string | null>(null);
   const paymentSubmissionKey = useRef<string | null>(null);
+  const paymentSubmittedRef = useRef(false);
   const [form, setForm] = useState({
     full_name: session?.full_name || session?.username || "",
     email: session?.email || "",
@@ -256,6 +258,7 @@ const GuestRooms = () => {
         room_id: bookingRoom.room_id,
         idempotency_key: bookingRequestKey.current,
       });
+      paymentSubmittedRef.current = false;
       toast({
         title: "Room temporarily reserved",
         description: "Your booking is saved. Complete the initial payment before the deadline.",
@@ -537,6 +540,7 @@ const GuestRooms = () => {
       <Dialog
         open={detailsOpen}
         onOpenChange={(open) => {
+          if (!open && submitting) return;
           setDetailsOpen(open);
           if (!open) {
             setBookingRoom(null);
@@ -544,7 +548,11 @@ const GuestRooms = () => {
           }
         }}
       >
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-md max-h-[85vh] overflow-y-auto"
+          onInteractOutside={event => event.preventDefault()}
+          onEscapeKeyDown={event => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Booking Details</DialogTitle>
             <DialogDescription className="text-xs">
@@ -705,7 +713,30 @@ const GuestRooms = () => {
           setPaymentOpen(open);
           if (!open) {
             setSubmittedBookingId(null);
+            setPaymentAmount(0);
             setPaymentDeadline(null);
+            paymentSubmissionKey.current = null;
+            paymentSubmittedRef.current = false;
+          }
+        }}
+        preventOutsideClose
+        onBeforeClose={async () => {
+          if (!submittedBookingId || paymentSubmittedRef.current) return true;
+          try {
+            await cancelMyGuestBooking(submittedBookingId);
+            toast({
+              title: "Booking cancelled",
+              description: "Your reservation was cancelled before payment was submitted.",
+            });
+            refetchRooms();
+            return true;
+          } catch (error: unknown) {
+            toast({
+              title: "Could not cancel booking",
+              description: error instanceof Error ? error.message : "Please try again.",
+              variant: "destructive",
+            });
+            return false;
           }
         }}
         roomName={submittedBookingId ? `Booking #${submittedBookingId}` : "your booking"}
@@ -715,9 +746,10 @@ const GuestRooms = () => {
         paymentExpiresAtEpoch={paymentDeadline?.expiresAtEpoch}
         serverNowEpoch={paymentDeadline?.serverNowEpoch}
         allowScreenshot
+        requireReference
         allowedMethods={["gcash"]}
         title="Initial Booking Payment"
-        description="Your room is temporarily reserved. Please complete your payment before the payment deadline. If you fail to submit your payment before the deadline, your temporary reservation will automatically expire."
+        description="Your room is temporarily reserved. Complete payment before the deadline. Closing this window before payment is submitted cancels the booking; after submission, it remains awaiting administrator review."
         successTitle="Booking Payment Submitted"
         successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
@@ -730,6 +762,7 @@ const GuestRooms = () => {
             screenshot,
             paymentSubmissionKey.current,
           );
+          paymentSubmittedRef.current = true;
           paymentSubmissionKey.current = null;
           toast({ title: "GCash payment submitted for admin review" });
           refetchRooms();

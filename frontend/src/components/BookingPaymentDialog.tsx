@@ -25,6 +25,9 @@ interface BookingPaymentDialogProps {
   successTitle?: string;
   successDescription?: string;
   allowScreenshot?: boolean;
+  requireReference?: boolean;
+  preventOutsideClose?: boolean;
+  onBeforeClose?: () => boolean | Promise<boolean>;
   onPaid: (method: string, reference: string, captureId?: string, orderId?: string, screenshot?: File) => void | Promise<void>;
 }
 
@@ -43,6 +46,9 @@ export function BookingPaymentDialog({
   successTitle = "Payment Submitted",
   successDescription = "Your GCash transaction reference was submitted for admin review.",
   allowScreenshot = false,
+  requireReference = false,
+  preventOutsideClose = false,
+  onBeforeClose,
   onPaid,
 }: BookingPaymentDialogProps) {
   const [step, setStep] = useState<Step>("method");
@@ -51,6 +57,7 @@ export function BookingPaymentDialog({
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [gcashQrs, setGcashQrs] = useState<GcashQr[]>([]);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrLoadError, setQrLoadError] = useState("");
@@ -107,10 +114,27 @@ export function BookingPaymentDialog({
     setPaymentScreenshot(null);
     setErrorMsg("");
     setSaving(false);
+    setClosing(false);
   };
 
-  const handleOpenChange = (next: boolean) => {
-    if (!next) reset();
+  const handleOpenChange = async (next: boolean) => {
+    if (!next) {
+      if (saving || closing) return;
+      if (onBeforeClose) {
+        setClosing(true);
+        try {
+          if (!await onBeforeClose()) return;
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : "Could not cancel this booking.";
+          setErrorMsg(message);
+          toast({ title: "Booking cancellation failed", description: message, variant: "destructive" });
+          return;
+        } finally {
+          setClosing(false);
+        }
+      }
+      reset();
+    }
     onOpenChange(next);
   };
 
@@ -120,6 +144,10 @@ export function BookingPaymentDialog({
       return;
     }
     const reference = paymentRef.trim();
+    if (requireReference && !reference) {
+      setErrorMsg("Enter the GCash transaction reference.");
+      return;
+    }
     if (!reference && !paymentScreenshot) {
       setErrorMsg("Enter the GCash transaction reference or upload a payment screenshot.");
       return;
@@ -141,7 +169,15 @@ export function BookingPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl max-h-[95vh] overflow-y-auto">
+      <DialogContent
+        className="w-[calc(100vw-1rem)] max-w-3xl max-h-[95vh] overflow-y-auto"
+        onInteractOutside={event => {
+          if (preventOutsideClose) event.preventDefault();
+        }}
+        onEscapeKeyDown={event => {
+          if (preventOutsideClose) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-xl">{title}</DialogTitle>
           <DialogDescription className="text-xs">
@@ -217,32 +253,49 @@ export function BookingPaymentDialog({
                   </div>
                 )}
                 <div className="w-full space-y-2 text-left">
-                  <Label htmlFor="gcash-reference">GCash transaction reference</Label>
+                  <Label htmlFor="gcash-reference">
+                    GCash transaction reference{requireReference ? " *" : ""}
+                  </Label>
                   <Input
                     id="gcash-reference"
+                    required={requireReference}
                     value={paymentRef}
                     onChange={(event) => setPaymentRef(event.target.value)}
                     maxLength={120}
                     autoComplete="off"
-                    placeholder="Enter the reference from your GCash receipt (optional with screenshot)"
+                    placeholder={requireReference
+                      ? "Enter the reference from your GCash receipt"
+                      : "Enter the reference from your GCash receipt (optional with screenshot)"}
                   />
                   {allowScreenshot && (
                     <div className="space-y-1.5">
-                      <Label htmlFor="gcash-screenshot">GCash payment screenshot (optional with reference)</Label>
+                      <Label htmlFor="gcash-screenshot">
+                        GCash payment screenshot {requireReference ? "(optional)" : "(optional with reference)"}
+                      </Label>
                       <Input
                         id="gcash-screenshot"
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         onChange={event => setPaymentScreenshot(event.target.files?.[0] ?? null)}
                       />
-                      <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP; maximum 5MB. Provide a transaction reference or screenshot.</p>
+                      <p className="text-xs text-muted-foreground">
+                        JPG, PNG, or WEBP; maximum 5MB. {requireReference
+                          ? "A transaction reference is required; the screenshot is optional."
+                          : "Provide a transaction reference or screenshot."}
+                      </p>
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
                     Your payment will remain submitted until an admin verifies the transaction.
                   </p>
                   {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
-                  <Button className="w-full" disabled={saving || secondsRemaining === 0 || (!paymentRef.trim() && !paymentScreenshot)} onClick={submitPayment}>
+                  <Button
+                    className="w-full"
+                    disabled={saving || closing || secondsRemaining === 0 || (requireReference
+                      ? !paymentRef.trim()
+                      : !paymentRef.trim() && !paymentScreenshot)}
+                    onClick={submitPayment}
+                  >
                     {saving ? "Submitting…" : "I’ve paid — submit for review"}
                   </Button>
                 </div>
@@ -268,7 +321,7 @@ export function BookingPaymentDialog({
             <p className="text-xs text-muted-foreground max-w-xs">
               {successDescription}{paymentRef ? ` Reference: ${paymentRef}` : paymentScreenshot ? " Screenshot attached for admin review." : ""}
             </p>
-            <Button className="w-full mt-2" onClick={() => handleOpenChange(false)}>Done</Button>
+            <Button className="w-full mt-2" onClick={() => void handleOpenChange(false)}>Done</Button>
           </div>
         )}
 

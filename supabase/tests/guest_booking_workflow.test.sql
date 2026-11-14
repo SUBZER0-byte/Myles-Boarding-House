@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(24);
+SELECT plan(25);
 
 CREATE TEMP TABLE guest_booking_test_state (
     guest_auth_id uuid NOT NULL,
@@ -143,6 +143,21 @@ SELECT throws_ok(
 );
 
 SELECT set_config('request.jwt.claim.sub', (SELECT guest_auth_id::text FROM guest_booking_test_state), true);
+SELECT throws_ok(
+    $$SELECT public.manage_guest_booking('submit_initial_payment', jsonb_build_object(
+        'booking_id', (SELECT booking_id FROM guest_booking_test_state),
+        'method', 'GCash',
+        'reference', '   ',
+        'screenshot_path',
+            (SELECT guest_auth_id::text FROM guest_booking_test_state) || '/'
+            || (SELECT booking_id::text FROM guest_booking_test_state)
+            || '/ffe10000-0000-4000-8000-000000000013.png',
+        'submission_key', 'ffe10000-0000-4000-8000-000000000013'
+    ))$$,
+    'P0001',
+    'A GCash transaction reference is required',
+    'a payment screenshot cannot replace the required GCash reference'
+);
 SELECT ok(
     (public.manage_guest_booking('submit_initial_payment', jsonb_build_object(
         'booking_id', (SELECT booking_id FROM guest_booking_test_state),

@@ -87,7 +87,7 @@ describe("Supabase guest booking service", () => {
     upload.mockResolvedValue({ error: null });
     const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
 
-    await submitMyBookingInitialPayment(15, "GCash", "TX-123", file, key);
+    await submitMyBookingInitialPayment(15, "GCash", " TX-123 ", file, key);
 
     const path = `auth-guest-id/15/${key}.png`;
     expect(upload).toHaveBeenCalledWith(path, file, {
@@ -104,6 +104,18 @@ describe("Supabase guest booking service", () => {
         submission_key: key,
       },
     });
+  });
+
+  it("rejects a booking payment without a reference even when a screenshot is attached", async () => {
+    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
+    const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
+
+    await expect(submitMyBookingInitialPayment(15, "GCash", "  ", file, key))
+      .rejects.toThrow("Enter the GCash transaction reference.");
+
+    expect(getUser).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("creates short-lived Admin proof links for safe Storage paths and rejects unsafe paths", async () => {

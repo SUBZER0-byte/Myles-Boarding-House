@@ -82,6 +82,7 @@ const GuestBooking = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentBooking, setPaymentBooking] = useState<Booking | null>(null);
   const paymentSubmissionKey = useRef<string | null>(null);
+  const paymentSubmittedRef = useRef(false);
 
   const openCancel = (b: Booking) => {
     setSelected(b);
@@ -90,6 +91,7 @@ const GuestBooking = () => {
 
   const openPayment = (booking: Booking) => {
     setPaymentBooking(booking);
+    paymentSubmittedRef.current = false;
     setPaymentOpen(true);
   };
 
@@ -379,17 +381,45 @@ const GuestBooking = () => {
       </Dialog>
       <BookingPaymentDialog
         open={paymentOpen}
-        onOpenChange={setPaymentOpen}
+        onOpenChange={(open) => {
+          setPaymentOpen(open);
+          if (!open) {
+            setPaymentBooking(null);
+            paymentSubmissionKey.current = null;
+            paymentSubmittedRef.current = false;
+          }
+        }}
+        preventOutsideClose
+        onBeforeClose={async () => {
+          if (!paymentBooking || paymentSubmittedRef.current) return true;
+          try {
+            await cancelMyGuestBooking(paymentBooking.booking_id);
+            toast({
+              title: "Booking cancelled",
+              description: "Your reservation was cancelled before payment was submitted.",
+            });
+            refetch();
+            return true;
+          } catch (error: unknown) {
+            toast({
+              title: "Could not cancel booking",
+              description: error instanceof Error ? error.message : "Please try again.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }}
         roomName={paymentBooking ? `Booking #${paymentBooking.booking_id}` : "your booking"}
         amountPHP={Number(paymentBooking?.initial_payment_amount ?? 0)}
         bookingId={paymentBooking?.booking_id}
         paymentExpiresAtEpoch={paymentBooking?.payment_expires_at_epoch}
         serverNowEpoch={paymentBooking?.server_now_epoch}
         title="Complete Booking Payment"
-        description="Your room is temporarily reserved. Please complete your payment before the payment deadline. If you fail to submit your payment before the deadline, your temporary reservation will automatically expire."
+        description="Complete payment before the deadline. Closing this window before payment is submitted cancels the booking; after submission, it remains awaiting administrator review."
         successTitle="Payment Submitted"
         successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
         allowScreenshot
+        requireReference
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!paymentBooking) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();
@@ -400,6 +430,7 @@ const GuestBooking = () => {
             screenshot,
             paymentSubmissionKey.current,
           );
+          paymentSubmittedRef.current = true;
           paymentSubmissionKey.current = null;
           toast({ title: "GCash payment submitted for admin review" });
           refetch();
