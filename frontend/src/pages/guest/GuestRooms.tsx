@@ -189,6 +189,15 @@ const GuestRooms = () => {
     }
   };
 
+  const cancelBookingStart = () => {
+    setTermsOpen(false);
+    setDetailsOpen(false);
+    setBookingRoom(null);
+    setStep(1);
+    bookingRequestKey.current = null;
+    void releaseRoomHold();
+  };
+
   const startBooking = async (room: PublicRoom) => {
     if (acquiringHold) return;
     setAcquiringHold(true);
@@ -526,11 +535,8 @@ const GuestRooms = () => {
       <BookingTermsDialog
         open={termsOpen}
         onOpenChange={(open) => {
-          setTermsOpen(open);
-          if (!open) {
-            setBookingRoom(null);
-            void releaseRoomHold();
-          }
+          if (open) setTermsOpen(true);
+          else cancelBookingStart();
         }}
         roomName={bookingRoom ? `Room ${bookingRoom.room_number}` : undefined}
         onAccept={() => { setTermsOpen(false); setDetailsOpen(true); }}
