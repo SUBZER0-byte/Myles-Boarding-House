@@ -202,12 +202,10 @@ BEGIN
 
     IF p_action = 'tenant_withdraw' THEN
         IF jsonb_typeof(p_data->'cancellation_id') IS DISTINCT FROM 'number'
-           OR p_data->>'cancellation_id' !~ '^[1-9][0-9]{0,9}$'
-           OR CASE
-               WHEN p_data->>'cancellation_id' ~ '^[1-9][0-9]{0,9}$'
-                   THEN (p_data->>'cancellation_id')::numeric > 2147483647
-               ELSE false
-           END THEN
+           OR p_data->>'cancellation_id' !~ '^[1-9][0-9]{0,9}$' THEN
+            RETURN jsonb_build_object('type', 'error', 'message', 'A cancellation request ID is required.');
+        END IF;
+        IF (p_data->>'cancellation_id')::numeric > 2147483647 THEN
             RETURN jsonb_build_object('type', 'error', 'message', 'A cancellation request ID is required.');
         END IF;
         cancellation_id_value := (p_data->>'cancellation_id')::integer;
@@ -280,12 +278,10 @@ BEGIN
 
     IF p_action IN ('admin_approve', 'admin_reject') THEN
         IF jsonb_typeof(p_data->'cancellation_id') IS DISTINCT FROM 'number'
-           OR p_data->>'cancellation_id' !~ '^[1-9][0-9]{0,9}$'
-           OR CASE
-               WHEN p_data->>'cancellation_id' ~ '^[1-9][0-9]{0,9}$'
-                   THEN (p_data->>'cancellation_id')::numeric > 2147483647
-               ELSE false
-           END THEN
+           OR p_data->>'cancellation_id' !~ '^[1-9][0-9]{0,9}$' THEN
+            RETURN jsonb_build_object('type', 'error', 'message', 'A cancellation request ID is required.');
+        END IF;
+        IF (p_data->>'cancellation_id')::numeric > 2147483647 THEN
             RETURN jsonb_build_object('type', 'error', 'message', 'A cancellation request ID is required.');
         END IF;
         cancellation_id_value := (p_data->>'cancellation_id')::integer;

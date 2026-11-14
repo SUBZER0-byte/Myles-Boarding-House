@@ -5,6 +5,7 @@ import {
   getSupabaseServerKey,
   getSupabaseUrl,
 } from "../_shared/supabase.ts";
+import { isTextBeeEnabled } from "../_shared/textbee.ts";
 
 const supabaseUrl = getSupabaseUrl();
 const anonKey = getSupabasePublishableKey();
@@ -99,7 +100,7 @@ function equalHash(left: string, right: string): boolean {
 }
 
 async function sendTextBeeSms(phone: string, message: string): Promise<void> {
-  if (Deno.env.get("TEXTBEE_ENABLED") !== "true") {
+  if (!isTextBeeEnabled(Deno.env.get("TEXTBEE_ENABLED"))) {
     throw new Error("Phone verification is temporarily unavailable.");
   }
   const apiBase = Deno.env.get("TEXTBEE_API_BASE")?.trim().replace(/\/+$/, "");

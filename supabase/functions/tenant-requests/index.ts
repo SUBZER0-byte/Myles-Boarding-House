@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "../_shared/supabase.ts";
+import { isTextBeeEnabled } from "../_shared/textbee.ts";
 
 const allowedOrigins = new Set(
   (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "https://myles-boarding-house.vercel.app")
@@ -118,7 +119,7 @@ async function sendUrgentComplaintSms(userId: number, title: string, category: s
   const apiBase = Deno.env.get("TEXTBEE_API_BASE")?.trim().replace(/\/+$/, "");
   const apiKey = Deno.env.get("TEXTBEE_API_KEY")?.trim();
   const deviceId = Deno.env.get("TEXTBEE_DEVICE_ID")?.trim();
-  if (Deno.env.get("TEXTBEE_ENABLED") !== "true" || !apiBase || !apiKey) {
+  if (!isTextBeeEnabled(Deno.env.get("TEXTBEE_ENABLED")) || !apiBase || !apiKey) {
     console.error("Urgent complaint SMS is not configured in Supabase.");
     return { sms_sent: 0, sms_failures: recipients.length };
   }
