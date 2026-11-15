@@ -79,6 +79,8 @@ $$;
 
 REVOKE ALL ON FUNCTION public.promote_guest_booking_to_tenant() FROM PUBLIC, anon, authenticated;
 
+DROP TRIGGER IF EXISTS bookings_promote_guest_on_confirmation
+    ON public."bookings";
 CREATE TRIGGER bookings_promote_guest_on_confirmation
 AFTER UPDATE OF "status" ON public."bookings"
 FOR EACH ROW
