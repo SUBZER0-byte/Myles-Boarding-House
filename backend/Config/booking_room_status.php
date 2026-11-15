@@ -515,9 +515,21 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
         $roomStmt->close();
         return false;
     }
+    $confirmedBooking = $connect->prepare("
+        SELECT 1 FROM bookings
+        WHERE room_id = ? AND status = 'Confirmed' AND check_out_date > CURDATE()
+        LIMIT 1
+    ");
+    if (!$confirmedBooking) {
+        error_log('Confirmed booking room status prepare failed: ' . $connect->error);
+        $update->close();
+        $roomStmt->close();
+        return false;
+    }
     $hasHoldTable = booking_room_schema_has($connect, 'booking_room_holds');
     if ($hasHoldTable === null) {
         error_log('Room hold table lookup failed during room status synchronization');
+        $confirmedBooking->close();
         $update->close();
         $roomStmt->close();
         return false;
@@ -531,22 +543,11 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
         ");
         if (!$activeHold) {
             error_log('Active room hold lookup prepare failed: ' . $connect->error);
+            $confirmedBooking->close();
             $update->close();
             $roomStmt->close();
             return false;
         }
-    }
-    $confirmedBooking = $connect->prepare("
-        SELECT 1 FROM bookings
-        WHERE room_id = ? AND status = 'Confirmed' AND check_out_date > CURDATE()
-        LIMIT 1
-    ");
-    if (!$confirmedBooking) {
-        error_log('Confirmed booking room status prepare failed: ' . $connect->error);
-        if ($activeHold) $activeHold->close();
-        $update->close();
-        $roomStmt->close();
-        return false;
     }
 
     $ok = true;

@@ -269,17 +269,16 @@ try {
     assertBookingCapacity($canReserve('entire_room', 1, '2099-02-01', '2099-03-01'), 'A date-disjoint temporary hold blocked another stay');
 
     $reset();
-    if (!$connect->query("
-        UPDATE rooms SET status = 'Available' WHERE room_id = 1
-    ") || !$connect->query("
-        INSERT INTO booking_room_holds
-            (room_id, email, expires_at, move_in_date, check_out_date, reservation_type, occupant_count)
-        VALUES (
-            1, 'future-hold@example.test', DATE_ADD(NOW(), INTERVAL 5 MINUTE),
-            DATE_ADD(CURDATE(), INTERVAL 30 DAY), DATE_ADD(CURDATE(), INTERVAL 60 DAY),
-            'capacity_based', 1
-        )
-    ")) {
+    if (!$connect->query("UPDATE rooms SET status = 'Available' WHERE room_id = 1")
+        || !$connect->query("
+            INSERT INTO booking_room_holds
+                (room_id, email, expires_at, move_in_date, check_out_date, reservation_type, occupant_count)
+            VALUES (
+                1, 'future-hold@example.test', DATE_ADD(NOW(), INTERVAL 5 MINUTE),
+                DATE_ADD(CURDATE(), INTERVAL 30 DAY), DATE_ADD(CURDATE(), INTERVAL 60 DAY),
+                'capacity_based', 1
+            )
+        ")) {
         throw new RuntimeException('Unable to prepare a future room hold status test');
     }
     assertBookingCapacity(sync_booking_room_status($connect, 1), 'A future room hold status could not be synchronized');
@@ -308,6 +307,14 @@ try {
     $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
     assertBookingCapacity($bookingStatus === 'Pending Verification', 'A submitted initial payment did not enter admin review');
     assertBookingCapacity($roomStatus === 'Reserved', 'A submitted initial payment did not set the room to Reserved');
+
+    if (!$connect->query("UPDATE booking_initial_payment_requests SET status = 'Confirmed' WHERE booking_id = 1")
+        || !$connect->query("UPDATE bookings SET status = 'Confirmed' WHERE booking_id = 1")) {
+        throw new RuntimeException('Unable to prepare the confirmed room status test');
+    }
+    assertBookingCapacity(sync_booking_room_status($connect, 1), 'A confirmed booking room status could not be synchronized');
+    $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
+    assertBookingCapacity($roomStatus === 'Occupied', 'An admin-confirmed booking did not set the room to Occupied');
 
     $reset();
     if (!$connect->query("
