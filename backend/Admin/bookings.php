@@ -736,12 +736,16 @@ function updateStatus() {
 
     $takesNewBed = in_array($status, ['Confirmed', 'Checked In', 'Active'], true)
         && in_array($previousStatus, ['Pending', 'Pending Verification', 'Cancelled', 'Checked Out'], true);
-    if ($takesNewBed) {
+    $shouldPromoteTenant = in_array($status, ['Confirmed', 'Checked In', 'Active'], true);
+    $needsTransaction = $takesNewBed || $shouldPromoteTenant;
+    if ($needsTransaction) {
         if (!$connect->begin_transaction()) {
             http_response_code(500);
-            echo json_encode(['type'=>'error','message'=>'Unable to reserve room capacity']);
+            echo json_encode(['type'=>'error','message'=>'Unable to confirm booking and tenant status']);
             return;
         }
+    }
+    if ($takesNewBed) {
         if (!room_has_capacity(
             $connect,
             (int)$booking['room_id'],
@@ -774,7 +778,7 @@ function updateStatus() {
               )
         ");
         if (!$stmt) {
-            if ($takesNewBed) $connect->rollback();
+            if ($needsTransaction) $connect->rollback();
             http_response_code(500);
             echo json_encode(['type'=>'error','message'=>'Unable to update booking status']);
             return;
@@ -793,18 +797,19 @@ function updateStatus() {
               )
         ");
         if (!$stmt) {
-            if ($takesNewBed) $connect->rollback();
+            if ($needsTransaction) $connect->rollback();
             http_response_code(500);
             echo json_encode(['type'=>'error','message'=>'Unable to update booking status']);
             return;
         }
         $stmt->bind_param("si", $status, $id);
     }
-    $ok = $stmt->execute() && $stmt->affected_rows === 1;
-    if ($takesNewBed) {
+    $ok = $stmt->execute()
+        && ($stmt->affected_rows === 1 || $status === $previousStatus);
+    if ($needsTransaction) {
         if ($ok) {
             try {
-                if (in_array($status, ['Confirmed', 'Checked In', 'Active'], true)) {
+                if ($shouldPromoteTenant) {
                     promote_guest_booking_to_tenant($connect, $id);
                 }
                 $ok = sync_booking_room_status($connect, (int)$booking['room_id']);
