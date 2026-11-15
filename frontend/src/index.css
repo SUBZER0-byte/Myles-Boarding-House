@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 25% 97%;
+    --foreground: 220 30% 12%;
+
+    --card: 30 20% 99%;
+    --card-foreground: 220 30% 12%;
+
+    --popover: 30 20% 99%;
+    --popover-foreground: 220 30% 12%;
+
+    --primary: 18 76% 52%;
+    --primary-foreground: 30 25% 97%;
+
+    --secondary: 30 20% 92%;
+    --secondary-foreground: 220 30% 12%;
+
+    --muted: 30 15% 94%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 36 90% 55%;
+    --accent-foreground: 220 30% 12%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 30 25% 97%;
+
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 18 76% 52%;
+
+    --radius: 0.75rem;
+
+    --success: 152 60% 42%;
+    --success-foreground: 30 25% 97%;
+    --warning: 36 90% 55%;
+    --warning-foreground: 220 30% 12%;
+
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 30 20% 92%;
+    --sidebar-primary: 18 76% 52%;
+    --sidebar-primary-foreground: 30 25% 97%;
+    --sidebar-accent: 220 25% 18%;
+    --sidebar-accent-foreground: 30 20% 92%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 18 76% 52%;
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 220 16% 9%;
+    --foreground: 30 15% 93%;
+    --card: 220 14% 13%;
+    --card-foreground: 30 15% 93%;
+    --popover: 220 14% 14%;
+    --popover-foreground: 30 15% 93%;
+    --primary: 18 76% 52%;
+    --primary-foreground: 30 25% 97%;
+    --secondary: 220 12% 20%;
+    --secondary-foreground: 30 15% 92%;
+    --muted: 220 12% 17%;
+    --muted-foreground: 30 8% 68%;
+    --accent: 36 90% 55%;
+    --accent-foreground: 220 30% 12%;
+    --destructive: 0 74% 62%;
+    --destructive-foreground: 30 25% 97%;
+    --success: 152 58% 58%;
+    --success-foreground: 30 25% 97%;
+    --border: 220 10% 25%;
+    --input: 220 10% 24%;
+    --ring: 18 76% 52%;
+    --sidebar-background: 220 16% 7%;
+    --sidebar-foreground: 30 15% 92%;
+    --sidebar-primary: 18 76% 52%;
+    --sidebar-primary-foreground: 30 25% 97%;
+    --sidebar-accent: 220 14% 13%;
+    --sidebar-accent-foreground: 30 15% 92%;
+    --sidebar-border: 220 12% 18%;
+    --sidebar-ring: 18 76% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    min-height: 100%;
+    scroll-padding-top: env(safe-area-inset-top);
+  }
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    min-width: 320px;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  .h-screen {
+    height: 100dvh;
+  }
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+.chatbot-panel-position {
+  width: auto;
+  max-width: 24rem;
+  left: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+  height: min(34rem, calc(100dvh - 7rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  margin-inline: auto;
+}
+
+.chatbot-toggle-position {
+  right: max(1.5rem, env(safe-area-inset-right));
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 640px) {
+  .chatbot-panel-position {
+    left: auto;
+    right: max(1.5rem, env(safe-area-inset-right));
+    width: min(92vw, 28rem);
+    max-width: none;
+    margin-inline: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chatbot-panel-position {
+    width: min(92vw, 32rem);
+  }
+}
+
+@media (max-height: 34rem) {
+  .chatbot-panel-header {
+    padding-block: 0.5rem;
+  }
+  .chatbot-panel-description {
+    display: none;
+  }
+  .chatbot-panel-footer {
+    padding-block: 0.25rem;
+  }
+  .chatbot-panel-composer {
+    padding-top: 0.125rem;
+  }
+  .chatbot-panel-suggestions {
+    max-height: min(6rem, 15dvh);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+  .glass {
+    @apply bg-card/80 backdrop-blur-md border border-border/50;
+  }
+}
+
+/* Print: keep the visible receipt readable if browser fallback printing is used */
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 8mm;
+  }
+  #receipt-printable {
+    width: 100mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: hsl(0 0% 100%) !important;
+    color: hsl(220 30% 12%) !important;
+    box-shadow: none !important;
+    font-size: 11px !important;
+  }
+  #receipt-printable h2 {
+    font-size: 16px !important;
+  }
+}
