@@ -42,31 +42,19 @@ describe("public room reads", () => {
     expect(rpc).toHaveBeenCalledWith("get_public_room_photos", { p_room_id: 7 });
   });
 
-  it("loads date-specific room capacity from the availability RPC", async () => {
+  it("loads database room status and date-specific capacity from the browse RPC", async () => {
     const rooms = [{ room_id: 7, status: "Occupied" }];
-    const availability = [{ room_id: 7, status: "Available", available_beds: 2, available_for_dates: true }];
-    rpc.mockResolvedValueOnce({ data: rooms, error: null });
-    rpc.mockResolvedValueOnce({ data: availability, error: null });
+    rpc.mockResolvedValue({ data: rooms, error: null });
 
-    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).resolves.toEqual([
-      { ...availability[0], status: "Occupied" },
-    ]);
-    expect(rpc).toHaveBeenNthCalledWith(1, "get_public_rooms");
-    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_dates", {
+    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).resolves.toEqual(rooms);
+    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse", {
       p_check_in_date: "2026-12-01",
       p_check_out_date: "2027-01-01",
     });
   });
 
   it("rejects malformed availability responses", async () => {
-    rpc.mockResolvedValueOnce({ data: [], error: null });
-    rpc.mockResolvedValueOnce({ data: null, error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).rejects.toThrow("invalid list");
-  });
-
-  it("rejects availability rows without a matching current database room", async () => {
-    rpc.mockResolvedValueOnce({ data: [], error: null });
-    rpc.mockResolvedValueOnce({ data: [{ room_id: 7 }], error: null });
-    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).rejects.toThrow("do not match");
   });
 });

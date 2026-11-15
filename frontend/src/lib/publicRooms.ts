@@ -38,26 +38,13 @@ export async function getPublicRooms(): Promise<PublicRoom[]> {
 }
 
 export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: string): Promise<PublicRoom[]> {
-  const [roomsResult, availabilityResult] = await Promise.all([
-    supabase.rpc("get_public_rooms"),
-    supabase.rpc("get_public_rooms_for_dates", {
-      p_check_in_date: checkInDate,
-      p_check_out_date: checkOutDate,
-    }),
-  ]);
-  if (roomsResult.error) throw roomsResult.error;
-  if (availabilityResult.error) throw availabilityResult.error;
-  if (!Array.isArray(roomsResult.data)) throw new Error("The room status service returned an invalid list.");
-  if (!Array.isArray(availabilityResult.data)) throw new Error("The room availability service returned an invalid list.");
-
-  const currentRooms = new Map(
-    (roomsResult.data as PublicRoom[]).map((room) => [room.room_id, room]),
-  );
-  return (availabilityResult.data as PublicRoom[]).map((room) => {
-    const currentRoom = currentRooms.get(room.room_id);
-    if (!currentRoom) throw new Error("The room status and availability lists do not match.");
-    return { ...room, status: currentRoom.status };
+  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse", {
+    p_check_in_date: checkInDate,
+    p_check_out_date: checkOutDate,
   });
+  if (error) throw error;
+  if (!Array.isArray(data)) throw new Error("The room availability service returned an invalid list.");
+  return data as PublicRoom[];
 }
 
 export async function getPublicRoomPhotos(roomId: number): Promise<PublicRoomPhoto[]> {
