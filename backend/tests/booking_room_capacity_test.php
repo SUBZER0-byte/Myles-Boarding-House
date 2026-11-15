@@ -270,6 +270,47 @@ try {
 
     $reset();
     if (!$connect->query("
+        UPDATE rooms SET status = 'Available' WHERE room_id = 1
+    ") || !$connect->query("
+        INSERT INTO booking_room_holds
+            (room_id, email, expires_at, move_in_date, check_out_date, reservation_type, occupant_count)
+        VALUES (
+            1, 'future-hold@example.test', DATE_ADD(NOW(), INTERVAL 5 MINUTE),
+            DATE_ADD(CURDATE(), INTERVAL 30 DAY), DATE_ADD(CURDATE(), INTERVAL 60 DAY),
+            'capacity_based', 1
+        )
+    ")) {
+        throw new RuntimeException('Unable to prepare a future room hold status test');
+    }
+    assertBookingCapacity(sync_booking_room_status($connect, 1), 'A future room hold status could not be synchronized');
+    $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
+    assertBookingCapacity($roomStatus === 'Reserving', 'A future active room hold did not set the room to Reserving');
+
+    $reset();
+    if (!$connect->query("UPDATE rooms SET status = 'Available' WHERE room_id = 1")) {
+        throw new RuntimeException('Unable to reset room status for payment review');
+    }
+    $addBooking(
+        1,
+        'Pending',
+        'capacity_based',
+        1,
+        'awaiting-review@example.test',
+        date('Y-m-d', strtotime('+30 days')),
+        date('Y-m-d', strtotime('+60 days')),
+        date('Y-m-d H:i:s', strtotime('+15 minutes'))
+    );
+    if (!$connect->query("INSERT INTO booking_initial_payment_requests (booking_id, status) VALUES (1, 'Submitted')")) {
+        throw new RuntimeException('Unable to insert the submitted payment status test row');
+    }
+    assertBookingCapacity(sync_booking_room_status($connect, 1), 'A submitted payment room status could not be synchronized');
+    $bookingStatus = (string)($connect->query('SELECT status FROM bookings WHERE booking_id = 1')->fetch_assoc()['status'] ?? '');
+    $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
+    assertBookingCapacity($bookingStatus === 'Pending Verification', 'A submitted initial payment did not enter admin review');
+    assertBookingCapacity($roomStatus === 'Reserved', 'A submitted initial payment did not set the room to Reserved');
+
+    $reset();
+    if (!$connect->query("
         INSERT INTO tenants
             (tenant_id, room_id, is_active, move_in_date, move_out_date, email, reservation_type, occupant_count)
         VALUES (1, 1, 1, '2099-01-01', '2099-02-01', 'tenant@example.test', 'entire_room', 2)

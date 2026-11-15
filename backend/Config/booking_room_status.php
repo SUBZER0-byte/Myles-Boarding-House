@@ -515,6 +515,27 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
         $roomStmt->close();
         return false;
     }
+    $hasHoldTable = booking_room_schema_has($connect, 'booking_room_holds');
+    if ($hasHoldTable === null) {
+        error_log('Room hold table lookup failed during room status synchronization');
+        $update->close();
+        $roomStmt->close();
+        return false;
+    }
+    $activeHold = null;
+    if ($hasHoldTable) {
+        $activeHold = $connect->prepare("
+            SELECT 1 FROM booking_room_holds
+            WHERE room_id = ? AND expires_at > NOW()
+            LIMIT 1
+        ");
+        if (!$activeHold) {
+            error_log('Active room hold lookup prepare failed: ' . $connect->error);
+            $update->close();
+            $roomStmt->close();
+            return false;
+        }
+    }
     $confirmedBooking = $connect->prepare("
         SELECT 1 FROM bookings
         WHERE room_id = ? AND status = 'Confirmed' AND check_out_date > CURDATE()
@@ -522,6 +543,7 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
     ");
     if (!$confirmedBooking) {
         error_log('Confirmed booking room status prepare failed: ' . $connect->error);
+        if ($activeHold) $activeHold->close();
         $update->close();
         $roomStmt->close();
         return false;
@@ -554,13 +576,26 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
             break;
         }
         $hasConfirmedBooking = (bool)$confirmedBooking->get_result()->fetch_assoc();
+        $hasActiveRoomHold = false;
+        if ($activeHold) {
+            $roomIdForHold = (int)$room['room_id'];
+            $activeHold->bind_param('i', $roomIdForHold);
+            if (!$activeHold->execute()) {
+                error_log('Active room hold lookup failed: ' . $activeHold->error);
+                $ok = false;
+                break;
+            }
+            $hasActiveRoomHold = (bool)$activeHold->get_result()->fetch_assoc();
+        }
         if ($hasConfirmedBooking
             || (int)$snapshot['tenant_beds'] > 0
             || (int)$snapshot['active_booking_beds'] > 0) {
             $status = 'Occupied';
         } elseif ((int)$snapshot['reserved_beds'] > 0) {
             $status = 'Reserved';
-        } elseif ((int)$snapshot['temporary_beds'] > 0 || (int)$snapshot['active_hold_beds'] > 0) {
+        } elseif ((int)$snapshot['temporary_beds'] > 0
+            || (int)$snapshot['active_hold_beds'] > 0
+            || $hasActiveRoomHold) {
             $status = 'Reserving';
         } elseif ((int)$snapshot['occupied_beds'] >= (int)$snapshot['capacity']) {
             $status = 'Reserved';
@@ -579,6 +614,7 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
         }
     }
     $confirmedBooking->close();
+    if ($activeHold) $activeHold->close();
     $update->close();
     $roomStmt->close();
     return $ok;
