@@ -902,6 +902,44 @@ function recordPayment() {
         return;
     }
     try {
+        $bookingStmt = $connect->prepare("
+            SELECT status, room_id, email, move_in_date, check_out_date
+            FROM bookings
+            WHERE booking_id = ?
+            LIMIT 1
+            FOR UPDATE
+        ");
+        if (!$bookingStmt) throw new RuntimeException('Unable to load booking for payment confirmation');
+        $bookingStmt->bind_param('i', $id);
+        if (!$bookingStmt->execute()) {
+            $bookingStmt->close();
+            throw new RuntimeException('Unable to load booking for payment confirmation');
+        }
+        $booking = $bookingStmt->get_result()->fetch_assoc();
+        $bookingStmt->close();
+        if (!$booking || !in_array((string)$booking['status'], [
+            'Pending',
+            'Pending Verification',
+            'Confirmed',
+            'Checked In',
+            'Active',
+        ], true)) {
+            throw new RuntimeException('Booking is not eligible for payment confirmation');
+        }
+
+        $needsConfirmation = in_array((string)$booking['status'], ['Pending', 'Pending Verification'], true);
+        if ($needsConfirmation && !room_has_capacity(
+            $connect,
+            (int)$booking['room_id'],
+            (string)$booking['move_in_date'],
+            (string)$booking['check_out_date'],
+            $id,
+            0,
+            (string)$booking['email']
+        )) {
+            throw new RuntimeException('The room is no longer available for this booking');
+        }
+
         if ($method === 'GCash' && $ref !== '') {
             $reserved = reserve_gcash_transaction_reference($connect, $ref);
             if ($reserved !== true) {
@@ -925,16 +963,22 @@ function recordPayment() {
             throw new RuntimeException('Unable to record booking payment');
         }
         $stmt->close();
-        promote_guest_booking_to_tenant($connect, $id);
-        $roomStmt = $connect->prepare('SELECT room_id FROM bookings WHERE booking_id = ? LIMIT 1');
-        if (!$roomStmt) throw new RuntimeException('Unable to refresh booking room status');
-        $roomStmt->bind_param('i', $id);
-        if (!$roomStmt->execute()) {
-            $roomStmt->close();
-            throw new RuntimeException('Unable to refresh booking room status');
+        if ($needsConfirmation) {
+            $confirmBooking = $connect->prepare("
+                UPDATE bookings
+                SET status = 'Confirmed', updated_at = NOW()
+                WHERE booking_id = ? AND status IN ('Pending','Pending Verification')
+            ");
+            if (!$confirmBooking) throw new RuntimeException('Unable to confirm the paid booking');
+            $confirmBooking->bind_param('i', $id);
+            if (!$confirmBooking->execute() || $confirmBooking->affected_rows !== 1) {
+                $confirmBooking->close();
+                throw new RuntimeException('Booking status changed while payment was being confirmed');
+            }
+            $confirmBooking->close();
         }
-        $roomId = (int)($roomStmt->get_result()->fetch_assoc()['room_id'] ?? 0);
-        $roomStmt->close();
+        promote_guest_booking_to_tenant($connect, $id);
+        $roomId = (int)$booking['room_id'];
         if ($roomId <= 0 || !sync_booking_room_status($connect, $roomId)) {
             throw new RuntimeException('Unable to refresh booking room status');
         }
