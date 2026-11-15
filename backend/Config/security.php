@@ -249,7 +249,32 @@ if (!defined('MBH_SECURITY_LOADED')) {
 
     function sec_current_user_type(): string {
         sec_session_start();
-        return (string)($_SESSION['user_type'] ?? '');
+        $sessionUserType = (string)($_SESSION['user_type'] ?? '');
+        $userId = (int)($_SESSION['user_id'] ?? 0);
+        $connect = $GLOBALS['connect'] ?? null;
+        if ($userId <= 0 || !($connect instanceof mysqli)) {
+            return $sessionUserType;
+        }
+
+        $stmt = $connect->prepare('SELECT user_type FROM users WHERE user_id = ? AND is_active = 1 LIMIT 1');
+        if (!$stmt) {
+            error_log('Current user role lookup prepare failed: ' . $connect->error);
+            return '';
+        }
+        $stmt->bind_param('i', $userId);
+        if (!$stmt->execute()) {
+            error_log('Current user role lookup failed: ' . $stmt->error);
+            $stmt->close();
+            return '';
+        }
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$user) {
+            return '';
+        }
+
+        $_SESSION['user_type'] = (string)$user['user_type'];
+        return (string)$user['user_type'];
     }
 
     function sec_login(array $user): void {
