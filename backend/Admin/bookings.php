@@ -4,6 +4,7 @@ include '../Config/header.php';
 include '../Config/realtime.php';
 require_once __DIR__ . '/../Config/booking_room_status.php';
 require_once __DIR__ . '/../Config/booking_payment_records.php';
+require_once __DIR__ . '/../Config/booking_tenant_conversion.php';
 require_once __DIR__ . '/../Config/full_payment_requests.php';
 require_once __DIR__ . '/../Config/gcash_transaction_references.php';
 require_once __DIR__ . '/../Notifications/booking_sms.php';
@@ -35,141 +36,6 @@ function bookingDatabase(): mysqli {
         exit;
     }
     return $connect;
-}
-
-function promoteGuestToTenantFromBooking(int $bookingId): void {
-    $connect = bookingDatabase();
-
-    $bookingStmt = $connect->prepare("
-        SELECT b.booking_id, b.full_name, b.email, b.phone, b.room_id, b.reservation_type, b.occupant_count,
-               b.move_in_date, b.check_out_date,
-               u.user_id, u.user_type
-        FROM bookings b
-        LEFT JOIN users u ON LOWER(TRIM(u.email)) = LOWER(TRIM(b.email))
-        WHERE b.booking_id = ?
-        LIMIT 1
-        FOR UPDATE
-    ");
-    if (!$bookingStmt) throw new RuntimeException('Unable to prepare tenant account conversion');
-    $bookingStmt->bind_param("i", $bookingId);
-    if (!$bookingStmt->execute()) {
-        $bookingStmt->close();
-        throw new RuntimeException('Unable to load booking for tenant account conversion');
-    }
-    $booking = $bookingStmt->get_result()->fetch_assoc();
-    $bookingStmt->close();
-
-    if (!$booking) throw new RuntimeException('Booking was not found for tenant account conversion');
-
-    $userId = intval($booking['user_id'] ?? 0);
-    if ($userId <= 0) throw new RuntimeException('No guest account is linked to this booking');
-    if ((string)$booking['user_type'] === 'Admin') {
-        throw new RuntimeException('An administrator account cannot be converted to a tenant');
-    }
-
-    $roomId = intval($booking['room_id'] ?? 0);
-    $reservationType = (string)($booking['reservation_type'] ?? 'capacity_based');
-    $occupantCount = max(1, (int)($booking['occupant_count'] ?? 1));
-    $fullName = trim((string)($booking['full_name'] ?? ''));
-    $email = trim((string)($booking['email'] ?? ''));
-    $phone = trim((string)($booking['phone'] ?? ''));
-    $moveInDate = trim((string)($booking['move_in_date'] ?? ''));
-    $moveOutDate = trim((string)($booking['check_out_date'] ?? '')) ?: null;
-
-    if ($roomId <= 0 || $fullName === '' || $email === '' || $phone === '' || $moveInDate === '') {
-        throw new RuntimeException('Booking details are incomplete for tenant account conversion');
-    }
-
-    $tenantStmt = $connect->prepare("
-        SELECT tenant_id, room_id, is_active
-        FROM tenants
-        WHERE user_id = ?
-        ORDER BY is_active DESC, tenant_id DESC
-        LIMIT 1 FOR UPDATE
-    ");
-    if (!$tenantStmt) throw new RuntimeException('Unable to check for an existing tenant account');
-    $tenantStmt->bind_param('i', $userId);
-    if (!$tenantStmt->execute()) {
-        $tenantStmt->close();
-        throw new RuntimeException('Unable to check for an existing tenant account');
-    }
-    $tenant = $tenantStmt->get_result()->fetch_assoc();
-    $tenantStmt->close();
-
-    if ($tenant && (int)$tenant['is_active'] === 1 && (int)$tenant['room_id'] !== $roomId) {
-        throw new RuntimeException('This account already has an active tenancy in another room');
-    }
-    if ($tenant) {
-        $tenantId = (int)$tenant['tenant_id'];
-        $saveTenant = $connect->prepare("
-            UPDATE tenants
-            SET room_id = ?, reservation_type = ?, occupant_count = ?, full_name = ?, phone = ?, email = ?,
-                move_in_date = ?, move_out_date = ?, is_active = 1
-            WHERE tenant_id = ?
-        ");
-        if (!$saveTenant) throw new RuntimeException('Unable to prepare tenant account conversion');
-        $saveTenant->bind_param(
-            'isisssssi',
-            $roomId,
-            $reservationType,
-            $occupantCount,
-            $fullName,
-            $phone,
-            $email,
-            $moveInDate,
-            $moveOutDate,
-            $tenantId
-        );
-        if (!$saveTenant->execute()) {
-            $saveTenant->close();
-            throw new RuntimeException('Unable to update tenant account');
-        }
-        $saveTenant->close();
-        $tenantId = (int)$tenant['tenant_id'];
-    } else {
-        $saveTenant = $connect->prepare("
-            INSERT INTO tenants
-                (user_id, room_id, reservation_type, occupant_count, full_name, phone, email, move_in_date, move_out_date, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
-        ");
-        if (!$saveTenant) throw new RuntimeException('Unable to prepare tenant account creation');
-        $saveTenant->bind_param(
-            'iisisssss',
-            $userId,
-            $roomId,
-            $reservationType,
-            $occupantCount,
-            $fullName,
-            $phone,
-            $email,
-            $moveInDate,
-            $moveOutDate
-        );
-        if (!$saveTenant->execute()) {
-            $saveTenant->close();
-            throw new RuntimeException('Unable to create tenant account');
-        }
-        $tenantId = (int)$saveTenant->insert_id;
-        $saveTenant->close();
-    }
-
-    $promote = $connect->prepare("UPDATE users SET user_type = 'Tenant' WHERE user_id = ? AND user_type <> 'Admin'");
-    if (!$promote) throw new RuntimeException('Unable to prepare guest account conversion');
-    $promote->bind_param('i', $userId);
-    if (!$promote->execute()) {
-        $promote->close();
-        throw new RuntimeException('Unable to convert guest account to tenant');
-    }
-    $promote->close();
-
-    $payments = $connect->prepare('UPDATE payments SET tenant_id = ? WHERE booking_id = ? AND tenant_id IS NULL');
-    if (!$payments) throw new RuntimeException('Unable to link booking payments to the tenant account');
-    $payments->bind_param('ii', $tenantId, $bookingId);
-    if (!$payments->execute()) {
-        $payments->close();
-        throw new RuntimeException('Unable to link booking payments to the tenant account');
-    }
-    $payments->close();
 }
 
 function listBookings() {
@@ -326,7 +192,7 @@ function confirmInitialGcashPayment(): void {
                 throw new RuntimeException('Booking status changed while payment was being verified');
             }
             $confirmBooking->close();
-            promoteGuestToTenantFromBooking($bookingId);
+            promote_guest_booking_to_tenant($connect, $bookingId);
             if (!sync_booking_room_status($connect, (int)$booking['room_id'])) {
                 throw new RuntimeException('Unable to accept the paid booking');
             }
@@ -393,7 +259,7 @@ function confirmInitialGcashPayment(): void {
             throw new RuntimeException('Booking status changed while payment was being verified');
         }
         $confirmBooking->close();
-        promoteGuestToTenantFromBooking($bookingId);
+        promote_guest_booking_to_tenant($connect, $bookingId);
         if (!sync_booking_room_status($connect, (int)$booking['room_id'])) {
             throw new RuntimeException('Unable to accept the paid booking');
         }
@@ -939,7 +805,7 @@ function updateStatus() {
         if ($ok) {
             try {
                 if (in_array($status, ['Confirmed', 'Checked In', 'Active'], true)) {
-                    promoteGuestToTenantFromBooking($id);
+                    promote_guest_booking_to_tenant($connect, $id);
                 }
                 $ok = sync_booking_room_status($connect, (int)$booking['room_id']);
             } catch (Throwable $error) {
@@ -1054,7 +920,7 @@ function recordPayment() {
             throw new RuntimeException('Unable to record booking payment');
         }
         $stmt->close();
-        promoteGuestToTenantFromBooking($id);
+        promote_guest_booking_to_tenant($connect, $id);
         $roomStmt = $connect->prepare('SELECT room_id FROM bookings WHERE booking_id = ? LIMIT 1');
         if (!$roomStmt) throw new RuntimeException('Unable to refresh booking room status');
         $roomStmt->bind_param('i', $id);

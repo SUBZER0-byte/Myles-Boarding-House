@@ -3,6 +3,7 @@
 require_once __DIR__ . '/paypal.php';
 require_once __DIR__ . '/booking_room_status.php';
 require_once __DIR__ . '/booking_payment_records.php';
+require_once __DIR__ . '/booking_tenant_conversion.php';
 require_once __DIR__ . '/system_notifications.php';
 require_once __DIR__ . '/../Notifications/booking_sms.php';
 
@@ -665,6 +666,7 @@ function paypal_booking_finalize_capture(
             }
             $bookingUpdate->close();
         }
+        promote_guest_booking_to_tenant($connect, $bookingId);
         if (!sync_booking_room_status($connect, (int)$row['room_id']) || !$connect->commit()) {
             throw new RuntimeException('Unable to commit the PayPal booking payment');
         }
