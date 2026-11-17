@@ -38,10 +38,10 @@ vi.mock("@/lib/adminGuests", () => ({
 }));
 vi.mock("@/lib/adminTenants", () => ({
   createAdminTenantFromGuest,
-  deactivateAdminTenant: vi.fn(),
   deleteAdminTenant: vi.fn(),
   findAdminTenantAccounts: vi.fn(),
   listAdminTenants: vi.fn(),
+  setAdminTenantAccountStatus: vi.fn(),
   updateAdminTenant: vi.fn(),
   uploadAdminTenantPicture: vi.fn(),
 }));

@@ -42,6 +42,7 @@ describe("Admin guest Supabase workflows", () => {
   it("handles status, deletion, and picture uploads through the Admin function", async () => {
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
     await setAdminGuestActive(8, false);
+    await setAdminGuestActive(8, true);
     await deleteAdminGuest(8);
     await uploadAdminGuestPicture(8, new File(["image"], "guest.png", { type: "image/png" }));
 
@@ -49,9 +50,12 @@ describe("Admin guest Supabase workflows", () => {
       body: { action: "deactivate", data: { user_id: 8 } },
     });
     expect(invoke).toHaveBeenNthCalledWith(2, "admin-guests", {
+      body: { action: "activate", data: { user_id: 8 } },
+    });
+    expect(invoke).toHaveBeenNthCalledWith(3, "admin-guests", {
       body: { action: "delete", data: { user_id: 8 } },
     });
-    const uploadCall = invoke.mock.calls[2];
+    const uploadCall = invoke.mock.calls[3];
     expect(uploadCall[0]).toBe("admin-guests");
     expect(uploadCall[1].body).toBeInstanceOf(FormData);
   });

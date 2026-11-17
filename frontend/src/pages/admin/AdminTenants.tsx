@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -19,10 +19,10 @@ import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { createAdminGuest } from "@/lib/adminGuests";
 import {
   createAdminTenantFromGuest,
-  deactivateAdminTenant,
   deleteAdminTenant,
   findAdminTenantAccounts,
   listAdminTenants,
+  setAdminTenantAccountStatus,
   updateAdminTenant,
   uploadAdminTenantPicture,
   type AdminTenantAccountSuggestion,
@@ -318,22 +318,27 @@ const AdminTenants = () => {
     }
   };
 
-  const handleDeactivate = async (t: AdminTenant) => {
+  const handleToggleActive = async (t: AdminTenant) => {
+    const active = !t.is_active;
     try {
-      await deactivateAdminTenant(t.tenant_id);
+      await setAdminTenantAccountStatus(t.tenant_id, active);
       const auditError = await recordTenantLog(
         "update",
         t.tenant_id,
-        `Deactivated Tenant record #${t.tenant_id}.`,
+        `${active ? "Reactivated" : "Deactivated"} Tenant record #${t.tenant_id}${t.user_id ? ` and user #${t.user_id}` : ""}.`,
       );
       toast({
-        title: auditError ? "Tenant deactivated, but history logging failed" : "Tenant deactivated",
+        title: auditError
+          ? `Tenant ${active ? "reactivated" : "deactivated"}, but history logging failed`
+          : t.user_id
+            ? active ? "Tenant account reactivated" : "Tenant account deactivated"
+            : active ? "Tenant record activated" : "Tenant record deactivated",
         description: auditError ?? undefined,
         variant: auditError ? "destructive" : "default",
       });
       refetch();
     } catch (error) {
-      toast({ title: error instanceof Error ? error.message : "Unable to deactivate tenant", variant: "destructive" });
+      toast({ title: error instanceof Error ? error.message : "Unable to update tenant account", variant: "destructive" });
     }
   };
 
@@ -537,7 +542,9 @@ const AdminTenants = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => openEdit(t)} className="gap-2"><Pencil size={14} /> Edit</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeactivate(t)} className="gap-2"><UserX size={14} /> Deactivate</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleToggleActive(t)} className="gap-2">
+                      {t.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Reactivate</>}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelected(t); setDelOpen(true); }} className="gap-2 text-destructive"><Trash2 size={14} /> Delete</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -627,7 +634,9 @@ const AdminTenants = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(t)} className="gap-2"><Pencil size={14} /> Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeactivate(t)} className="gap-2"><UserX size={14} /> Deactivate</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleToggleActive(t)} className="gap-2">
+                            {t.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Reactivate</>}
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setSelected(t); setDelOpen(true); }} className="gap-2 text-destructive"><Trash2 size={14} /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

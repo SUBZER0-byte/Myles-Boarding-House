@@ -9,10 +9,10 @@ vi.mock("@/lib/supabase", () => ({
 import {
   createAdminTenant,
   createAdminTenantFromGuest,
-  deactivateAdminTenant,
   deleteAdminTenant,
   findAdminTenantAccounts,
   listAdminTenants,
+  setAdminTenantAccountStatus,
   updateAdminTenant,
   uploadAdminTenantPicture,
 } from "@/lib/adminTenants";
@@ -37,24 +37,31 @@ describe("Admin tenant Supabase workflows", () => {
     });
   });
 
-  it("creates, updates, deactivates, and deletes tenant records through the Admin function", async () => {
+  it("creates, updates, changes account status, and deletes tenant records", async () => {
     invoke.mockResolvedValueOnce({ data: { type: "success", tenant_id: 9, user_id: 8 }, error: null });
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
     const tenant = { full_name: "New Tenant", email: "tenant@example.com" };
 
     await expect(createAdminTenant(tenant)).resolves.toMatchObject({ tenant_id: 9, user_id: 8 });
     await expect(updateAdminTenant({ ...tenant, tenant_id: 9 })).resolves.toMatchObject({ type: "success" });
-    await deactivateAdminTenant(9);
+    await setAdminTenantAccountStatus(9, false);
+    await setAdminTenantAccountStatus(9, true);
     await deleteAdminTenant(9);
 
     expect(invoke).toHaveBeenNthCalledWith(1, "admin-tenants", { body: { action: "create", data: tenant } });
     expect(invoke).toHaveBeenNthCalledWith(2, "admin-tenants", {
       body: { action: "update", data: { ...tenant, tenant_id: 9 } },
     });
-    expect(invoke).toHaveBeenNthCalledWith(3, "admin-tenants", {
-      body: { action: "deactivate", data: { tenant_id: 9 } },
+    expect(rpc).toHaveBeenNthCalledWith(1, "set_admin_tenant_account_status", {
+      p_tenant_id: 9,
+      p_is_active: false,
     });
-    expect(invoke).toHaveBeenNthCalledWith(4, "admin-tenants", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "set_admin_tenant_account_status", {
+      p_tenant_id: 9,
+      p_is_active: true,
+    });
+    expect(invoke).toHaveBeenNthCalledWith(3, "admin-tenants", {
       body: { action: "delete", data: { tenant_id: 9 } },
     });
   });

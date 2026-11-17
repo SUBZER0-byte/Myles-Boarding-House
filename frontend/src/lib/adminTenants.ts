@@ -117,8 +117,13 @@ export async function updateAdminTenant(tenant: Record<string, unknown>): Promis
   return invokeTenantAction("update", tenant);
 }
 
-export async function deactivateAdminTenant(tenantId: number): Promise<void> {
-  await invokeTenantAction("deactivate", { tenant_id: tenantId });
+export async function setAdminTenantAccountStatus(tenantId: number, active: boolean): Promise<void> {
+  if (!Number.isSafeInteger(tenantId) || tenantId <= 0) throw new Error("A valid tenant ID is required.");
+  const { error } = await supabase.rpc("set_admin_tenant_account_status", {
+    p_tenant_id: tenantId,
+    p_is_active: active,
+  });
+  if (error) throw new Error(error.message || "Could not update the tenant account status.");
 }
 
 export async function deleteAdminTenant(tenantId: number): Promise<void> {
