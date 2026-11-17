@@ -76,6 +76,7 @@ const AdminLogs = () => {
               <SelectItem value="auth">Auth</SelectItem>
               <SelectItem value="booking">Booking</SelectItem>
               <SelectItem value="payment">Payment</SelectItem>
+              <SelectItem value="management">Management</SelectItem>
               <SelectItem value="general">General</SelectItem>
             </SelectContent>
           </Select>

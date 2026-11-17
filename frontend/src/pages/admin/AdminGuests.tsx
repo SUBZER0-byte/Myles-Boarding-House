@@ -13,10 +13,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, MoreHorizontal, Phone, Mail, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2, Pencil, Plus } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
+import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   createAdminGuest,
@@ -34,6 +35,7 @@ const AdminGuests = () => {
   const { toast } = useToast();
   const loadGuests = useCallback(() => listAdminGuests(), []);
   const { data: guests, refetch, error } = useSupabasePolling(loadGuests, 5000);
+  const loggedListRead = useRef(false);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"cards" | "table">("cards");
   const [addOpen, setAddOpen] = useState(false);
@@ -73,6 +75,19 @@ const AdminGuests = () => {
   ].join("-");
 
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
+  const recordGuestLog = (operation: AdminManagementOperation, resourceId: number | null, message: string) =>
+    tryRecordAdminManagementLog({ entity: "guest", operation, resourceId, message });
+
+  useEffect(() => {
+    if (guests === null || error || loggedListRead.current) return;
+    loggedListRead.current = true;
+    void recordGuestLog("read", null, "Opened Guest Management.")
+      .then(auditError => {
+        if (auditError) {
+          toast({ title: "Guest page access was not logged", description: auditError, variant: "destructive" });
+        }
+      });
+  }, [error, guests, toast]);
 
   const openEdit = (guest: Guest) => {
     setSelected(guest);
@@ -89,6 +104,12 @@ const AdminGuests = () => {
       new_password: "",
     });
     setEditOpen(true);
+    void recordGuestLog("read", guest.user_id, `Viewed Guest user #${guest.user_id}.`)
+      .then(auditError => {
+        if (auditError) {
+          toast({ title: "Guest record view was not logged", description: auditError, variant: "destructive" });
+        }
+      });
   };
 
   const editAge = (() => {
@@ -112,6 +133,7 @@ const AdminGuests = () => {
         ...editForm,
         user_id: selected.user_id,
       });
+      const auditError = await recordGuestLog("update", selected.user_id, `Updated Guest user #${selected.user_id}.`);
       let pictureFailed = false;
       if (editPicture) {
         try {
@@ -121,8 +143,11 @@ const AdminGuests = () => {
         }
       }
       toast({
-        title: pictureFailed ? "Guest updated, but picture upload failed" : "Guest account updated",
-        variant: pictureFailed ? "destructive" : "default",
+        title: auditError
+          ? "Guest updated, but history logging failed"
+          : pictureFailed ? "Guest updated, but picture upload failed" : "Guest account updated",
+        description: [auditError, pictureFailed ? "Profile picture upload failed." : ""].filter(Boolean).join(" ") || undefined,
+        variant: auditError || pictureFailed ? "destructive" : "default",
       });
       setEditOpen(false);
       setEditPicture(null);
@@ -141,6 +166,7 @@ const AdminGuests = () => {
     setSaving(true);
     try {
       const userId = await createAdminGuest(addForm);
+      const auditError = await recordGuestLog("create", userId, `Created Guest user #${userId}.`);
       let pictureFailed = false;
       if (addPicture && userId > 0) {
         try {
@@ -150,8 +176,11 @@ const AdminGuests = () => {
         }
       }
       toast({
-        title: pictureFailed ? "Guest created, but picture upload failed" : "Guest account created",
-        variant: pictureFailed ? "destructive" : "default",
+        title: auditError
+          ? "Guest created, but history logging failed"
+          : pictureFailed ? "Guest created, but picture upload failed" : "Guest account created",
+        description: [auditError, pictureFailed ? "Profile picture upload failed." : ""].filter(Boolean).join(" ") || undefined,
+        variant: auditError || pictureFailed ? "destructive" : "default",
       });
       setAddOpen(false);
       setAddPicture(null);
@@ -167,7 +196,19 @@ const AdminGuests = () => {
   const handleToggle = async (g: Guest) => {
     try {
       await setAdminGuestActive(g.user_id, !g.is_active);
-      toast({ title: g.is_active ? "Guest deactivated" : "Guest activated" });
+      const active = !g.is_active;
+      const auditError = await recordGuestLog(
+        "update",
+        g.user_id,
+        `${active ? "Activated" : "Deactivated"} Guest user #${g.user_id}.`,
+      );
+      toast({
+        title: auditError
+          ? `Guest ${active ? "activated" : "deactivated"}, but history logging failed`
+          : active ? "Guest activated" : "Guest deactivated",
+        description: auditError ?? undefined,
+        variant: auditError ? "destructive" : "default",
+      });
       refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to update guest status", variant: "destructive" });
@@ -178,7 +219,12 @@ const AdminGuests = () => {
     if (!selected) return;
     try {
       await deleteAdminGuest(selected.user_id);
-      toast({ title: "Guest account deleted" });
+      const auditError = await recordGuestLog("delete", selected.user_id, `Deleted Guest user #${selected.user_id}.`);
+      toast({
+        title: auditError ? "Guest deleted, but history logging failed" : "Guest account deleted",
+        description: auditError ?? undefined,
+        variant: auditError ? "destructive" : "default",
+      });
       setDelOpen(false);
       refetch();
     } catch (error) {

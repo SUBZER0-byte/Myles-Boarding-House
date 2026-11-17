@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
+import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { createAdminGuest } from "@/lib/adminGuests";
@@ -32,6 +33,7 @@ const AdminTenants = () => {
   const { toast } = useToast();
   const loadTenants = useCallback(() => listAdminTenants(), []);
   const { data: tenants, refetch, error } = useSupabasePolling(loadTenants, 5000);
+  const loggedListRead = useRef(false);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"cards" | "table">("cards");
   const [addOpen, setAddOpen] = useState(false);
@@ -59,12 +61,25 @@ const AdminTenants = () => {
   });
 
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
+  const recordTenantLog = (operation: AdminManagementOperation, resourceId: number | null, message: string) =>
+    tryRecordAdminManagementLog({ entity: "tenant", operation, resourceId, message });
   const today = new Date();
   const todayString = [
     today.getFullYear(),
     String(today.getMonth() + 1).padStart(2, "0"),
     String(today.getDate()).padStart(2, "0"),
   ].join("-");
+
+  useEffect(() => {
+    if (tenants === null || error || loggedListRead.current) return;
+    loggedListRead.current = true;
+    void recordTenantLog("read", null, "Opened Tenant Management.")
+      .then(auditError => {
+        if (auditError) {
+          toast({ title: "Tenant page access was not logged", description: auditError, variant: "destructive" });
+        }
+      });
+  }, [error, tenants, toast]);
 
   useEffect(() => {
     const query = form.username.trim();
@@ -177,6 +192,12 @@ const AdminTenants = () => {
       username: t.username ?? "", new_password: "",
     });
     setEditOpen(true);
+    void recordTenantLog("read", t.tenant_id, `Viewed Tenant record #${t.tenant_id}.`)
+      .then(auditError => {
+        if (auditError) {
+          toast({ title: "Tenant record view was not logged", description: auditError, variant: "destructive" });
+        }
+      });
   };
 
   const handleAdd = async () => {
@@ -194,11 +215,16 @@ const AdminTenants = () => {
         emergency_contact_phone: addForm.emergency_contact_phone,
         password: addForm.password,
       });
-      await createAdminTenantFromGuest(
+      const tenantId = await createAdminTenantFromGuest(
         userId,
         Number(addForm.room_id),
         addForm.move_in_date,
         addForm.move_out_date || null,
+      );
+      const auditError = await recordTenantLog(
+        "create",
+        tenantId,
+        `Created Tenant record #${tenantId} for user #${userId} in room #${addForm.room_id}.`,
       );
 
       let pictureFailed = false;
@@ -209,13 +235,30 @@ const AdminTenants = () => {
           pictureFailed = true;
         }
       }
-      toast({ title: pictureFailed ? "Tenant added, but picture upload failed" : "Tenant account created", variant: pictureFailed ? "destructive" : "default" });
+      toast({
+        title: auditError
+          ? "Tenant created, but history logging failed"
+          : pictureFailed ? "Tenant added, but picture upload failed" : "Tenant account created",
+        description: [auditError, pictureFailed ? "Profile picture upload failed." : ""].filter(Boolean).join(" ") || undefined,
+        variant: auditError || pictureFailed ? "destructive" : "default",
+      });
       setAddOpen(false); setTenantPicture(null); refetch();
     } catch (error) {
+      const auditError = userId
+        ? await tryRecordAdminManagementLog({
+          entity: "guest",
+          operation: "create",
+          resourceId: userId,
+          message: `Created Guest user #${userId} while Tenant assignment failed.`,
+        })
+        : null;
       toast({
         title: userId ? "Tenant assignment failed" : "Unable to create tenant account",
         description: userId
-          ? `The login was created but could not be assigned to the selected room. It remains a Guest account. ${error instanceof Error ? error.message : "Please review Guest Management."}`
+          ? [
+            `The login was created but could not be assigned to the selected room. It remains a Guest account. ${error instanceof Error ? error.message : "Please review Guest Management."}`,
+            auditError ? `The Guest creation could not be logged: ${auditError}` : "",
+          ].filter(Boolean).join(" ")
           : error instanceof Error ? error.message : "Unable to add tenant.",
         variant: "destructive",
       });
@@ -227,6 +270,11 @@ const AdminTenants = () => {
     setSaving(true);
     try {
       const response = await updateAdminTenant({ ...form, tenant_id: selected.tenant_id });
+      const auditError = await recordTenantLog(
+        "update",
+        selected.tenant_id,
+        `Updated Tenant record #${selected.tenant_id}.`,
+      );
       const userId = response.user_id ?? selected.user_id;
       let pictureFailed = false;
       if (tenantPicture && userId) {
@@ -236,7 +284,13 @@ const AdminTenants = () => {
           pictureFailed = true;
         }
       }
-      toast({ title: pictureFailed ? "Tenant updated, but picture upload failed" : "Tenant updated", variant: pictureFailed ? "destructive" : "default" });
+      toast({
+        title: auditError
+          ? "Tenant updated, but history logging failed"
+          : pictureFailed ? "Tenant updated, but picture upload failed" : "Tenant updated",
+        description: [auditError, pictureFailed ? "Profile picture upload failed." : ""].filter(Boolean).join(" ") || undefined,
+        variant: auditError || pictureFailed ? "destructive" : "default",
+      });
       setEditOpen(false); setTenantPicture(null); refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to update tenant", variant: "destructive" });
@@ -247,7 +301,16 @@ const AdminTenants = () => {
     if (!selected) return;
     try {
       await deleteAdminTenant(selected.tenant_id);
-      toast({ title: "Tenant deleted" });
+      const auditError = await recordTenantLog(
+        "delete",
+        selected.tenant_id,
+        `Deleted Tenant record #${selected.tenant_id}.`,
+      );
+      toast({
+        title: auditError ? "Tenant deleted, but history logging failed" : "Tenant deleted",
+        description: auditError ?? undefined,
+        variant: auditError ? "destructive" : "default",
+      });
       setDelOpen(false);
       refetch();
     } catch (error) {
@@ -258,7 +321,16 @@ const AdminTenants = () => {
   const handleDeactivate = async (t: AdminTenant) => {
     try {
       await deactivateAdminTenant(t.tenant_id);
-      toast({ title: "Tenant deactivated" });
+      const auditError = await recordTenantLog(
+        "update",
+        t.tenant_id,
+        `Deactivated Tenant record #${t.tenant_id}.`,
+      );
+      toast({
+        title: auditError ? "Tenant deactivated, but history logging failed" : "Tenant deactivated",
+        description: auditError ?? undefined,
+        variant: auditError ? "destructive" : "default",
+      });
       refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to deactivate tenant", variant: "destructive" });

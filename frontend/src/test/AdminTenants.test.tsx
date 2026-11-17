@@ -7,12 +7,14 @@ const {
   createAdminTenantFromGuest,
   getPublicRoomsForDates,
   refetch,
+  tryRecordAdminManagementLog,
   toast,
 } = vi.hoisted(() => ({
   createAdminGuest: vi.fn(),
   createAdminTenantFromGuest: vi.fn(),
   getPublicRoomsForDates: vi.fn(),
   refetch: vi.fn(),
+  tryRecordAdminManagementLog: vi.fn(),
   toast: vi.fn(),
 }));
 
@@ -27,6 +29,9 @@ vi.mock("@/hooks/useSupabasePolling", () => ({
 }));
 vi.mock("@/lib/profileSettings", () => ({
   getProfilePictureUrl: () => "",
+}));
+vi.mock("@/lib/adminLogs", () => ({
+  tryRecordAdminManagementLog,
 }));
 vi.mock("@/lib/adminGuests", () => ({
   createAdminGuest,
@@ -68,6 +73,7 @@ describe("Admin tenant account creation", () => {
       available_for_dates: true,
     }]);
     refetch.mockReset();
+    tryRecordAdminManagementLog.mockReset().mockResolvedValue(null);
     toast.mockReset();
   });
 
@@ -106,5 +112,11 @@ describe("Admin tenant account creation", () => {
       password: "initial-password",
     }));
     expect(createAdminTenantFromGuest).toHaveBeenCalledWith(8, 4, "2026-12-01", "2027-01-01");
+    expect(tryRecordAdminManagementLog).toHaveBeenCalledWith({
+      entity: "tenant",
+      operation: "create",
+      resourceId: 12,
+      message: "Created Tenant record #12 for user #8 in room #4.",
+    });
   });
 });

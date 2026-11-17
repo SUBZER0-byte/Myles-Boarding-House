@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+const { invoke, rpc } = vi.hoisted(() => ({ invoke: vi.fn(), rpc: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { functions: { invoke } },
+  supabase: { functions: { invoke }, rpc },
 }));
 
-import { deleteAdminLog, listAdminLogs } from "@/lib/adminLogs";
+import { deleteAdminLog, listAdminLogs, recordAdminManagementLog } from "@/lib/adminLogs";
 
 describe("Admin log history", () => {
   beforeEach(() => {
     invoke.mockReset();
+    rpc.mockReset();
   });
 
   it("loads filtered logs through the Admin-only service", async () => {
@@ -46,5 +47,29 @@ describe("Admin log history", () => {
       error: null,
     });
     await expect(deleteAdminLog(99)).rejects.toThrow("Log entry not found.");
+  });
+
+  it("writes management CRUD events through the Admin-checked RPC", async () => {
+    rpc.mockResolvedValue({ data: { type: "success", log_id: 14 }, error: null });
+    await expect(recordAdminManagementLog({
+      entity: "tenant",
+      operation: "update",
+      resourceId: 12,
+      message: "Deactivated Tenant record #12.",
+    })).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("record_admin_management_log", {
+      p_entity: "tenant",
+      p_operation: "update",
+      p_resource_id: 12,
+      p_message: "Deactivated Tenant record #12.",
+    });
+
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "Administrator access is required" } });
+    await expect(recordAdminManagementLog({
+      entity: "guest",
+      operation: "delete",
+      resourceId: 7,
+      message: "Deleted Guest user #7.",
+    })).rejects.toThrow("Administrator access is required");
   });
 });

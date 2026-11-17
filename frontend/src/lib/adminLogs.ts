@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
+export type AdminManagementEntity = "guest" | "tenant";
+export type AdminManagementOperation = "read" | "create" | "update" | "delete";
+
 export interface AdminLog {
   log_id: number;
   actor_id: number | null;
@@ -54,4 +57,39 @@ export async function listAdminLogs(input: {
 export async function deleteAdminLog(logId: number): Promise<string> {
   const response = await invokeAdminLogs("delete", { log_id: logId });
   return response.message || "Log deleted.";
+}
+
+export async function recordAdminManagementLog(input: {
+  entity: AdminManagementEntity;
+  operation: AdminManagementOperation;
+  resourceId: number | null;
+  message: string;
+}): Promise<void> {
+  if (input.resourceId !== null && (!Number.isSafeInteger(input.resourceId) || input.resourceId <= 0)) {
+    throw new Error("The management audit event has an invalid resource ID.");
+  }
+  const { data, error } = await supabase.rpc("record_admin_management_log", {
+    p_entity: input.entity,
+    p_operation: input.operation,
+    p_resource_id: input.resourceId,
+    p_message: input.message,
+  });
+  if (error) throw new Error(error.message || "Could not record the management audit event.");
+  if (!data || typeof data !== "object" || !("type" in data) || data.type !== "success") {
+    throw new Error("The audit service returned an invalid response.");
+  }
+}
+
+export async function tryRecordAdminManagementLog(input: {
+  entity: AdminManagementEntity;
+  operation: AdminManagementOperation;
+  resourceId: number | null;
+  message: string;
+}): Promise<string | null> {
+  try {
+    await recordAdminManagementLog(input);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Could not record the management audit event.";
+  }
 }
