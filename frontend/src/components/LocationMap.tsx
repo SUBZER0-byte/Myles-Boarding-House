@@ -1,4 +1,5 @@
-import { MapPin, Phone, Clock, Navigation } from "lucide-react";
+import { MapPin, Phone, Clock } from "lucide-react";
+import LocationDirectionsMap from "@/components/LocationDirectionsMap";
 import { usePublicHouseInfo } from "@/hooks/usePublicInfo";
 
 const defaultHouseInfo = {
@@ -21,8 +22,6 @@ export const LocationMap = () => {
     lat: Number.isFinite(latitude) ? latitude : 13.140572300741043,
     lng: Number.isFinite(longitude) ? longitude : 123.729307594821,
   };
-
-  const mapSrc = `https://www.google.com/maps?q=${POSITION.lat},${POSITION.lng}&z=17&output=embed`;
 
   return (
     <section id="location" className="py-20 px-6 bg-muted/50">
@@ -73,24 +72,12 @@ export const LocationMap = () => {
               </div>
             </div>
 
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${POSITION.lat},${POSITION.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-5 py-3 rounded-md font-medium hover:opacity-90 transition-opacity w-full"
-            >
-              <Navigation size={16} /> Get Directions
-            </a>
           </div>
 
-          <div className="lg:col-span-2 rounded-lg overflow-hidden border border-border h-[400px]">
-            <iframe
-              title="Myle's Boarding House Location"
-              src={mapSrc}
-              className="w-full h-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
+          <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
+            <LocationDirectionsMap
+              destination={{ latitude: POSITION.lat, longitude: POSITION.lng }}
+              destinationAddress={`${houseInfo.house_address_line_1} ${houseInfo.house_address_line_2}`}
             />
           </div>
         </div>

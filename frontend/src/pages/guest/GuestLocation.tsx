@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { Clock, MapPin, Phone } from "lucide-react";
+import LocationDirectionsMap from "@/components/LocationDirectionsMap";
 import { usePublicHouseInfo } from "@/hooks/usePublicInfo";
 
 const defaultHouseInfo = {
@@ -22,8 +23,6 @@ const GuestLocation = () => {
     lat: Number.isFinite(latitude) ? latitude : 13.140576,
     lng: Number.isFinite(longitude) ? longitude : 123.729441,
   };
-  const mapSrc = `https://www.google.com/maps?q=${POSITION.lat},${POSITION.lng}&z=17&output=embed`;
-
   return (
     <DashboardLayout role="guest">
       <div className="space-y-6">
@@ -83,24 +82,12 @@ const GuestLocation = () => {
                 </div>
               </div>
 
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${POSITION.lat},${POSITION.lng}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-3 rounded-md font-medium hover:opacity-90 transition-opacity w-full"
-              >
-                <Navigation size={16} /> Get Directions
-              </a>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border bg-black/5 h-[360px]">
-              <iframe
-                title="Myle's Boarding House Location"
-                src={mapSrc}
-                className="w-full h-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
+            <div className="rounded-lg border border-border bg-muted p-5">
+              <LocationDirectionsMap
+                destination={{ latitude: POSITION.lat, longitude: POSITION.lng }}
+                destinationAddress={`${houseInfo.house_address_line_1} ${houseInfo.house_address_line_2}`}
               />
             </div>
           </div>
