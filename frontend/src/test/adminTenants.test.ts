@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
+const { invoke, rpc } = vi.hoisted(() => ({ invoke: vi.fn(), rpc: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { functions: { invoke } },
+  supabase: { functions: { invoke }, rpc },
 }));
 
 import {
   createAdminTenant,
+  createAdminTenantFromGuest,
   deactivateAdminTenant,
   deleteAdminTenant,
   findAdminTenantAccounts,
@@ -17,7 +18,10 @@ import {
 } from "@/lib/adminTenants";
 
 describe("Admin tenant Supabase workflows", () => {
-  beforeEach(() => invoke.mockReset());
+  beforeEach(() => {
+    invoke.mockReset();
+    rpc.mockReset();
+  });
 
   it("loads tenants and eligible account suggestions through the Admin function", async () => {
     const tenants = [{ tenant_id: 3, full_name: "Tenant" }];
@@ -52,6 +56,18 @@ describe("Admin tenant Supabase workflows", () => {
     });
     expect(invoke).toHaveBeenNthCalledWith(4, "admin-tenants", {
       body: { action: "delete", data: { tenant_id: 9 } },
+    });
+  });
+
+  it("promotes a newly created account to a tenant with the selected room and stay dates", async () => {
+    rpc.mockResolvedValue({ data: 23, error: null });
+
+    await expect(createAdminTenantFromGuest(8, 4, "2026-12-01", null)).resolves.toBe(23);
+    expect(rpc).toHaveBeenCalledWith("create_admin_tenant_from_guest", {
+      p_user_id: 8,
+      p_room_id: 4,
+      p_move_in_date: "2026-12-01",
+      p_move_out_date: null,
     });
   });
 

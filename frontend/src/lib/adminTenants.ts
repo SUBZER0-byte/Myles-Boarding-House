@@ -89,6 +89,30 @@ export async function createAdminTenant(tenant: Record<string, unknown>): Promis
   return response;
 }
 
+export async function createAdminTenantFromGuest(
+  userId: number,
+  roomId: number,
+  moveInDate: string,
+  moveOutDate: string | null,
+): Promise<number> {
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error("A valid tenant account is required.");
+  if (!Number.isSafeInteger(roomId) || roomId <= 0) throw new Error("Choose an available room.");
+  if (!moveInDate || (moveOutDate && moveOutDate <= moveInDate)) {
+    throw new Error("Enter valid move-in and move-out dates.");
+  }
+  const { data, error } = await supabase.rpc("create_admin_tenant_from_guest", {
+    p_user_id: userId,
+    p_room_id: roomId,
+    p_move_in_date: moveInDate,
+    p_move_out_date: moveOutDate,
+  });
+  if (error) throw new Error(error.message || "Could not assign the tenant account to a room.");
+  if (typeof data !== "number" || !Number.isSafeInteger(data) || data <= 0) {
+    throw new Error("The tenant service returned an invalid tenant ID.");
+  }
+  return data;
+}
+
 export async function updateAdminTenant(tenant: Record<string, unknown>): Promise<TenantResponse> {
   return invokeTenantAction("update", tenant);
 }

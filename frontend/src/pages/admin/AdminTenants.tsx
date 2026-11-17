@@ -9,12 +9,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import { createAdminGuest } from "@/lib/adminGuests";
 import {
-  createAdminTenant,
+  createAdminTenantFromGuest,
   deactivateAdminTenant,
   deleteAdminTenant,
   findAdminTenantAccounts,
@@ -41,22 +44,31 @@ const AdminTenants = () => {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
+  const [availableRooms, setAvailableRooms] = useState<PublicRoom[]>([]);
+  const [availableRoomsLoading, setAvailableRoomsLoading] = useState(false);
+  const [availableRoomsError, setAvailableRoomsError] = useState("");
+  const [addForm, setAddForm] = useState({
+    full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
+    emergency_contact_name: "", emergency_contact_phone: "", password: "",
+    room_id: "", move_in_date: "", move_out_date: "",
+  });
 
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "",
     room_id: "", move_in_date: "", move_out_date: "", username: "", new_password: "",
   });
 
-  const resetForm = () =>
-    setForm({
-      full_name: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "",
-      room_id: "", move_in_date: "", move_out_date: "", username: "", new_password: "",
-    });
-
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
+  const today = new Date();
+  const todayString = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
+
   useEffect(() => {
     const query = form.username.trim();
-    const canSuggestAccount = addOpen || (editOpen && selected?.user_id == null);
+    const canSuggestAccount = editOpen && selected?.user_id == null;
     if (!canSuggestAccount || query.length < 2) {
       setAccountSuggestions([]);
       setSuggestionsLoading(false);
@@ -85,7 +97,49 @@ const AdminTenants = () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [addOpen, editOpen, form.username, selected?.user_id]);
+  }, [editOpen, form.username, selected?.user_id]);
+
+  useEffect(() => {
+    if (!addOpen || !addForm.move_in_date) {
+      setAvailableRooms([]);
+      setAvailableRoomsError("");
+      setAvailableRoomsLoading(false);
+      return;
+    }
+
+    if (addForm.move_out_date && addForm.move_out_date <= addForm.move_in_date) {
+      setAvailableRooms([]);
+      setAvailableRoomsError("Move-out date must be after the move-in date.");
+      setAvailableRoomsLoading(false);
+      return;
+    }
+
+    let active = true;
+    setAvailableRooms([]);
+    setAvailableRoomsError("");
+    setAvailableRoomsLoading(true);
+    setAddForm(current => ({ ...current, room_id: "" }));
+    getPublicRoomsForDates(addForm.move_in_date, addForm.move_out_date || "9999-12-31")
+      .then(rooms => {
+        if (!active) return;
+        setAvailableRooms(rooms.filter(room =>
+          room.status.toLowerCase() !== "maintenance"
+          && Number(room.available_beds) > 0
+          && room.available_for_dates !== false,
+        ));
+      })
+      .catch(error => {
+        if (!active) return;
+        setAvailableRoomsError(error instanceof Error ? error.message : "Unable to load available rooms.");
+      })
+      .finally(() => {
+        if (active) setAvailableRoomsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [addOpen, addForm.move_in_date, addForm.move_out_date]);
 
   const selectAccountSuggestion = (account: AdminTenantAccountSuggestion) => {
     setForm(current => ({
@@ -103,7 +157,15 @@ const AdminTenants = () => {
     setSuggestionsOpen(false);
   };
 
-  const openAdd = () => { resetForm(); setTenantPicture(null); setAddOpen(true); };
+  const openAdd = () => {
+    setAddForm({
+      full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
+      emergency_contact_name: "", emergency_contact_phone: "", password: "",
+      room_id: "", move_in_date: todayString, move_out_date: "",
+    });
+    setTenantPicture(null);
+    setAddOpen(true);
+  };
   const openEdit = (t: AdminTenant) => {
     setSelected(t);
     setTenantPicture(null);
@@ -119,20 +181,44 @@ const AdminTenants = () => {
 
   const handleAdd = async () => {
     setSaving(true);
+    let userId: number | null = null;
     try {
-      const response = await createAdminTenant(form);
+      userId = await createAdminGuest({
+        full_name: addForm.full_name,
+        username: addForm.username,
+        email: addForm.email,
+        phone: addForm.phone,
+        address: addForm.address,
+        birthday: addForm.birthday,
+        emergency_contact_name: addForm.emergency_contact_name,
+        emergency_contact_phone: addForm.emergency_contact_phone,
+        password: addForm.password,
+      });
+      await createAdminTenantFromGuest(
+        userId,
+        Number(addForm.room_id),
+        addForm.move_in_date,
+        addForm.move_out_date || null,
+      );
+
       let pictureFailed = false;
-      if (tenantPicture && response.user_id) {
+      if (tenantPicture) {
         try {
-          await uploadAdminTenantPicture(response.user_id, tenantPicture);
+          await uploadAdminTenantPicture(userId, tenantPicture);
         } catch {
           pictureFailed = true;
         }
       }
-      toast({ title: pictureFailed ? "Tenant added, but picture upload failed" : "Tenant added", variant: pictureFailed ? "destructive" : "default" });
+      toast({ title: pictureFailed ? "Tenant added, but picture upload failed" : "Tenant account created", variant: pictureFailed ? "destructive" : "default" });
       setAddOpen(false); setTenantPicture(null); refetch();
     } catch (error) {
-      toast({ title: error instanceof Error ? error.message : "Unable to add tenant", variant: "destructive" });
+      toast({
+        title: userId ? "Tenant assignment failed" : "Unable to create tenant account",
+        description: userId
+          ? `The login was created but could not be assigned to the selected room. It remains a Guest account. ${error instanceof Error ? error.message : "Please review Guest Management."}`
+          : error instanceof Error ? error.message : "Unable to add tenant.",
+        variant: "destructive",
+      });
     } finally { setSaving(false); }
   };
 
@@ -483,12 +569,117 @@ const AdminTenants = () => {
       </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Add Tenant</DialogTitle><DialogDescription>Create a new tenant record.</DialogDescription></DialogHeader>
-          {fields}
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Tenant Account</DialogTitle>
+            <DialogDescription>Create a tenant login with personal and emergency contact information, then assign an available room.</DialogDescription>
+          </DialogHeader>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-name">Full name</Label>
+              <Input id="tenant-add-name" required maxLength={150} value={addForm.full_name} onChange={event => setAddForm({ ...addForm, full_name: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-username">Username</Label>
+              <Input id="tenant-add-username" required maxLength={50} autoComplete="username" value={addForm.username} onChange={event => setAddForm({ ...addForm, username: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-email">Email</Label>
+              <Input id="tenant-add-email" required type="email" maxLength={150} autoComplete="email" value={addForm.email} onChange={event => setAddForm({ ...addForm, email: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-phone">Phone</Label>
+              <Input id="tenant-add-phone" required type="tel" inputMode="numeric" maxLength={11} placeholder="09XXXXXXXXX" autoComplete="tel" value={addForm.phone} onChange={event => setAddForm({ ...addForm, phone: event.target.value.replace(/\D/g, "").slice(0, 11) })} />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="tenant-add-address">Address</Label>
+              <Input id="tenant-add-address" maxLength={255} autoComplete="street-address" value={addForm.address} onChange={event => setAddForm({ ...addForm, address: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="tenant-add-picture">Profile picture (optional)</Label>
+              <Input id="tenant-add-picture" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {
+                const file = event.target.files?.[0] ?? null;
+                if (file && !validPicture(file)) {
+                  toast({ title: "Choose a JPG, PNG, or WEBP image up to 10MB", variant: "destructive" });
+                  event.target.value = "";
+                  return;
+                }
+                setTenantPicture(file);
+              }} />
+              <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP up to 10MB.</p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-birthday">Birthday</Label>
+              <Input id="tenant-add-birthday" type="date" max={todayString} value={addForm.birthday} onChange={event => setAddForm({ ...addForm, birthday: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-age">Age (calculated)</Label>
+              <Input id="tenant-add-age" value={(() => {
+                if (!addForm.birthday) return "";
+                const birthDate = new Date(`${addForm.birthday}T00:00:00`);
+                if (Number.isNaN(birthDate.getTime())) return "";
+                const ageNow = new Date();
+                let age = ageNow.getFullYear() - birthDate.getFullYear();
+                if (ageNow.getMonth() < birthDate.getMonth() || (ageNow.getMonth() === birthDate.getMonth() && ageNow.getDate() < birthDate.getDate())) age -= 1;
+                return age >= 0 ? String(age) : "";
+              })()} readOnly placeholder="Set birthday to calculate" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-emergency-name">Emergency contact name</Label>
+              <Input id="tenant-add-emergency-name" maxLength={150} value={addForm.emergency_contact_name} onChange={event => setAddForm({ ...addForm, emergency_contact_name: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-emergency-phone">Emergency contact phone</Label>
+              <Input id="tenant-add-emergency-phone" type="tel" inputMode="numeric" maxLength={11} placeholder="09XXXXXXXXX" value={addForm.emergency_contact_phone} onChange={event => setAddForm({ ...addForm, emergency_contact_phone: event.target.value.replace(/\D/g, "").slice(0, 11) })} />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="tenant-add-password">Temporary password</Label>
+              <Input id="tenant-add-password" required type="password" autoComplete="new-password" minLength={6} maxLength={200} value={addForm.password} onChange={event => setAddForm({ ...addForm, password: event.target.value })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-move-in">Move-in date</Label>
+              <Input id="tenant-add-move-in" required type="date" min={todayString} value={addForm.move_in_date} onChange={event => setAddForm({ ...addForm, move_in_date: event.target.value, room_id: "" })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-move-out">Move-out date (optional)</Label>
+              <Input id="tenant-add-move-out" type="date" min={addForm.move_in_date || todayString} value={addForm.move_out_date} onChange={event => setAddForm({ ...addForm, move_out_date: event.target.value, room_id: "" })} />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="tenant-add-room">Room No.</Label>
+              <Select value={addForm.room_id} onValueChange={room_id => setAddForm({ ...addForm, room_id })} disabled={availableRoomsLoading || Boolean(availableRoomsError)}>
+                <SelectTrigger id="tenant-add-room">
+                  <SelectValue placeholder={availableRoomsLoading ? "Loading available rooms…" : "Choose an available room"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRooms.map(room => (
+                    <SelectItem key={room.room_id} value={String(room.room_id)}>
+                      Room {room.room_number} · {room.room_type} · {Number(room.available_beds)} bedspace(s) available
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableRoomsError ? (
+                <p className="text-xs text-destructive">{availableRoomsError}</p>
+              ) : !availableRoomsLoading && availableRooms.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No rooms are available for the selected dates.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Room availability is checked against the selected stay dates.</p>
+              )}
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={saving}>{saving ? "Saving…" : "Add"}</Button>
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
+            <Button
+              type="button"
+              onClick={handleAdd}
+              disabled={saving || availableRoomsLoading || Boolean(availableRoomsError)
+                || !addForm.full_name.trim() || !addForm.username.trim() || !addForm.email.trim()
+                || !/^09\d{9}$/.test(addForm.phone) || addForm.password.length < 6
+                || !addForm.room_id || !addForm.move_in_date
+                || Boolean(addForm.move_out_date && addForm.move_out_date <= addForm.move_in_date)}
+            >
+              {saving ? "Creating…" : "Create Tenant"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
