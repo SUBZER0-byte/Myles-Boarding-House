@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { BedDouble, Shield, MessageCircle, CreditCard, Bell, MessageSquareWarning, ChevronRight, ChevronLeft, Quote, Menu, X, LogOut, Sun, Moon } from "lucide-react";
-import { RoomCard } from "@/components/RoomCard";
+import { RoomCard, type RoomDisplayData } from "@/components/RoomCard";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { LocationMap } from "@/components/LocationMap";
@@ -12,12 +12,8 @@ import { RatingStars } from "@/components/RatingStars";
 import { Switch } from "@/components/ui/switch";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
-import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 
 import logo from "@/assets/logo.png";
-import roomSingle from "@/assets/room-single.jpg";
-import roomDouble from "@/assets/room-double.jpg";
-import roomSuite from "@/assets/room-suite.jpg";
 import heroSlide1 from "../../Promotion/773975397_1801893280820553_5956689233169011423_n (1).jpg";
 import heroSlide2 from "../../Promotion/774069080_2917648111913793_64257836457754159_n.jpg";
 import heroSlide3 from "../../Promotion/774190937_1063676902978628_1007580302922928254_n (1).jpg";
@@ -37,21 +33,6 @@ const features = [
   { icon: Shield, title: "Maintenance Portal", desc: "Submit and track maintenance requests easily." },
   { icon: MessageSquareWarning, title: "Complaints", desc: "File a concern, track its status, and review management responses." },
 ];
-
-type RoomItem = { room_id?: number; image: string; name: string; price: string; status: "available" | "occupied" | "maintenance"; amenities: string[] };
-const mockRooms: RoomItem[] = [
-  { image: roomSingle, name: "Single Room A1", price: "₱3,500", status: "available", amenities: ["WiFi", "AC", "Desk"] },
-  { image: roomDouble, name: "Double Room B2", price: "₱5,500", status: "available", amenities: ["WiFi", "AC", "TV", "Closet"] },
-  { image: roomSuite, name: "Premium Suite C1", price: "₱8,000", status: "available", amenities: ["WiFi", "AC", "TV", "Bath", "Balcony"] },
-  { image: roomSingle, name: "Single Room A2", price: "₱3,500", status: "available", amenities: ["WiFi", "AC", "Desk"] },
-  { image: roomDouble, name: "Double Room B3", price: "₱5,500", status: "available", amenities: ["WiFi", "AC", "TV", "Closet"] },
-  { image: roomSuite, name: "Premium Suite C2", price: "₱8,000", status: "available", amenities: ["WiFi", "AC", "TV", "Bath", "Balcony"] },
-];
-
-const imageForType = (type: string) =>
-  type?.toLowerCase().includes("suite") ? roomSuite
-  : type?.toLowerCase().includes("double") ? roomDouble
-  : roomSingle;
 
 const navItems = [
   { label: "Rooms", id: "rooms" },
@@ -83,11 +64,11 @@ const Index = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeNavItem, setActiveNavItem] = useState<string | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<RoomItem | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<RoomDisplayData | null>(null);
   const roomsScrollRef = useRef<HTMLDivElement>(null);
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Public room fields come from the Supabase read-only RPC; retain the mock fallback.
+  // Public room fields come from the same Supabase read-only RPC used by Guest Browse Rooms.
   const { rooms: liveRooms, error: roomLoadError } = usePublicRooms(5000);
   const {
     reviews: publicReviews,
@@ -97,16 +78,17 @@ const Index = () => {
     reviewsLoading,
   } = usePublicHomepageData(10000);
 
-  const rooms: RoomItem[] = liveRooms !== null
-    ? liveRooms.map(r => ({
-        room_id: r.room_id,
-        image: getPublicRoomImageUrl(r.image) || imageForType(r.room_type),
-        name: `${r.room_type} Room ${r.room_number}`,
-        price: "₱" + Number(r.monthly_rent).toLocaleString(),
-        status: (r.status === "Available" ? "available" : r.status === "Occupied" ? "occupied" : "maintenance") as "available" | "occupied" | "maintenance",
-        amenities: (r.description || "").split(/[,;]/).map(s => s.trim()).filter(Boolean).slice(0, 5),
-      }))
-    : mockRooms;
+  const rooms: RoomDisplayData[] = (liveRooms ?? []).map((room) => ({
+    room_id: room.room_id,
+    room_number: room.room_number,
+    room_type: room.room_type,
+    image: room.image || "",
+    monthly_rent: Number(room.monthly_rent),
+    status: room.status || "Unknown",
+    capacity: Number(room.capacity),
+    available_beds: Number(room.available_beds ?? Math.max(0, Number(room.capacity) - Number(room.occupants ?? 0))),
+    description: room.description,
+  }));
 
   const reviews = (publicReviews ?? []).map((r) => {
     const name = r.full_name?.trim() || "Anonymous";
@@ -310,8 +292,13 @@ const Index = () => {
           {roomLoadError && (
             <p role="alert" className="mt-3 text-center text-sm text-destructive">
               {liveRooms === null
-                ? "Live room data is unavailable. Showing sample rooms."
+                ? "Live room data is unavailable. Please try again later."
                 : "Room updates are unavailable. Showing the last loaded room data."}
+            </p>
+          )}
+          {liveRooms === null && !roomLoadError && (
+            <p role="status" className="mt-3 text-center text-sm text-muted-foreground">
+              Loading rooms…
             </p>
           )}
           {liveRooms?.length === 0 && !roomLoadError && (
@@ -326,8 +313,8 @@ const Index = () => {
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {rooms.map((room) => (
-                <div key={room.name} className="min-w-[85vw] sm:min-w-[300px] md:min-w-[340px] snap-center sm:snap-start flex-shrink-0">
-                  <RoomCard {...room} showStatus={false} onView={() => setSelectedRoom(room)} />
+                <div key={room.room_id} className="min-w-[85vw] sm:min-w-[300px] md:min-w-[340px] snap-center sm:snap-start flex-shrink-0">
+                  <RoomCard room={room} onView={() => setSelectedRoom(room)} />
                 </div>
               ))}
             </div>
