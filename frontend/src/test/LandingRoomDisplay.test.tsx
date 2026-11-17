@@ -7,6 +7,9 @@ vi.mock("@/components/GuestRoomPhotoSlideshow", () => ({
     <div aria-label={`Photos for room ${roomNumber}`} />
   ),
 }));
+vi.mock("@/lib/publicRooms", () => ({
+  getPublicRoomImageUrl: (image: string) => image ? `https://images.test/${image}` : "",
+}));
 
 import { RoomCard } from "@/components/RoomCard";
 import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
@@ -15,7 +18,7 @@ const room: RoomDisplayData = {
   room_id: 17,
   room_number: "17",
   room_type: "Double",
-  image: "/room-17.jpg",
+  image: "room-17-overview.jpg",
   monthly_rent: 4500,
   status: "Occupied",
   capacity: 2,
@@ -32,6 +35,11 @@ describe("Landing page room display", () => {
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "View Details" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /book/i })).toBeNull();
+    expect(screen.getByRole("img", { name: "Room 17 overview" })).toHaveAttribute(
+      "src",
+      "https://images.test/room-17-overview.jpg",
+    );
+    expect(screen.queryByRole("button", { name: "Next room photo" })).toBeNull();
   });
 
   it("shows current room data in the details dialog without a booking button", () => {

@@ -1,5 +1,6 @@
-import { BedDouble } from "lucide-react";
-import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
+import { BedDouble, Image as ImageIcon } from "lucide-react";
+import { ImagePreview } from "@/components/ImagePreview";
+import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 
 export interface RoomDisplayData {
   room_id: number;
@@ -32,13 +33,24 @@ function statusStyle(status: string): string {
 }
 
 export function RoomCard({ room, onView }: RoomCardProps) {
+  const overviewImage = getPublicRoomImageUrl(room.image);
+
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-lg">
-      <GuestRoomPhotoSlideshow
-        roomId={room.room_id}
-        roomNumber={room.room_number}
-        coverImage={room.image}
-      />
+      <div className="relative mb-3 h-36 overflow-hidden rounded-md bg-muted">
+        {overviewImage ? (
+          <ImagePreview
+            src={overviewImage}
+            alt={`Room ${room.room_number} overview`}
+            triggerClassName="h-full w-full"
+            imageClassName="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted-foreground" aria-label="No room overview image">
+            <ImageIcon size={24} />
+          </div>
+        )}
+      </div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <BedDouble size={18} className="text-primary" />
