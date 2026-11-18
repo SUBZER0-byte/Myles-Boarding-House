@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, MapPin, Navigation, Square } from "lucide-react";
+import { AlertCircle, Expand, Loader2, MapPin, Minimize2, Navigation, Square } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -36,6 +36,7 @@ const LocationDirectionsMap = ({
   className = "",
 }: LocationDirectionsMapProps) => {
   const mapElement = useRef<HTMLDivElement>(null);
+  const mapFrame = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const destinationLayer = useRef<L.LayerGroup | null>(null);
   const routeLayer = useRef<L.LayerGroup | null>(null);
@@ -55,6 +56,8 @@ const LocationDirectionsMap = ({
   const [loading, setLoading] = useState(false);
   const [hasPosition, setHasPosition] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [usesNativeFullscreen, setUsesNativeFullscreen] = useState(false);
   const destinationLatitude = destination.latitude;
   const destinationLongitude = destination.longitude;
 
@@ -79,6 +82,37 @@ const LocationDirectionsMap = ({
       routeLayer.current = null;
     };
   }, [destinationLatitude, destinationLongitude]);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      const nativeFullscreen = document.fullscreenElement === mapFrame.current;
+      setIsFullscreen(nativeFullscreen);
+      setUsesNativeFullscreen(nativeFullscreen);
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  useEffect(() => {
+    const frame = mapFrame.current;
+    if (!frame || !isFullscreen) return;
+    const resizeMap = window.setTimeout(() => mapInstance.current?.invalidateSize(), 100);
+    return () => window.clearTimeout(resizeMap);
+  }, [isFullscreen, usesNativeFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen || usesNativeFullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const exitOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFullscreen(false);
+    };
+    document.addEventListener("keydown", exitOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", exitOnEscape);
+    };
+  }, [isFullscreen, usesNativeFullscreen]);
 
   useEffect(() => {
     const map = mapInstance.current;
@@ -231,6 +265,31 @@ const LocationDirectionsMap = ({
 
   useEffect(() => () => stopTracking(), [stopTracking]);
 
+  const toggleFullscreen = async () => {
+    const frame = mapFrame.current;
+    if (!frame) return;
+
+    if (isFullscreen) {
+      if (document.fullscreenElement === frame && document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else {
+        setIsFullscreen(false);
+        setUsesNativeFullscreen(false);
+      }
+      return;
+    }
+
+    if (document.fullscreenEnabled && frame.requestFullscreen) {
+      try {
+        await frame.requestFullscreen();
+        return;
+      } catch {
+        setUsesNativeFullscreen(false);
+      }
+    }
+    setIsFullscreen(true);
+  };
+
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
@@ -294,11 +353,31 @@ const LocationDirectionsMap = ({
       )}
 
       <div
-        ref={mapElement}
-        role="application"
-        aria-label="Map showing the boarding house and route from your location"
-        className="h-[360px] w-full overflow-hidden rounded-lg border border-border bg-muted sm:h-[440px]"
-      />
+        ref={mapFrame}
+        className={`relative overflow-hidden border border-border bg-muted ${
+          isFullscreen
+            ? usesNativeFullscreen
+              ? "h-[100dvh] w-screen"
+              : "fixed inset-0 z-[1000] h-[100dvh] w-screen rounded-none"
+            : "h-[360px] w-full rounded-lg sm:h-[440px]"
+        }`}
+      >
+        <div
+          ref={mapElement}
+          role="application"
+          aria-label="Map showing the boarding house and route from your location"
+          className="absolute inset-0 h-full w-full"
+        />
+        <button
+          type="button"
+          onClick={() => void toggleFullscreen()}
+          aria-label={isFullscreen ? "Exit fullscreen map" : "View fullscreen map"}
+          title={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
+          className="absolute right-3 top-3 z-[1001] inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background/95 text-foreground shadow-md hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          {isFullscreen ? <Minimize2 size={18} /> : <Expand size={18} />}
+        </button>
+      </div>
 
       {route && (
         <section aria-label="Driving directions" className="space-y-3 rounded-lg border border-border bg-card p-4">
