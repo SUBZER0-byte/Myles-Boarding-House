@@ -5,6 +5,7 @@ export interface AdminRating {
   user_id: number | null;
   profile_picture: string | null;
   full_name: string | null;
+  room_number: string | null;
   category: string;
   moderation_status: "Hidden" | "Revealed";
   admin_reply: string | null;

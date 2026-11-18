@@ -6,6 +6,7 @@ export interface PublicReview {
   comment: string | null;
   created_at: string;
   full_name: string | null;
+  room_number: string | null;
 }
 
 export interface PublicStats {

@@ -178,6 +178,9 @@ const AdminRatings = () => {
                   <span className="text-xs text-muted-foreground">{Number(r.stars).toFixed(1)}</span>
                   <Badge variant={r.moderation_status === "Revealed" ? "default" : "secondary"}>{r.moderation_status}</Badge>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Room {r.room_number ?? "Unassigned"}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">{r.category}</p>
                 <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
                 {r.admin_reply && <p className="text-xs mt-2"><span className="font-medium">Admin reply:</span> {r.admin_reply}</p>}

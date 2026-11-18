@@ -103,6 +103,7 @@ const Index = () => {
       rating: r.stars,
       category: r.category,
       comment: r.comment ?? "",
+      roomNumber: r.room_number,
       date: new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
     };
   });
@@ -460,7 +461,9 @@ const Index = () => {
                         </Avatar>
                         <div>
                           <p className="text-sm font-semibold">{r.name}</p>
-                          <p className="text-xs text-muted-foreground">{r.role} · {r.date}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.role}{r.roomNumber ? ` · Room ${r.roomNumber}` : ""} · {r.date}
+                          </p>
                         </div>
                       </div>
                     </motion.div>

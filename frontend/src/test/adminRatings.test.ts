@@ -21,7 +21,7 @@ describe("Admin rating workflows", () => {
   });
 
   it("loads the moderation list, aggregate summary, and category summary", async () => {
-    const ratings = [{ rating_id: 3, moderation_status: "Hidden" }];
+    const ratings = [{ rating_id: 3, moderation_status: "Hidden", room_number: "12" }];
     const summary = { total: 1, average: 4, five: 0 };
     const categories = [{ category: "Facilities", total: 1, average: 4 }];
     invoke
