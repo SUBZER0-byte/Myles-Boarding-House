@@ -200,12 +200,12 @@ const AdminGuests = () => {
       const auditError = await recordGuestLog(
         "update",
         g.user_id,
-        `${active ? "Activated" : "Deactivated"} Guest user #${g.user_id}.`,
+        `${active ? "Reactivated" : "Deactivated"} Guest user #${g.user_id}.`,
       );
       toast({
         title: auditError
-          ? `Guest ${active ? "activated" : "deactivated"}, but history logging failed`
-          : active ? "Guest activated" : "Guest deactivated",
+          ? `Guest ${active ? "reactivated" : "deactivated"}, but history logging failed`
+          : active ? "Guest reactivated" : "Guest deactivated",
         description: auditError ?? undefined,
         variant: auditError ? "destructive" : "default",
       });
@@ -328,7 +328,7 @@ const AdminGuests = () => {
                         <Pencil size={14} /> Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleToggle(g)} className="gap-2">
-                        {g.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Activate</>}
+                        {g.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Reactivate</>}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => { setSelected(g); setDelOpen(true); }}
@@ -429,7 +429,7 @@ const AdminGuests = () => {
                             <Pencil size={14} /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleToggle(g)} className="gap-2">
-                            {g.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Activate</>}
+                            {g.is_active ? <><UserX size={14} /> Deactivate</> : <><UserCheck size={14} /> Reactivate</>}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setSelected(g); setDelOpen(true); }} className="gap-2 text-destructive">
                             <Trash2 size={14} /> Delete
