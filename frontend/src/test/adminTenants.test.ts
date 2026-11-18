@@ -26,13 +26,13 @@ describe("Admin tenant Supabase workflows", () => {
   it("loads tenants and eligible account suggestions through the Admin function", async () => {
     const tenants = [{ tenant_id: 3, full_name: "Tenant" }];
     const suggestions = [{ user_id: 8, username: "tenant8" }];
-    invoke.mockResolvedValueOnce({ data: { type: "success", data: tenants }, error: null });
+    rpc.mockResolvedValueOnce({ data: tenants, error: null });
     invoke.mockResolvedValueOnce({ data: { type: "success", data: suggestions }, error: null });
 
     await expect(listAdminTenants()).resolves.toEqual(tenants);
     await expect(findAdminTenantAccounts("tenant")).resolves.toEqual(suggestions);
-    expect(invoke).toHaveBeenNthCalledWith(1, "admin-tenants", { body: { action: "list", data: {} } });
-    expect(invoke).toHaveBeenNthCalledWith(2, "admin-tenants", {
+    expect(rpc).toHaveBeenCalledWith("list_admin_tenants");
+    expect(invoke).toHaveBeenNthCalledWith(1, "admin-tenants", {
       body: { action: "suggestions", data: { query: "tenant" } },
     });
   });
@@ -61,9 +61,7 @@ describe("Admin tenant Supabase workflows", () => {
       p_tenant_id: 9,
       p_is_active: true,
     });
-    expect(invoke).toHaveBeenNthCalledWith(3, "admin-tenants", {
-      body: { action: "delete", data: { tenant_id: 9 } },
-    });
+    expect(rpc).toHaveBeenNthCalledWith(3, "delete_admin_tenant", { p_tenant_id: 9 });
   });
 
   it("promotes a newly created account to a tenant with the selected room and stay dates", async () => {
@@ -91,8 +89,22 @@ describe("Admin tenant Supabase workflows", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
-  it("surfaces errors returned by the function", async () => {
-    invoke.mockResolvedValue({ data: { type: "error", message: "Tenant is linked to payment history." }, error: null });
-    await expect(deleteAdminTenant(9)).rejects.toThrow("Tenant is linked to payment history.");
+  it("surfaces errors returned by the database when deleting a tenant", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { message: "Tenant record not found" },
+    });
+    await expect(deleteAdminTenant(9)).rejects.toThrow("Tenant record not found");
+  });
+
+  it("archives tenants through the history-preserving deletion RPC", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await expect(deleteAdminTenant(9)).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("delete_admin_tenant", { p_tenant_id: 9 });
+  });
+
+  it("rejects tenant IDs that cannot be archived", async () => {
+    await expect(deleteAdminTenant(0)).rejects.toThrow("A valid tenant ID is required.");
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

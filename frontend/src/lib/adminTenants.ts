@@ -70,9 +70,10 @@ async function invokeTenantAction<T = unknown>(
 }
 
 export async function listAdminTenants(): Promise<AdminTenant[]> {
-  const response = await invokeTenantAction<AdminTenant[]>("list");
-  if (!Array.isArray(response.data)) throw new Error("The tenant service returned an invalid list.");
-  return response.data;
+  const { data, error } = await supabase.rpc("list_admin_tenants");
+  if (error) throw new Error(error.message || "Could not load tenant records.");
+  if (!Array.isArray(data)) throw new Error("The tenant service returned an invalid list.");
+  return data as AdminTenant[];
 }
 
 export async function findAdminTenantAccounts(query: string): Promise<AdminTenantAccountSuggestion[]> {
@@ -127,7 +128,9 @@ export async function setAdminTenantAccountStatus(tenantId: number, active: bool
 }
 
 export async function deleteAdminTenant(tenantId: number): Promise<void> {
-  await invokeTenantAction("delete", { tenant_id: tenantId });
+  if (!Number.isSafeInteger(tenantId) || tenantId <= 0) throw new Error("A valid tenant ID is required.");
+  const { error } = await supabase.rpc("delete_admin_tenant", { p_tenant_id: tenantId });
+  if (error) throw new Error(error.message || "Could not remove the tenant record.");
 }
 
 export async function uploadAdminTenantPicture(userId: number, file: File): Promise<void> {

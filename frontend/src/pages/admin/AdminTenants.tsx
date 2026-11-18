@@ -841,7 +841,9 @@ const AdminTenants = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete tenant?</AlertDialogTitle>
-            <AlertDialogDescription>This permanently removes {selected?.full_name}.</AlertDialogDescription>
+            <AlertDialogDescription>
+              This removes {selected?.full_name} from Tenant Management. Payment and request history will be retained.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
