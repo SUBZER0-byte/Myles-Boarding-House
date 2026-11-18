@@ -4,6 +4,8 @@ import {
   formatDuration,
   formatRouteStep,
   getDrivingRoute,
+  distanceBetweenCoordinates,
+  shouldRefreshDrivingRoute,
 } from "@/lib/locationRouting";
 
 describe("in-site location routing", () => {
@@ -70,5 +72,16 @@ describe("in-site location routing", () => {
     expect(formatDistance(1250)).toBe("1.3 km");
     expect(formatDuration(60)).toBe("1 min");
     expect(formatDuration(3660)).toBe("1 hr 1 min");
+  });
+
+  it("measures device movement and filters GPS jitter below the reroute threshold", () => {
+    const start = { latitude: 13.14, longitude: 123.73 };
+    const nearby = { latitude: 13.1401, longitude: 123.73 };
+    const moved = { latitude: 13.141, longitude: 123.73 };
+
+    expect(distanceBetweenCoordinates(start, nearby)).toBeGreaterThan(10);
+    expect(shouldRefreshDrivingRoute(start, nearby)).toBe(false);
+    expect(shouldRefreshDrivingRoute(start, moved)).toBe(true);
+    expect(shouldRefreshDrivingRoute(null, start)).toBe(true);
   });
 });

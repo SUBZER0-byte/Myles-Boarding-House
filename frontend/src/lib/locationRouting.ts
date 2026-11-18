@@ -14,6 +14,26 @@ export interface DrivingRoute {
   }[];
 }
 
+export function distanceBetweenCoordinates(first: MapCoordinates, second: MapCoordinates): number {
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = radians(second.latitude - first.latitude);
+  const longitudeDelta = radians(second.longitude - first.longitude);
+  const firstLatitude = radians(first.latitude);
+  const secondLatitude = radians(second.latitude);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function shouldRefreshDrivingRoute(
+  lastRoutedPosition: MapCoordinates | null,
+  currentPosition: MapCoordinates,
+  minimumMovementMeters = 50,
+): boolean {
+  return lastRoutedPosition === null
+    || distanceBetweenCoordinates(lastRoutedPosition, currentPosition) >= minimumMovementMeters;
+}
+
 interface OsrmRouteResponse {
   code?: string;
   message?: string;

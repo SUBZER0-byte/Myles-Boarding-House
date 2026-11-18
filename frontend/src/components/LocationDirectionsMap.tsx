@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, MapPin, Navigation } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Loader2, MapPin, Navigation, Square } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   formatDistance,
   formatDuration,
   getDrivingRoute,
+  shouldRefreshDrivingRoute,
   type DrivingRoute,
   type MapCoordinates,
 } from "@/lib/locationRouting";
@@ -16,36 +17,17 @@ interface LocationDirectionsMapProps {
   className?: string;
 }
 
-interface RouteState {
-  origin: MapCoordinates;
-  route: DrivingRoute;
-}
-
-function getDeviceLocation(): Promise<MapCoordinates> {
-  if (!window.isSecureContext) {
-    return Promise.reject(new Error("Device location requires a secure connection (HTTPS)."));
+function locationErrorMessage(error: GeolocationPositionError): string {
+  if (error.code === error.PERMISSION_DENIED) {
+    return "Location permission was denied. Allow location access in your browser settings, then try again.";
   }
-  if (!navigator.geolocation) {
-    return Promise.reject(new Error("This browser does not support device location."));
+  if (error.code === error.POSITION_UNAVAILABLE) {
+    return "Your device could not determine its location. Check that location services are enabled.";
   }
-
-  return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          reject(new Error("Location permission was denied. Allow location access in your browser settings, then try again."));
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          reject(new Error("Your device could not determine its location. Check that location services are enabled."));
-        } else if (error.code === error.TIMEOUT) {
-          reject(new Error("Finding your location timed out. Please try again."));
-        } else {
-          reject(new Error("Could not access your device location. Please try again."));
-        }
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
-  });
+  if (error.code === error.TIMEOUT) {
+    return "Finding your location timed out. Keep location services enabled and wait for another GPS reading, or try again.";
+  }
+  return "Could not access your device location. Please try again.";
 }
 
 const LocationDirectionsMap = ({
@@ -55,9 +37,23 @@ const LocationDirectionsMap = ({
 }: LocationDirectionsMapProps) => {
   const mapElement = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
-  const markersAndRoute = useRef<L.LayerGroup | null>(null);
-  const [routeState, setRouteState] = useState<RouteState | null>(null);
+  const destinationLayer = useRef<L.LayerGroup | null>(null);
+  const routeLayer = useRef<L.LayerGroup | null>(null);
+  const liveLocationMarker = useRef<L.CircleMarker | null>(null);
+  const watchId = useRef<number | null>(null);
+  const tracking = useRef(false);
+  const routeRequestInFlight = useRef(false);
+  const routeAbortController = useRef<AbortController | null>(null);
+  const routeRefreshTimer = useRef<number | null>(null);
+  const scheduleRouteRefreshRef = useRef<((position: MapCoordinates) => void) | null>(null);
+  const lastRoutedPosition = useRef<MapCoordinates | null>(null);
+  const lastRouteRequestedAt = useRef(0);
+  const pendingRoutePosition = useRef<MapCoordinates | null>(null);
+  const [route, setRoute] = useState<DrivingRoute | null>(null);
+  const [currentPosition, setCurrentPosition] = useState<MapCoordinates | null>(null);
+  const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasPosition, setHasPosition] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const destinationLatitude = destination.latitude;
   const destinationLongitude = destination.longitude;
@@ -65,7 +61,7 @@ const LocationDirectionsMap = ({
   useEffect(() => {
     if (!mapElement.current || mapInstance.current) return;
     const map = L.map(mapElement.current, { scrollWheelZoom: false }).setView(
-      [destination.latitude, destination.longitude],
+      [destinationLatitude, destinationLongitude],
       15,
     );
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -73,22 +69,24 @@ const LocationDirectionsMap = ({
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     mapInstance.current = map;
-    markersAndRoute.current = L.layerGroup().addTo(map);
+    destinationLayer.current = L.layerGroup().addTo(map);
+    routeLayer.current = L.layerGroup().addTo(map);
 
     return () => {
       map.remove();
       mapInstance.current = null;
-      markersAndRoute.current = null;
+      destinationLayer.current = null;
+      routeLayer.current = null;
     };
   }, [destinationLatitude, destinationLongitude]);
 
   useEffect(() => {
     const map = mapInstance.current;
-    const layerGroup = markersAndRoute.current;
+    const layerGroup = destinationLayer.current;
     if (!map || !layerGroup) return;
 
     layerGroup.clearLayers();
-    L.circleMarker([destination.latitude, destination.longitude], {
+    L.circleMarker([destinationLatitude, destinationLongitude], {
       radius: 9,
       color: "#ffffff",
       weight: 3,
@@ -96,48 +94,170 @@ const LocationDirectionsMap = ({
       fillOpacity: 1,
     }).bindTooltip("Myle's Boarding House", { permanent: true, direction: "top", offset: [0, -8] })
       .addTo(layerGroup);
+  }, [destinationLatitude, destinationLongitude]);
 
-    if (routeState) {
-      const { origin, route } = routeState;
-      L.circleMarker([origin.latitude, origin.longitude], {
-        radius: 8,
-        color: "#ffffff",
-        weight: 3,
-        fillColor: "#2563eb",
-        fillOpacity: 1,
-      }).bindTooltip("Your location", { permanent: true, direction: "top", offset: [0, -8] })
-        .addTo(layerGroup);
-      L.polyline(route.coordinates.map(([longitude, latitude]) => [latitude, longitude]), {
+  useEffect(() => {
+    const map = mapInstance.current;
+    const layerGroup = routeLayer.current;
+    if (!map || !layerGroup || !route) return;
+
+    layerGroup.clearLayers();
+    L.polyline(route.coordinates.map(([longitude, latitude]) => [latitude, longitude]), {
         color: "#dc572d",
         weight: 6,
         opacity: 0.85,
         lineCap: "round",
         lineJoin: "round",
       }).addTo(layerGroup);
-      const bounds = L.latLngBounds(
-        route.coordinates.map(([longitude, latitude]) => L.latLng(latitude, longitude)),
-      );
-      bounds.extend([origin.latitude, origin.longitude]);
-      bounds.extend([destination.latitude, destination.longitude]);
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
-    } else {
-      map.setView([destination.latitude, destination.longitude], 15);
-    }
-  }, [destinationLatitude, destinationLongitude, routeState]);
+    const bounds = L.latLngBounds(
+      route.coordinates.map(([longitude, latitude]) => L.latLng(latitude, longitude)),
+    );
+    bounds.extend([destinationLatitude, destinationLongitude]);
+    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
+  }, [destinationLatitude, destinationLongitude, route]);
 
-  const showRoute = async () => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const origin = await getDeviceLocation();
-      const route = await getDrivingRoute(origin, destination);
-      setRouteState({ origin, route });
-    } catch (caught) {
-      setErrorMessage(caught instanceof Error ? caught.message : "Could not calculate directions.");
-    } finally {
-      setLoading(false);
+  const stopTracking = useCallback(() => {
+    tracking.current = false;
+    setIsTracking(false);
+    setLoading(false);
+    if (watchId.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
     }
-  };
+    if (routeRefreshTimer.current !== null) {
+      window.clearTimeout(routeRefreshTimer.current);
+      routeRefreshTimer.current = null;
+    }
+    routeAbortController.current?.abort();
+    routeAbortController.current = null;
+    routeRequestInFlight.current = false;
+    pendingRoutePosition.current = null;
+  }, []);
+
+  const requestRoute = useCallback(async (origin: MapCoordinates) => {
+    if (!tracking.current) return;
+    routeRequestInFlight.current = true;
+    routeAbortController.current?.abort();
+    const controller = new AbortController();
+    routeAbortController.current = controller;
+    lastRouteRequestedAt.current = Date.now();
+    setLoading(true);
+    try {
+      const nextRoute = await getDrivingRoute(
+        origin,
+        { latitude: destinationLatitude, longitude: destinationLongitude },
+        controller.signal,
+      );
+      if (!tracking.current || controller.signal.aborted) return;
+      lastRoutedPosition.current = origin;
+      setRoute(nextRoute);
+      setErrorMessage(null);
+    } catch (caught) {
+      if (controller.signal.aborted || !tracking.current) return;
+      setErrorMessage(caught instanceof Error ? caught.message : "Could not calculate directions.");
+      pendingRoutePosition.current = null;
+    } finally {
+      if (routeAbortController.current === controller) {
+        routeAbortController.current = null;
+        routeRequestInFlight.current = false;
+        setLoading(false);
+        const pending = pendingRoutePosition.current;
+        const lastRouted = lastRoutedPosition.current;
+        if (pending && shouldRefreshDrivingRoute(lastRouted, pending)) {
+          scheduleRouteRefreshRef.current?.(pending);
+        }
+      }
+    }
+  }, [destinationLatitude, destinationLongitude]);
+
+  const scheduleRouteRefresh = useCallback((position: MapCoordinates) => {
+    pendingRoutePosition.current = position;
+    const lastRouted = lastRoutedPosition.current;
+    if (!shouldRefreshDrivingRoute(lastRouted, position) || routeRequestInFlight.current) return;
+    if (routeRefreshTimer.current !== null) window.clearTimeout(routeRefreshTimer.current);
+    const wait = Math.max(0, 10000 - (Date.now() - lastRouteRequestedAt.current));
+    routeRefreshTimer.current = window.setTimeout(() => {
+      routeRefreshTimer.current = null;
+      const latestPosition = pendingRoutePosition.current;
+      if (tracking.current && latestPosition) void requestRoute(latestPosition);
+    }, wait);
+  }, [requestRoute]);
+  scheduleRouteRefreshRef.current = scheduleRouteRefresh;
+
+  const startTracking = useCallback(() => {
+    if (!window.isSecureContext) {
+      setErrorMessage("Device location requires a secure connection (HTTPS).");
+      return;
+    }
+    if (!navigator.geolocation) {
+      setErrorMessage("This browser does not support device location.");
+      return;
+    }
+
+    stopTracking();
+    lastRoutedPosition.current = null;
+    lastRouteRequestedAt.current = 0;
+    pendingRoutePosition.current = null;
+    setRoute(null);
+    setCurrentPosition(null);
+    setHasPosition(false);
+    setErrorMessage(null);
+    setLoading(true);
+    tracking.current = true;
+    setIsTracking(true);
+    watchId.current = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        if (!tracking.current) return;
+        const position = { latitude: coords.latitude, longitude: coords.longitude };
+        setCurrentPosition(position);
+        setHasPosition(true);
+        setErrorMessage(null);
+        if (!lastRoutedPosition.current) {
+          if (routeRequestInFlight.current) pendingRoutePosition.current = position;
+          else void requestRoute(position);
+        } else {
+          scheduleRouteRefresh(position);
+        }
+      },
+      (error) => {
+        if (!tracking.current) return;
+        setErrorMessage(locationErrorMessage(error));
+        if (error.code === error.PERMISSION_DENIED) stopTracking();
+        else setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 30000, maximumAge: 3000 },
+    );
+  }, [requestRoute, scheduleRouteRefresh, stopTracking]);
+
+  useEffect(() => () => stopTracking(), [stopTracking]);
+
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map) return;
+    if (liveLocationMarker.current) {
+      liveLocationMarker.current.remove();
+      liveLocationMarker.current = null;
+    }
+    if (currentPosition) {
+      liveLocationMarker.current = L.circleMarker(
+        [currentPosition.latitude, currentPosition.longitude],
+        {
+          radius: 8,
+          color: "#ffffff",
+          weight: 3,
+          fillColor: "#2563eb",
+          fillOpacity: 1,
+        },
+      ).bindTooltip("Your live location", { permanent: true, direction: "top", offset: [0, -8] })
+        .addTo(map);
+    }
+  }, [currentPosition]);
+
+  useEffect(() => {
+    if (mapInstance.current && currentPosition && isTracking) {
+      mapInstance.current.panTo([currentPosition.latitude, currentPosition.longitude]);
+    }
+  }, [currentPosition, isTracking]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -148,12 +268,12 @@ const LocationDirectionsMap = ({
         </div>
         <button
           type="button"
-          onClick={showRoute}
-          disabled={loading}
+          onClick={isTracking ? stopTracking : startTracking}
+          disabled={loading && !isTracking}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} />}
-          {loading ? "Finding route..." : routeState ? "Refresh my route" : "Show route from my location"}
+          {loading && !hasPosition ? <Loader2 size={16} className="animate-spin" /> : isTracking ? <Square size={15} /> : <Navigation size={16} />}
+          {loading && !hasPosition ? "Finding your location..." : isTracking ? "Stop live tracking" : route ? "Start live tracking" : "Show route from my location"}
         </button>
       </div>
 
@@ -167,6 +287,11 @@ const LocationDirectionsMap = ({
           <span>{errorMessage}</span>
         </div>
       )}
+      {isTracking && hasPosition && (
+        <p role="status" className="text-xs text-success">
+          Live location tracking is on. The marker updates as your device moves; the driving route refreshes after you move at least 50 metres.
+        </p>
+      )}
 
       <div
         ref={mapElement}
@@ -175,17 +300,17 @@ const LocationDirectionsMap = ({
         className="h-[360px] w-full overflow-hidden rounded-lg border border-border bg-muted sm:h-[440px]"
       />
 
-      {routeState && (
+      {route && (
         <section aria-label="Driving directions" className="space-y-3 rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold">
             <span className="inline-flex items-center gap-2">
               <Navigation size={15} className="text-primary" />
-              {formatDistance(routeState.route.distanceMeters)}
+              {formatDistance(route.distanceMeters)}
             </span>
-            <span>{formatDuration(routeState.route.durationSeconds)} driving</span>
+            <span>{formatDuration(route.durationSeconds)} driving</span>
           </div>
           <ol className="max-h-64 space-y-3 overflow-y-auto border-t border-border pt-3">
-            {routeState.route.steps.map((step, index) => (
+            {route.steps.map((step, index) => (
               <li key={`${index}-${step.instruction}`} className="flex items-start gap-3 text-sm">
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {index + 1}
@@ -201,7 +326,7 @@ const LocationDirectionsMap = ({
           </ol>
         </section>
       )}
-      {!routeState && !errorMessage && (
+      {!route && !errorMessage && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <MapPin size={14} className="text-primary" />
           Tap “Show route from my location” to request permission and display your driving route here.
