@@ -320,7 +320,7 @@ const Index = () => {
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {rooms.map((room) => (
-                <div key={room.room_id} className="min-w-[85vw] sm:min-w-[300px] md:min-w-[340px] snap-center sm:snap-start flex-shrink-0">
+                <div key={room.room_id} className="h-[440px] min-w-[85vw] sm:min-w-[300px] md:min-w-[340px] snap-center sm:snap-start flex-shrink-0">
                   <RoomCard room={room} onView={() => setSelectedRoom(room)} />
                 </div>
               ))}
