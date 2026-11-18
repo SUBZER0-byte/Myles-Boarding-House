@@ -23,7 +23,7 @@ const TenantRatings = () => {
     setSaving(true);
     try {
       await submitTenantRating({ stars, category, comment });
-      toast({ title: "Rating submitted and is now visible" });
+      toast({ title: "Rating submitted and hidden until it is revealed" });
       setComment("");
       setStars(5);
       setCategory("Overall Satisfaction");
@@ -84,7 +84,7 @@ const TenantRatings = () => {
                   <RatingStars value={Number(r.stars)} size={12} />
                   <span className="text-xs text-muted-foreground">{Number(r.stars).toFixed(1)}</span>
                   <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
-                  <Badge variant={r.moderation_status === "Approved" ? "default" : "secondary"} className="text-xs">{r.moderation_status}</Badge>
+                  <Badge variant={r.moderation_status === "Revealed" ? "default" : "secondary"} className="text-xs">{r.moderation_status}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{r.category}</p>
                 {r.comment && <p className="text-sm mt-1">{r.comment}</p>}

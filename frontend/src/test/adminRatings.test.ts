@@ -21,7 +21,7 @@ describe("Admin rating workflows", () => {
   });
 
   it("loads the moderation list, aggregate summary, and category summary", async () => {
-    const ratings = [{ rating_id: 3, moderation_status: "Pending" }];
+    const ratings = [{ rating_id: 3, moderation_status: "Hidden" }];
     const summary = { total: 1, average: 4, five: 0 };
     const categories = [{ category: "Facilities", total: 1, average: 4 }];
     invoke
@@ -46,11 +46,11 @@ describe("Admin rating workflows", () => {
   it("routes moderation, replies, and deletion through the Admin-only service", async () => {
     invoke.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
 
-    await moderateAdminRating(7, "Approved");
+    await moderateAdminRating(7, "Revealed");
     await replyToAdminRating(7, "Thank you for the feedback.");
     await deleteAdminRating(7);
     expect(invoke).toHaveBeenNthCalledWith(1, "admin-ratings", {
-      body: { action: "moderate", data: { rating_id: 7, moderation_status: "Approved" } },
+      body: { action: "moderate", data: { rating_id: 7, moderation_status: "Revealed" } },
     });
     expect(invoke).toHaveBeenNthCalledWith(2, "admin-ratings", {
       body: { action: "reply", data: { rating_id: 7, admin_reply: "Thank you for the feedback." } },

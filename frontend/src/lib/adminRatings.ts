@@ -6,7 +6,7 @@ export interface AdminRating {
   profile_picture: string | null;
   full_name: string | null;
   category: string;
-  moderation_status: string;
+  moderation_status: "Hidden" | "Revealed";
   admin_reply: string | null;
   stars: number;
   comment: string | null;
@@ -78,7 +78,7 @@ export async function getAdminRatingCategorySummary(): Promise<AdminRatingCatego
 
 export async function moderateAdminRating(
   ratingId: number,
-  moderationStatus: "Approved" | "Hidden",
+  moderationStatus: "Revealed" | "Hidden",
 ): Promise<string> {
   const response = await invokeAdminRatings("moderate", {
     rating_id: ratingId,

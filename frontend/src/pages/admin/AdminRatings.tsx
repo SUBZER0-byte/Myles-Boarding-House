@@ -53,7 +53,7 @@ const AdminRatings = () => {
     }
   };
 
-  const moderate = async (r: AdminRating, moderationStatus: "Approved" | "Hidden") => {
+  const moderate = async (r: AdminRating, moderationStatus: "Revealed" | "Hidden") => {
     try {
       const message = await moderateAdminRating(r.rating_id, moderationStatus);
       toast({ title: message });
@@ -176,15 +176,15 @@ const AdminRatings = () => {
                   <p className="font-medium text-sm">{r.full_name ?? "Anonymous"}</p>
                   <RatingStars value={Number(r.stars)} size={12} />
                   <span className="text-xs text-muted-foreground">{Number(r.stars).toFixed(1)}</span>
-                  <Badge variant={r.moderation_status === "Approved" ? "default" : r.moderation_status === "Hidden" ? "secondary" : "destructive"}>{r.moderation_status}</Badge>
+                  <Badge variant={r.moderation_status === "Revealed" ? "default" : "secondary"}>{r.moderation_status}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{r.category}</p>
                 <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
                 {r.admin_reply && <p className="text-xs mt-2"><span className="font-medium">Admin reply:</span> {r.admin_reply}</p>}
                 <p className="text-xs text-muted-foreground mt-1">{new Date(r.created_at).toLocaleString()}</p>
               </div>
-              <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={r.moderation_status === "Approved" ? "Hide feedback" : "Approve feedback"} onClick={() => moderate(r, r.moderation_status === "Approved" ? "Hidden" : "Approved")}>
-                {r.moderation_status === "Approved" ? <EyeOff size={14} /> : <Eye size={14} />}
+              <Button size="sm" variant="ghost" className="h-8 gap-2" onClick={() => moderate(r, r.moderation_status === "Revealed" ? "Hidden" : "Revealed")}>
+                {r.moderation_status === "Revealed" ? <><EyeOff size={14} /> Hide</> : <><Eye size={14} /> Reveal</>}
               </Button>
               <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Reply to feedback" onClick={() => { setSelected(r); setReply(r.admin_reply ?? ""); setReplyOpen(true); }}>
                 <Send size={14} />

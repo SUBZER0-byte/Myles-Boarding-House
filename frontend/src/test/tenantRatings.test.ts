@@ -17,7 +17,7 @@ describe("tenant rating operations", () => {
     const ratings = [{
       rating_id: 4,
       category: "Services",
-      moderation_status: "Pending",
+      moderation_status: "Hidden",
       admin_reply: null,
       stars: 4.5,
       comment: "Helpful",

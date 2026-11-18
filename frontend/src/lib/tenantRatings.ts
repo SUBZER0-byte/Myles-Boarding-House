@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 export interface TenantRating {
   rating_id: number;
   category: string;
-  moderation_status: string;
+  moderation_status: "Hidden" | "Revealed";
   admin_reply: string | null;
   stars: number;
   comment: string | null;
