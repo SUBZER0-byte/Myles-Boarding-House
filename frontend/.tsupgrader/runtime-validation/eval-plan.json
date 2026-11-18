@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T00:00:00Z",
+  "generatedAt": "2026-11-19T00:20:00Z",
   "generatedOnPlatform": "win32",
   "projectType": "webapp",
   "setup": [
@@ -27,6 +27,15 @@
       "verificationMethod": "exit-code",
       "expected": "0",
       "timeoutSeconds": 180
+    },
+    {
+      "name": "lint-pass",
+      "kind": "process",
+      "command": "npm.cmd",
+      "args": ["run", "lint"],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 300
     },
     {
       "name": "tests-pass",

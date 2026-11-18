@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 import { LocationMap } from "@/components/LocationMap";
 import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
+import { PromotionalVideoDiscussion } from "@/components/PromotionalVideoDiscussion";
 import { RatingStars } from "@/components/RatingStars";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -364,7 +365,7 @@ const Index = () => {
         </div>
       </motion.section>
 
-      <section className="px-6 py-12 flex justify-center">
+      <section className="px-6 py-12 flex flex-col items-center gap-6">
         <iframe
           src="https://www.youtube.com/embed/KitgNbL8I4A"
           title="Myle's Boarding House YouTube Short"
@@ -372,6 +373,7 @@ const Index = () => {
           allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
         />
+        <PromotionalVideoDiscussion />
       </section>
 
       {/* Location Map */}
