@@ -16,6 +16,7 @@ import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import { calculateMoveOutDate, getStayMonths } from "@/lib/stayDates";
 import { createAdminGuest } from "@/lib/adminGuests";
 import {
   createAdminTenantFromGuest,
@@ -52,12 +53,12 @@ const AdminTenants = () => {
   const [addForm, setAddForm] = useState({
     full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
     emergency_contact_name: "", emergency_contact_phone: "", password: "",
-    room_id: "", move_in_date: "", move_out_date: "",
+    room_id: "", move_in_date: "", stay_months: "1",
   });
 
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "",
-    room_id: "", move_in_date: "", move_out_date: "", username: "", new_password: "",
+    room_id: "", move_in_date: "", stay_months: "", username: "", new_password: "",
   });
 
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
@@ -69,6 +70,10 @@ const AdminTenants = () => {
     String(today.getMonth() + 1).padStart(2, "0"),
     String(today.getDate()).padStart(2, "0"),
   ].join("-");
+  const addStayMonths = /^\d+$/.test(addForm.stay_months) ? Number(addForm.stay_months) : 0;
+  const editStayMonths = /^\d+$/.test(form.stay_months) ? Number(form.stay_months) : 0;
+  const addMoveOutDate = calculateMoveOutDate(addForm.move_in_date, addStayMonths);
+  const editMoveOutDate = calculateMoveOutDate(form.move_in_date, editStayMonths);
 
   useEffect(() => {
     if (tenants === null || error || loggedListRead.current) return;
@@ -122,9 +127,9 @@ const AdminTenants = () => {
       return;
     }
 
-    if (addForm.move_out_date && addForm.move_out_date <= addForm.move_in_date) {
+    if (!addMoveOutDate) {
       setAvailableRooms([]);
-      setAvailableRoomsError("Move-out date must be after the move-in date.");
+      setAvailableRoomsError("Enter a whole number of months to calculate the move-out date.");
       setAvailableRoomsLoading(false);
       return;
     }
@@ -134,7 +139,7 @@ const AdminTenants = () => {
     setAvailableRoomsError("");
     setAvailableRoomsLoading(true);
     setAddForm(current => ({ ...current, room_id: "" }));
-    getPublicRoomsForDates(addForm.move_in_date, addForm.move_out_date || "9999-12-31")
+    getPublicRoomsForDates(addForm.move_in_date, addMoveOutDate)
       .then(rooms => {
         if (!active) return;
         setAvailableRooms(rooms.filter(room =>
@@ -154,7 +159,7 @@ const AdminTenants = () => {
     return () => {
       active = false;
     };
-  }, [addOpen, addForm.move_in_date, addForm.move_out_date]);
+  }, [addOpen, addForm.move_in_date, addForm.stay_months, addMoveOutDate]);
 
   const selectAccountSuggestion = (account: AdminTenantAccountSuggestion) => {
     setForm(current => ({
@@ -176,7 +181,7 @@ const AdminTenants = () => {
     setAddForm({
       full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
       emergency_contact_name: "", emergency_contact_phone: "", password: "",
-      room_id: "", move_in_date: todayString, move_out_date: "",
+      room_id: "", move_in_date: todayString, stay_months: "1",
     });
     setTenantPicture(null);
     setAddOpen(true);
@@ -188,7 +193,8 @@ const AdminTenants = () => {
       full_name: t.full_name, email: t.email, phone: t.phone,
       address: t.address ?? "", birthday: t.birthday ?? "",
       emergency_contact_name: t.emergency_contact_name ?? "", emergency_contact_phone: t.emergency_contact_phone ?? "",
-      room_id: t.room_id ? String(t.room_id) : "", move_in_date: t.move_in_date, move_out_date: t.move_out_date ?? "",
+      room_id: t.room_id ? String(t.room_id) : "", move_in_date: t.move_in_date,
+      stay_months: getStayMonths(t.move_in_date, t.move_out_date),
       username: t.username ?? "", new_password: "",
     });
     setEditOpen(true);
@@ -219,7 +225,7 @@ const AdminTenants = () => {
         userId,
         Number(addForm.room_id),
         addForm.move_in_date,
-        addForm.move_out_date || null,
+        addMoveOutDate,
       );
       const auditError = await recordTenantLog(
         "create",
@@ -269,7 +275,21 @@ const AdminTenants = () => {
     if (!selected) return;
     setSaving(true);
     try {
-      const response = await updateAdminTenant({ ...form, tenant_id: selected.tenant_id });
+      const response = await updateAdminTenant({
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        birthday: form.birthday,
+        emergency_contact_name: form.emergency_contact_name,
+        emergency_contact_phone: form.emergency_contact_phone,
+        room_id: form.room_id,
+        move_in_date: form.move_in_date,
+        move_out_date: editMoveOutDate,
+        username: form.username,
+        new_password: form.new_password,
+        tenant_id: selected.tenant_id,
+      });
       const auditError = await recordTenantLog(
         "update",
         selected.tenant_id,
@@ -390,11 +410,31 @@ const AdminTenants = () => {
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="grid gap-1.5"><Label>Room ID</Label>
           <Input type="number" min="1" value={form.room_id} onChange={e => setForm({ ...form, room_id: e.target.value })} placeholder="Optional room ID" /></div>
-        <div className="grid gap-1.5"><Label>Move-in *</Label>
-          <Input type="date" value={form.move_in_date} onChange={e => setForm({ ...form, move_in_date: e.target.value })} /></div>
+        <div className="grid gap-1.5"><Label htmlFor="tenant-edit-move-in">Move-in *</Label>
+          <Input id="tenant-edit-move-in" required type="date" value={form.move_in_date} onChange={e => setForm({ ...form, move_in_date: e.target.value })} /></div>
       </div>
-      <div className="grid gap-1.5"><Label>Move-out date</Label>
-        <Input type="date" value={form.move_out_date} onChange={e => setForm({ ...form, move_out_date: e.target.value })} /></div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid gap-1.5"><Label htmlFor="tenant-edit-stay-months">Length of Stay (months) *</Label>
+          <Input
+            id="tenant-edit-stay-months"
+            required
+            type="number"
+            min="1"
+            step="1"
+            value={form.stay_months}
+            onChange={e => setForm({
+              ...form,
+              stay_months: e.target.value,
+            })}
+          /></div>
+        <div className="grid gap-1.5"><Label htmlFor="tenant-edit-move-out">Move-out date (calculated)</Label>
+          <Input
+            id="tenant-edit-move-out"
+            readOnly
+            value={editMoveOutDate}
+            placeholder="Select move-in date and stay length"
+          /></div>
+      </div>
       {editOpen && selected?.user_id != null ? (
         <div className="grid gap-1.5">
           <Label htmlFor="tenant-edit-username">Login username</Label>
@@ -722,8 +762,24 @@ const AdminTenants = () => {
               <Input id="tenant-add-move-in" required type="date" min={todayString} value={addForm.move_in_date} onChange={event => setAddForm({ ...addForm, move_in_date: event.target.value, room_id: "" })} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="tenant-add-move-out">Move-out date (optional)</Label>
-              <Input id="tenant-add-move-out" type="date" min={addForm.move_in_date || todayString} value={addForm.move_out_date} onChange={event => setAddForm({ ...addForm, move_out_date: event.target.value, room_id: "" })} />
+              <Label htmlFor="tenant-add-stay-months">Length of Stay (months)</Label>
+              <Input
+                id="tenant-add-stay-months"
+                required
+                type="number"
+                min="1"
+                step="1"
+                value={addForm.stay_months}
+                onChange={event => setAddForm({
+                  ...addForm,
+                  stay_months: event.target.value,
+                  room_id: "",
+                })}
+              />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="tenant-add-move-out">Move-out date (calculated)</Label>
+              <Input id="tenant-add-move-out" readOnly value={addMoveOutDate} placeholder="Select move-in date and stay length" />
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="tenant-add-room">Room No.</Label>
@@ -757,7 +813,7 @@ const AdminTenants = () => {
                 || !addForm.full_name.trim() || !addForm.username.trim() || !addForm.email.trim()
                 || !/^09\d{9}$/.test(addForm.phone) || addForm.password.length < 6
                 || !addForm.room_id || !addForm.move_in_date
-                || Boolean(addForm.move_out_date && addForm.move_out_date <= addForm.move_in_date)}
+                || !addMoveOutDate || addMoveOutDate <= addForm.move_in_date}
             >
               {saving ? "Creating…" : "Create Tenant"}
             </Button>
@@ -771,7 +827,12 @@ const AdminTenants = () => {
           {fields}
           <DialogFooter>
             <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleEdit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            <Button
+              onClick={handleEdit}
+              disabled={saving || !form.move_in_date || !editMoveOutDate}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

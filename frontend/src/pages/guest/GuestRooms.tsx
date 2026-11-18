@@ -15,7 +15,8 @@ import { BookingTermsDialog } from "@/components/BookingTermsDialog";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { toast } from "@/hooks/use-toast";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
-import { addMonths, format } from "date-fns";
+import { format } from "date-fns";
+import { calculateMoveOutDate } from "@/lib/stayDates";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import {
   acquireMyGuestRoomHold,
@@ -59,7 +60,7 @@ const GuestRooms = () => {
   const [termsOpen, setTermsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [checkInCalendarOpen, setCheckInCalendarOpen] = useState(false);
-  const [checkOutCalendarOpen, setCheckOutCalendarOpen] = useState(false);
+  const [stayMonthsInput, setStayMonthsInput] = useState("1");
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [acquiringHold, setAcquiringHold] = useState(false);
@@ -80,18 +81,18 @@ const GuestRooms = () => {
     payment_plan: "Pay Monthly",
     notes: "",
   });
-  const minimumCheckOutDate = form.move_in_date
-    ? format(addMonths(new Date(`${form.move_in_date}T00:00:00`), 1), "yyyy-MM-dd")
-    : "";
-  const hasAnyDates = Boolean(form.move_in_date || form.check_out_date);
-  const hasDateRange = Boolean(form.move_in_date && form.check_out_date
-    && form.check_out_date >= minimumCheckOutDate
+  const stayMonths = /^\d+$/.test(stayMonthsInput) ? Number(stayMonthsInput) : 0;
+  const minimumCheckOutDate = calculateMoveOutDate(form.move_in_date, 1);
+  const calculatedCheckOutDate = calculateMoveOutDate(form.move_in_date, stayMonths);
+  const hasAnyDates = Boolean(form.move_in_date || stayMonthsInput !== "1");
+  const hasDateRange = Boolean(form.move_in_date && calculatedCheckOutDate
+    && calculatedCheckOutDate >= minimumCheckOutDate
     && new Date(`${form.move_in_date}T00:00:00`) >= new Date(new Date().toDateString()));
   const invalidDateRange = hasAnyDates && !hasDateRange;
   const roomCheckInDate = hasDateRange ? form.move_in_date : minimumCheckInDate;
   const defaultCheckOutDate = new Date(`${minimumCheckInDate}T00:00:00`);
   defaultCheckOutDate.setDate(defaultCheckOutDate.getDate() + 1);
-  const roomCheckOutDate = hasDateRange ? form.check_out_date : format(defaultCheckOutDate, "yyyy-MM-dd");
+  const roomCheckOutDate = hasDateRange ? calculatedCheckOutDate : format(defaultCheckOutDate, "yyyy-MM-dd");
   const boundaryRoomId = bookingRoom?.room_id;
   const loadRooms = useCallback(
     () => getPublicRoomsForDates(roomCheckInDate, roomCheckOutDate),
@@ -134,7 +135,9 @@ const GuestRooms = () => {
     if (!currentRoomId || scheduledRoomDates?.room_id !== currentRoomId) return;
     setForm((current) => {
       const moveInDate = unavailableDateSet.has(current.move_in_date) ? "" : current.move_in_date;
-      const checkOutDate = unavailableDateSet.has(current.check_out_date) ? "" : current.check_out_date;
+      const checkOutDate = moveInDate
+        ? calculateMoveOutDate(moveInDate, stayMonths)
+        : "";
       if (moveInDate === current.move_in_date && checkOutDate === current.check_out_date) return current;
       return {
         ...current,
@@ -142,7 +145,7 @@ const GuestRooms = () => {
         check_out_date: moveInDate ? checkOutDate : "",
       };
     });
-  }, [bookingRoom?.room_id, scheduledRoomDates?.room_id, unavailableDateSet]);
+  }, [bookingRoom?.room_id, scheduledRoomDates?.room_id, stayMonths, unavailableDateSet]);
 
   const toggleSave = (id: number) => {
     if (!Number.isSafeInteger(id) || id <= 0) {
@@ -321,13 +324,6 @@ const GuestRooms = () => {
     }
   };
 
-  const stayMonths = (() => {
-    if (!form.move_in_date || !form.check_out_date) return 0;
-    const start = new Date(`${form.move_in_date}T00:00:00`);
-    const end = new Date(`${form.check_out_date}T00:00:00`);
-    const months = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth();
-    return Math.max(0, months + (end.getDate() > start.getDate() ? 1 : 0));
-  })();
   const totalRent = roomMonthlyRent * stayMonths;
   const securityDeposit = roomMonthlyRent;
   const advanceRent = roomMonthlyRent;
@@ -339,7 +335,8 @@ const GuestRooms = () => {
     : Math.max(0, totalRent - advanceRent - securityDeposit);
   const datesValid = Boolean(
     form.move_in_date >= minimumCheckInDate
-    && form.check_out_date >= minimumCheckOutDate
+    && calculatedCheckOutDate === form.check_out_date
+    && calculatedCheckOutDate >= minimumCheckOutDate
     && boundaryDatesReady
     && !unavailableDateSet.has(form.move_in_date)
     && !unavailableDateSet.has(form.check_out_date),
@@ -611,15 +608,10 @@ const GuestRooms = () => {
                     ]}
                     onSelect={(date) => {
                       const moveInDate = date ? format(date, "yyyy-MM-dd") : "";
-                      const nextMinimumCheckOutDate = moveInDate
-                        ? format(addMonths(new Date(`${moveInDate}T00:00:00`), 1), "yyyy-MM-dd")
-                        : "";
                       setForm({
                         ...form,
                         move_in_date: moveInDate,
-                        check_out_date: moveInDate && form.check_out_date >= nextMinimumCheckOutDate
-                          ? form.check_out_date
-                          : "",
+                        check_out_date: calculateMoveOutDate(moveInDate, stayMonths),
                       });
                       setCheckInCalendarOpen(false);
                     }}
@@ -628,41 +620,42 @@ const GuestRooms = () => {
               </Popover>
             </div>
             <div>
-              <Label className="text-xs">Check-out / Move-out Date</Label>
-              <Popover open={checkOutCalendarOpen} onOpenChange={setCheckOutCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                    disabled={!boundaryDatesReady || !form.move_in_date}
-                  >
-                    <CalendarDays className="mr-2 h-4 w-4" />
-                    {form.check_out_date
-                      ? format(new Date(`${form.check_out_date}T00:00:00`), "PPP")
-                      : "Select move-out date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.check_out_date ? new Date(`${form.check_out_date}T00:00:00`) : undefined}
-                    disabled={[
-                      ...(minimumCheckOutDate
-                        ? [{ before: new Date(`${minimumCheckOutDate}T00:00:00`) }]
-                        : []),
-                      ...unavailableCalendarDates,
-                    ]}
-                    onSelect={(date) => {
-                      setForm({
-                        ...form,
-                        check_out_date: date ? format(date, "yyyy-MM-dd") : "",
-                      });
-                      setCheckOutCalendarOpen(false);
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="guest-stay-months" className="text-xs">Length of Stay (months)</Label>
+              <Input
+                id="guest-stay-months"
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={stayMonthsInput}
+                onChange={event => {
+                  const months = event.target.value;
+                  setStayMonthsInput(months);
+                  setForm(current => ({
+                    ...current,
+                    check_out_date: calculateMoveOutDate(
+                      current.move_in_date,
+                      /^\d+$/.test(months) ? Number(months) : 0,
+                    ),
+                  }));
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="guest-calculated-move-out" className="text-xs">Move-out Date (calculated)</Label>
+              <Input
+                id="guest-calculated-move-out"
+                readOnly
+                value={form.check_out_date
+                  ? format(new Date(`${form.check_out_date}T00:00:00`), "PPP")
+                  : ""}
+                placeholder="Select move-in date and stay length"
+              />
+              {form.check_out_date && unavailableDateSet.has(form.check_out_date) && (
+                <p className="mt-1 text-xs text-destructive">
+                  The calculated move-out date conflicts with an unavailable date. Change your move-in date or stay length.
+                </p>
+              )}
             </div>
             <Button className="w-full mt-2" disabled={!form.full_name || !form.email || !form.phone || !datesValid || acquiringHold} onClick={continueToPaymentPlan}>
               {acquiringHold ? "Securing room..." : "Continue to Payment Plan"}

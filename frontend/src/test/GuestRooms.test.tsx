@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { addMonths, format } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -122,6 +123,28 @@ describe("GuestRooms temporary hold cancellation", () => {
     await waitFor(() => expect(releaseMyGuestRoomHold).toHaveBeenCalledOnce());
     expect(acquireMyGuestRoomHold).toHaveBeenCalledOnce();
     expect(refetchRooms).toHaveBeenCalled();
+  });
+
+  it("calculates the move-out date when the guest changes the stay length", async () => {
+    render(<GuestRooms />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
+    await screen.findByRole("heading", { name: "Terms & Agreement" });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Agree & Continue" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select move-in date" }));
+    const moveInDate = new Date();
+    moveInDate.setHours(0, 0, 0, 0);
+    fireEvent.click(screen.getByRole("gridcell", { name: String(moveInDate.getDate()) }));
+    fireEvent.change(screen.getByLabelText("Length of Stay (months)"), { target: { value: "3" } });
+
+    const moveOutDate = addMonths(moveInDate, 3);
+    expect(screen.getByLabelText("Move-out Date (calculated)")).toHaveProperty(
+      "value",
+      format(moveOutDate, "PPP"),
+    );
   });
 
   it("does not leave a hold or reopen booking when the quick view closes during hold acquisition", async () => {

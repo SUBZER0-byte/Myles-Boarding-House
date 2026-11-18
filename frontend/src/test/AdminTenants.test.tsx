@@ -9,6 +9,9 @@ const {
   refetch,
   tryRecordAdminManagementLog,
   toast,
+  tenantList,
+  updateAdminTenant,
+  useSupabasePolling,
 } = vi.hoisted(() => ({
   createAdminGuest: vi.fn(),
   createAdminTenantFromGuest: vi.fn(),
@@ -16,6 +19,9 @@ const {
   refetch: vi.fn(),
   tryRecordAdminManagementLog: vi.fn(),
   toast: vi.fn(),
+  tenantList: [] as Array<Record<string, unknown>>,
+  updateAdminTenant: vi.fn(),
+  useSupabasePolling: vi.fn(),
 }));
 
 vi.mock("@/components/DashboardLayout", () => ({
@@ -25,7 +31,7 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast }),
 }));
 vi.mock("@/hooks/useSupabasePolling", () => ({
-  useSupabasePolling: () => ({ data: [], refetch, error: null }),
+  useSupabasePolling,
 }));
 vi.mock("@/lib/profileSettings", () => ({
   getProfilePictureUrl: () => "",
@@ -42,7 +48,7 @@ vi.mock("@/lib/adminTenants", () => ({
   findAdminTenantAccounts: vi.fn(),
   listAdminTenants: vi.fn(),
   setAdminTenantAccountStatus: vi.fn(),
-  updateAdminTenant: vi.fn(),
+  updateAdminTenant,
   uploadAdminTenantPicture: vi.fn(),
 }));
 vi.mock("@/lib/publicRooms", () => ({
@@ -59,8 +65,10 @@ describe("Admin tenant account creation", () => {
   });
 
   beforeEach(() => {
+    tenantList.splice(0, tenantList.length);
     createAdminGuest.mockReset().mockResolvedValue(8);
     createAdminTenantFromGuest.mockReset().mockResolvedValue(12);
+    updateAdminTenant.mockReset().mockResolvedValue({ type: "success" });
     getPublicRoomsForDates.mockReset().mockResolvedValue([{
       room_id: 4,
       room_number: "12",
@@ -73,6 +81,7 @@ describe("Admin tenant account creation", () => {
       available_for_dates: true,
     }]);
     refetch.mockReset();
+    useSupabasePolling.mockReset().mockReturnValue({ data: [], refetch, error: null });
     tryRecordAdminManagementLog.mockReset().mockResolvedValue(null);
     toast.mockReset();
   });
@@ -82,7 +91,7 @@ describe("Admin tenant account creation", () => {
     Element.prototype.scrollIntoView = originalScrollIntoView;
   });
 
-  it("creates a tenant login, assigns an available room, and preserves stay dates", async () => {
+  it("calculates the tenant move-out date from the selected stay length", async () => {
     render(<AdminTenants />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add Tenant" }));
@@ -92,10 +101,10 @@ describe("Admin tenant account creation", () => {
     fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "09170000000" } });
     fireEvent.change(screen.getByLabelText("Temporary password"), { target: { value: "initial-password" } });
     fireEvent.change(screen.getByLabelText("Move-in date"), { target: { value: "2026-12-01" } });
-    fireEvent.change(screen.getByLabelText("Move-out date (optional)"), { target: { value: "2027-01-01" } });
+    fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
 
     const roomSelect = screen.getByRole("combobox", { name: "Room No." });
-    await waitFor(() => expect(getPublicRoomsForDates).toHaveBeenLastCalledWith("2026-12-01", "2027-01-01"));
+    await waitFor(() => expect(getPublicRoomsForDates).toHaveBeenLastCalledWith("2026-12-01", "2027-02-01"));
     fireEvent.click(roomSelect);
     fireEvent.click(await screen.findByRole("option", { name: /Room 12/ }));
     fireEvent.click(screen.getByRole("button", { name: "Create Tenant" }));
@@ -111,12 +120,57 @@ describe("Admin tenant account creation", () => {
       emergency_contact_phone: "",
       password: "initial-password",
     }));
-    expect(createAdminTenantFromGuest).toHaveBeenCalledWith(8, 4, "2026-12-01", "2027-01-01");
+    expect(createAdminTenantFromGuest).toHaveBeenCalledWith(8, 4, "2026-12-01", "2027-02-01");
     expect(tryRecordAdminManagementLog).toHaveBeenCalledWith({
       entity: "tenant",
       operation: "create",
       resourceId: 12,
       message: "Created Tenant record #12 for user #8 in room #4.",
     });
+  });
+
+  it("uses the calculated move-out date when an existing tenant is updated", async () => {
+    tenantList.push({
+      tenant_id: 3,
+      user_id: 9,
+      room_id: 4,
+      full_name: "Existing Tenant",
+      username: "existing",
+      phone: "09170000000",
+      email: "existing@example.test",
+      address: null,
+      age: null,
+      birthday: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+      move_in_date: "2026-12-01",
+      move_out_date: "2027-01-01",
+      is_active: 1,
+      room_number: "12",
+      room_type: "Double",
+      profile_picture: null,
+    });
+    useSupabasePolling.mockReturnValue({ data: tenantList, refetch, error: null });
+    render(<AdminTenants />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Table view" }));
+    const actionsButton = screen.getByRole("button", { name: "Actions for Existing Tenant" });
+    fireEvent.pointerDown(actionsButton, {
+      button: 0,
+      ctrlKey: false,
+      pointerType: "mouse",
+    });
+    fireEvent.keyDown(actionsButton, { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
+    expect(screen.getByLabelText("Move-out date (calculated)")).toHaveProperty("value", "2027-02-01");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(updateAdminTenant).toHaveBeenCalledWith(expect.objectContaining({
+      tenant_id: 3,
+      move_in_date: "2026-12-01",
+      move_out_date: "2027-02-01",
+    })));
+    expect(updateAdminTenant.mock.calls[0][0]).not.toHaveProperty("stay_months");
   });
 });
