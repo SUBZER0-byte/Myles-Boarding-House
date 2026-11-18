@@ -23,7 +23,7 @@ const TenantRatings = () => {
     setSaving(true);
     try {
       await submitTenantRating({ stars, category, comment });
-      toast({ title: "Feedback submitted for review" });
+      toast({ title: "Rating submitted and is now visible" });
       setComment("");
       setStars(5);
       setCategory("Overall Satisfaction");
