@@ -365,16 +365,7 @@ const Index = () => {
         </div>
       </motion.section>
 
-      <section id="promotional-video" className="px-6 py-12 flex flex-col items-center gap-6">
-        <iframe
-          src="https://www.youtube.com/embed/KitgNbL8I4A"
-          title="Myle's Boarding House YouTube Short"
-          className="w-full max-w-[720px] aspect-video rounded-lg border border-border"
-          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        />
-        <PromotionalVideoDiscussion />
-      </section>
+      <PromotionalVideoDiscussion />
 
       {/* Location Map */}
       <LocationMap />

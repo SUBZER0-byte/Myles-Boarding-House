@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import logo from "@/assets/logo.png";
 import {
   LayoutDashboard, Users, BedDouble, Megaphone, MessageSquareWarning, Wrench,
-  CreditCard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X, Star, BarChart3, MessageCircle, UserRound, Heart, MapPin, ScrollText, XCircle, ReceiptText, Wallet, Sun, Moon
+  CreditCard, Bell, Settings, LogOut, ChevronLeft, ChevronRight, X, Star, BarChart3, MessageCircle, UserRound, Heart, MapPin, ScrollText, XCircle, ReceiptText, Wallet, Sun, Moon, Video
 } from "lucide-react";
 
 interface NavItem {
@@ -34,6 +34,7 @@ const adminNav: NavItem[] = [
   { label: "Full Payment Requests", to: "/admin/full-payments", icon: Wallet },
   { label: "Cancellations", to: "/admin/cancellations", icon: XCircle },
   { label: "Ratings", to: "/admin/ratings", icon: Star },
+  { label: "Promotional Video", to: "/admin/promotional-video", icon: Video },
   { label: "Messages", to: "/admin/messages", icon: MessageCircle },
   { label: "Notifications", to: "/admin/notifications", icon: Bell },
   { label: "Log History", to: "/admin/logs", icon: ScrollText },

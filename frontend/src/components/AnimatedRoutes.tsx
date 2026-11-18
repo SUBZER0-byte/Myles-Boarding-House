@@ -18,6 +18,7 @@ import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminRatings from "@/pages/admin/AdminRatings";
+import AdminPromotionalVideo from "@/pages/admin/AdminPromotionalVideo";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminLogs from "@/pages/admin/AdminLogs";
 import AdminCancellations from "@/pages/admin/AdminCancellations";
@@ -116,6 +117,7 @@ const AnimatedRoutes = () => {
       <Route path="/admin/notifications" element={<ProtectedRoute allowedRoles={["admin"]}><AdminNotifications /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/ratings" element={<ProtectedRoute allowedRoles={["admin"]}><AdminRatings /></ProtectedRoute>} />
+      <Route path="/admin/promotional-video" element={<ProtectedRoute allowedRoles={["admin"]}><AdminPromotionalVideo /></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={["admin"]}><AdminAnalytics /></ProtectedRoute>} />
       <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={["admin"]}><AdminLogs /></ProtectedRoute>} />
       <Route path="/admin/cancellations" element={<ProtectedRoute allowedRoles={["admin"]}><AdminCancellations /></ProtectedRoute>} />

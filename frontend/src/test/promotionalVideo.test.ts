@@ -9,8 +9,14 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   addPromotionalVideoComment,
+  deleteAdminPromotionalVideoComment,
+  deleteAdminPromotionalVideoLike,
+  deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
+  listAdminPromotionalVideo,
+  saveAdminPromotionalVideoUrl,
   togglePromotionalVideoLike,
+  updateMyPromotionalVideoComment,
 } from "@/lib/promotionalVideo";
 
 describe("promotional video discussion", () => {
@@ -20,13 +26,16 @@ describe("promotional video discussion", () => {
 
   it("loads public comments and the current like state", async () => {
     const discussion = {
+      video_url: "https://www.youtube.com/watch?v=abcdefghijk",
       likes_count: 7,
+      comments_count: 1,
       liked_by_me: true,
       comments: [{
         comment_id: 3,
         full_name: "Video Guest",
         comment: "Looks great!",
         created_at: "2026-11-18T12:00:00Z",
+        is_mine: false,
       }],
     };
     rpc.mockResolvedValue({ data: discussion, error: null });
@@ -63,5 +72,71 @@ describe("promotional video discussion", () => {
 
     rpc.mockResolvedValueOnce({ data: null, error: new Error("Sign in to like the video") });
     await expect(togglePromotionalVideoLike()).rejects.toThrow("Sign in to like the video");
+  });
+
+  it("loads admin comments and likes and routes moderation actions through the admin RPC", async () => {
+    const managementData = {
+      video_url: "https://youtu.be/abcdefghijk",
+      comments: [{
+        comment_id: 8,
+        user_id: 3,
+        full_name: "Guest User",
+        username: "guest",
+        comment: "A nice place",
+        created_at: "2026-11-18T12:00:00Z",
+      }],
+      likes: [{
+        user_id: 3,
+        full_name: "Guest User",
+        username: "guest",
+        created_at: "2026-11-18T12:00:00Z",
+      }],
+    };
+    rpc.mockResolvedValueOnce({
+      data: { type: "success", data: managementData },
+      error: null,
+    });
+
+    await expect(listAdminPromotionalVideo()).resolves.toEqual(managementData);
+    expect(rpc).toHaveBeenCalledWith("manage_admin_promotional_video", {
+      p_action: "list",
+      p_data: {},
+    });
+
+    rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
+    await saveAdminPromotionalVideoUrl(" https://youtu.be/abcdefghijk ");
+    await deleteAdminPromotionalVideoComment(8);
+    await deleteAdminPromotionalVideoLike(3);
+    expect(rpc).toHaveBeenNthCalledWith(2, "manage_admin_promotional_video", {
+      p_action: "save_video_url",
+      p_data: { video_url: "https://youtu.be/abcdefghijk" },
+    });
+    expect(rpc).toHaveBeenNthCalledWith(3, "manage_admin_promotional_video", {
+      p_action: "delete_comment",
+      p_data: { comment_id: 8 },
+    });
+    expect(rpc).toHaveBeenNthCalledWith(4, "manage_admin_promotional_video", {
+      p_action: "delete_like",
+      p_data: { user_id: 3 },
+    });
+  });
+
+  it("uses authenticated owner-only comment RPCs and validates edits", async () => {
+    rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
+    await updateMyPromotionalVideoComment(12, "  Updated text  ");
+    await deleteMyPromotionalVideoComment(12);
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_comment", {
+      p_comment_id: 12,
+      p_comment: "Updated text",
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_comment", {
+      p_comment_id: 12,
+    });
+
+    rpc.mockClear();
+    await expect(updateMyPromotionalVideoComment(12, "  ")).rejects.toThrow("between 1 and 1,000");
+    await expect(updateMyPromotionalVideoComment(12, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
