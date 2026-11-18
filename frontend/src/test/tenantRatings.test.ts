@@ -32,9 +32,9 @@ describe("tenant rating operations", () => {
   it("submits rating data without a browser-provided tenant ID", async () => {
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
 
-    await submitTenantRating({ stars: 4.5, category: "Services", comment: "Helpful" });
+    await submitTenantRating({ stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful" });
     expect(invoke).toHaveBeenCalledWith("tenant-ratings", {
-      body: { action: "submit", stars: 4.5, category: "Services", comment: "Helpful" },
+      body: { action: "submit", stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful" },
     });
   });
 

@@ -10,8 +10,10 @@ import { LocationMap } from "@/components/LocationMap";
 import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
 import { RatingStars } from "@/components/RatingStars";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
+import { ratingCategories } from "@/lib/ratingCategories";
 
 import logo from "@/assets/logo.png";
 import heroSlide1 from "../../Promotion/773975397_1801893280820553_5956689233169011423_n (1).jpg";
@@ -65,6 +67,7 @@ const Index = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeNavItem, setActiveNavItem] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<RoomDisplayData | null>(null);
+  const [reviewCategory, setReviewCategory] = useState("all");
   const roomsScrollRef = useRef<HTMLDivElement>(null);
   const reviewsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +106,9 @@ const Index = () => {
       date: new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
     };
   });
+  const visibleReviews = reviewCategory === "all"
+    ? reviews
+    : reviews.filter(review => review.category === reviewCategory);
 
   const avgRating = publicStats?.avg_rating ?? 0;
 
@@ -387,6 +393,20 @@ const Index = () => {
               {publicStats ? "Rating statistics could not be refreshed." : "Rating statistics are unavailable."}
             </p>
           )}
+          <div className="mt-8 flex flex-col items-center justify-center gap-2 sm:flex-row">
+            <label htmlFor="public-review-category" className="text-sm font-medium">Filter reviews by category</label>
+            <Select value={reviewCategory} onValueChange={setReviewCategory}>
+              <SelectTrigger id="public-review-category" className="w-full max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {ratingCategories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="relative mt-10">
             {!publicReviews ? (
               <div
@@ -404,6 +424,10 @@ const Index = () => {
               >
                 {reviewsError ? "Reviews could not be refreshed." : "No tenant reviews available yet."}
               </div>
+            ) : visibleReviews.length === 0 ? (
+              <div role="status" className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+                No revealed reviews in this category yet.
+              </div>
             ) : (
               <>
                 {reviewsError && (
@@ -416,7 +440,7 @@ const Index = () => {
                   className="flex gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory px-[7.5vw] sm:px-0"
                   style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
                 >
-                  {reviews.map((r) => (
+                  {visibleReviews.map((r) => (
                     <motion.div
                       key={`${r.name}-${r.date}`}
                       initial={{ opacity: 0, y: 20 }}

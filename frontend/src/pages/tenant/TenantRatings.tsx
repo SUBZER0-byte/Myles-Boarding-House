@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantRatings } from "@/hooks/useTenantRatings";
 import { submitTenantRating } from "@/lib/tenantRatings";
+import { ratingCategories } from "@/lib/ratingCategories";
 import { RatingStars } from "@/components/RatingStars";
 
 const TenantRatings = () => {
@@ -56,9 +57,9 @@ const TenantRatings = () => {
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Facilities">Facilities</SelectItem>
-                <SelectItem value="Services">Services</SelectItem>
-                <SelectItem value="Overall Satisfaction">Overall Satisfaction</SelectItem>
+                {ratingCategories.map(ratingCategory => (
+                  <SelectItem key={ratingCategory} value={ratingCategory}>{ratingCategory}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

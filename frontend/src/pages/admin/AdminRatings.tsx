@@ -151,7 +151,7 @@ const AdminRatings = () => {
                   <RatingStars value={Number(item.average)} size={14} />
                   <span className="text-sm font-semibold">{Number(item.average).toFixed(2)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{item.total} approved ratings</p>
+                <p className="text-xs text-muted-foreground mt-1">{item.total} revealed ratings</p>
               </div>
             ))}
           </div>
