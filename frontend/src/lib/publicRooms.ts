@@ -22,6 +22,10 @@ export interface PublicRoomPhoto {
   sort_order: number;
 }
 
+export function compareRoomNumbers(first: string, second: string): number {
+  return first.localeCompare(second, undefined, { numeric: true, sensitivity: "base" });
+}
+
 export function getPublicRoomImageUrl(image: string | null | undefined): string {
   if (!image) return "";
   if (image.startsWith("blob:")) return image;
@@ -34,7 +38,7 @@ export function getPublicRoomImageUrl(image: string | null | undefined): string 
 export async function getPublicRooms(): Promise<PublicRoom[]> {
   const { data, error } = await supabase.rpc("get_public_rooms");
   if (error) throw error;
-  return (data ?? []) as PublicRoom[];
+  return [...((data ?? []) as PublicRoom[])].sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 
 export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: string): Promise<PublicRoom[]> {
@@ -44,7 +48,7 @@ export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: 
   });
   if (error) throw error;
   if (!Array.isArray(data)) throw new Error("The room availability service returned an invalid list.");
-  return data as PublicRoom[];
+  return [...data as PublicRoom[]].sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 
 export async function getPublicRoomPhotos(roomId: number): Promise<PublicRoomPhoto[]> {

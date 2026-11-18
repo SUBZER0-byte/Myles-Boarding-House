@@ -36,20 +36,36 @@ describe("Admin rooms", () => {
 
   it("loads rooms and validates the RPC result", async () => {
     rpc.mockResolvedValue({
-      data: [{
-        room_id: 3,
-        room_number: "A1",
-        room_type: "Single",
-        capacity: 1,
-        monthly_rent: "9000.00",
-        status: "Available",
-        description: null,
-        image: null,
-        occupants: 0,
-      }],
+      data: [
+        {
+          room_id: 10,
+          room_number: "10",
+          room_type: "Single",
+          capacity: 1,
+          monthly_rent: "9000.00",
+          status: "Available",
+          description: null,
+          image: null,
+          occupants: 0,
+        },
+        {
+          room_id: 2,
+          room_number: "2",
+          room_type: "Single",
+          capacity: 1,
+          monthly_rent: "9000.00",
+          status: "Available",
+          description: null,
+          image: null,
+          occupants: 0,
+        },
+      ],
       error: null,
     });
-    await expect(getMyAdminRooms()).resolves.toMatchObject([{ room_id: 3, monthly_rent: 9000 }]);
+    await expect(getMyAdminRooms()).resolves.toMatchObject([
+      { room_id: 2, room_number: "2", monthly_rent: 9000 },
+      { room_id: 10, room_number: "10", monthly_rent: 9000 },
+    ]);
   });
 
   it("saves room details through the Admin RPC and rejects invalid input", async () => {

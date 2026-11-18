@@ -27,10 +27,15 @@ describe("public room reads", () => {
   });
 
   it("uses the read-only public room listing RPC", async () => {
-    const rooms = [{ room_id: 7, room_number: "A1" }];
+    const rooms = [
+      { room_id: 10, room_number: "10" },
+      { room_id: 2, room_number: "2" },
+      { room_id: 1, room_number: "1" },
+      { room_id: 11, room_number: "11" },
+    ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
-    await expect(getPublicRooms()).resolves.toEqual(rooms);
+    await expect(getPublicRooms()).resolves.toEqual([rooms[2], rooms[1], rooms[0], rooms[3]]);
     expect(rpc).toHaveBeenCalledWith("get_public_rooms");
   });
 
@@ -43,10 +48,14 @@ describe("public room reads", () => {
   });
 
   it("loads database room status and date-specific capacity from the browse RPC", async () => {
-    const rooms = [{ room_id: 7, status: "Occupied" }];
+    const rooms = [
+      { room_id: 10, room_number: "10", status: "Occupied" },
+      { room_id: 2, room_number: "2", status: "Occupied" },
+    ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
-    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).resolves.toEqual(rooms);
+    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01"))
+      .resolves.toEqual([rooms[1], rooms[0]]);
     expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse", {
       p_check_in_date: "2026-12-01",
       p_check_out_date: "2027-01-01",

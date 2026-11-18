@@ -150,6 +150,9 @@ function listAll() {
             }
             $rows[] = $room;
         }
+        usort($rows, static fn(array $first, array $second): int =>
+            strnatcasecmp((string)$first['room_number'], (string)$second['room_number'])
+        );
         $stmt->close();
         echo json_encode(['type'=>'success','data'=>$rows]);
 }

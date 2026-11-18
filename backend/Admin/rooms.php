@@ -57,6 +57,9 @@ function listRooms() {
     }
     $rows = [];
     while ($r = $res->fetch_assoc()) $rows[] = $r;
+    usort($rows, static fn(array $first, array $second): int =>
+        strnatcasecmp((string)$first['room_number'], (string)$second['room_number'])
+    );
     echo json_encode(['type'=>'success','data'=>$rows]);
 }
 

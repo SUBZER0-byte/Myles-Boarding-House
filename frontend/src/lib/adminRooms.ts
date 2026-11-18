@@ -1,4 +1,4 @@
-import { getPublicRoomImageUrl } from "@/lib/publicRooms";
+import { compareRoomNumbers, getPublicRoomImageUrl } from "@/lib/publicRooms";
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
@@ -160,7 +160,7 @@ function parseRooms(value: unknown): AdminRoom[] {
       image: typeof row.image === "string" ? row.image : null,
       occupants: typeof row.occupants === "number" ? row.occupants : 0,
     };
-  });
+  }).sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 
 export async function getMyAdminRooms(): Promise<AdminRoom[]> {

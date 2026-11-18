@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, MessageSquareWarning, Loader2, Send, AlertTriangle } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { compareRoomNumbers } from "@/lib/publicRooms";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import {
   deleteComplaint,
@@ -80,7 +81,8 @@ const AdminComplaints = () => {
   const variant = (s: string): "default" | "secondary" | "destructive" =>
     s === "Resolved" ? "default" : s === "Submitted" ? "destructive" : "secondary";
   const categories = [...new Set((items ?? []).map(item => item.category || "Other"))].sort();
-  const rooms = [...new Set((items ?? []).map(item => item.room_number ?? "Unassigned"))].sort();
+  const rooms = [...new Set((items ?? []).map(item => item.room_number ?? "Unassigned"))]
+    .sort(compareRoomNumbers);
   const filteredItems = (items ?? []).filter(item =>
     (filter === "all" || item.status === filter) &&
     (categoryFilter === "all" || (item.category || "Other") === categoryFilter) &&
