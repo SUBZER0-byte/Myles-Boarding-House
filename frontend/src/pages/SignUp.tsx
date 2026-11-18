@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, User, Check, X as XIcon, Loader2, Smartphone, PhoneCall, MapPin, CalendarDays, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthSlideshow } from "@/hooks/useAuthSlideshow";
 import { authAction, signUpGuest } from "@/lib/auth";
+import { getPostLoginPath } from "@/lib/authNavigation";
 import { toast } from "sonner";
 import slide1 from "../../Promotion/Promotion_2/795696821_2068750914002786_4444334205767913973_n.jpg";
 import slide2 from "../../Promotion/Promotion_2/793924181_2511856059334424_2316540071660421728_n.jpg";
@@ -64,6 +65,7 @@ const SignUp = () => {
   const [emailStatus, setEmailStatus] = useState<Availability>("idle");
 
   const { currentSlide, setCurrentSlide } = useAuthSlideshow(slides.length);
+  const location = useLocation();
   const navigate = useNavigate();
 
   // Real-time AJAX: check username availability (debounced)
@@ -283,7 +285,8 @@ const SignUp = () => {
       const name = profile.username || profile.email || "Guest";
       const initials = name.split(/[\s@.]+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "G";
       localStorage.setItem("guestUser", JSON.stringify({ name, initials }));
-      navigate("/guest", { replace: true });
+      const requestedPath = (location.state as { returnTo?: unknown } | null)?.returnTo;
+      navigate(getPostLoginPath(profile.user_type, requestedPath), { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign up failed");
     } finally {

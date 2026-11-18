@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthProvider";
 import { signOutSupabase } from "@/lib/auth";
+import { getPostLoginPath } from "@/lib/authNavigation";
 import { toast } from "sonner";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
@@ -46,10 +47,7 @@ import PaymentFailed from "@/pages/PaymentFailed";
 import NotFound from "@/pages/NotFound";
 
 const getDefaultRoute = (role: string) => {
-  const normalized = (role || "guest").toLowerCase();
-  if (normalized === "admin") return "/admin";
-  if (normalized === "tenant") return "/tenant";
-  return "/guest";
+  return getPostLoginPath(role, null);
 };
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element; allowedRoles: string[] }) => {
@@ -68,10 +66,15 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: JSX.Element; all
 
 const PublicOnlyRoute = ({ children }: { children: JSX.Element }) => {
   const { profile, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="p-6 text-center" role="status">Loading your account...</div>;
   const session = profile;
   if (session?.user_id) {
-    return <Navigate to={getDefaultRoute(String(session.user_type || "guest"))} replace />;
+    if (location.pathname === "/" && location.hash === "#promotional-video") {
+      return children;
+    }
+    const requestedPath = (location.state as { returnTo?: unknown } | null)?.returnTo;
+    return <Navigate to={getPostLoginPath(String(session.user_type || "guest"), requestedPath)} replace />;
   }
   return children;
 };

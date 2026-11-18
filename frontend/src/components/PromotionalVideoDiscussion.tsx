@@ -122,7 +122,13 @@ export function PromotionalVideoDiscussion() {
         </div>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/login">Sign in</Link>
+          <Link
+            className="font-medium text-primary underline-offset-4 hover:underline"
+            to="/login"
+            state={{ returnTo: "/#promotional-video" }}
+          >
+            Sign in
+          </Link>
           {" "}to like the video or post a comment.
         </p>
       )}

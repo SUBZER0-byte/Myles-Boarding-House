@@ -365,7 +365,7 @@ const Index = () => {
         </div>
       </motion.section>
 
-      <section className="px-6 py-12 flex flex-col items-center gap-6">
+      <section id="promotional-video" className="px-6 py-12 flex flex-col items-center gap-6">
         <iframe
           src="https://www.youtube.com/embed/KitgNbL8I4A"
           title="Myle's Boarding House YouTube Short"

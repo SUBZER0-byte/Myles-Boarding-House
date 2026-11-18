@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PasswordFields } from "@/components/PasswordFields";
 import { useAuthSlideshow } from "@/hooks/useAuthSlideshow";
 import { authAction, signInWithIdentifier } from "@/lib/auth";
+import { getPostLoginPath } from "@/lib/authNavigation";
 import { getPasswordValidationError } from "@/lib/passwordValidation";
 import slide1 from "../../Promotion/Promotion_2/795696821_2068750914002786_4444334205767913973_n.jpg";
 import slide2 from "../../Promotion/Promotion_2/793924181_2511856059334424_2316540071660421728_n.jpg";
@@ -176,9 +177,8 @@ const Login = () => {
     try {
       const profile = await signInWithIdentifier(email, password);
       const type = String(profile.user_type || "").toLowerCase();
-      const path = type === "admin" ? "/admin"
-        : type === "tenant" ? "/tenant"
-        : "/guest";
+      const requestedPath = (location.state as { returnTo?: unknown } | null)?.returnTo;
+      const path = getPostLoginPath(type, requestedPath);
       if (type === "guest") {
         const name = profile.username || profile.email || "Guest";
         const initials = name.split(/[\s@.]+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "G";
@@ -363,7 +363,13 @@ const Login = () => {
             </motion.form>
 
             <motion.p className="text-xs text-muted-foreground text-center mt-3" variants={itemVariants}>
-              Don't have an account? <Link to="/signup" className="text-primary font-medium hover:underline">Sign Up</Link>
+              Don't have an account? <Link
+                to="/signup"
+                state={location.state}
+                className="text-primary font-medium hover:underline"
+              >
+                Sign Up
+              </Link>
             </motion.p>
             <motion.div className="mt-3 pt-3 border-t border-border" variants={itemVariants}>
               <Link to="/" className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium bg-muted hover:bg-muted/80 transition-colors group">
