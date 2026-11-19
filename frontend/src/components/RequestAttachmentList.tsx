@@ -2,16 +2,18 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, Video, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import type { ComplaintAttachment } from "@/lib/tenantRequests";
+import type { RequestMediaAttachment } from "@/lib/tenantRequests";
 
 interface RequestAttachmentListProps {
-  attachments?: ComplaintAttachment[];
+  attachments?: RequestMediaAttachment[];
   legacyPhotoUrl?: string | null;
+  requestLabel?: string;
 }
 
 export function RequestAttachmentList({
   attachments = [],
   legacyPhotoUrl,
+  requestLabel = "Request",
 }: RequestAttachmentListProps) {
   const [imagesOpen, setImagesOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -35,7 +37,7 @@ export function RequestAttachmentList({
 
   return (
     <>
-      <div className="mt-3 flex flex-wrap gap-2" aria-label="Complaint attachments">
+      <div className="mt-3 flex flex-wrap gap-2" aria-label={`${requestLabel} attachments`}>
         {images.length > 0 && (
           <Button
             type="button"
@@ -76,12 +78,12 @@ export function RequestAttachmentList({
       >
         {currentImage && (
           <DialogContent className="max-h-[95vh] w-[calc(100vw-1.5rem)] max-w-6xl gap-3 overflow-hidden p-3 sm:p-5">
-            <DialogTitle className="sr-only">Complaint image</DialogTitle>
-            <DialogDescription className="sr-only">Complaint image preview</DialogDescription>
+            <DialogTitle className="sr-only">{requestLabel} image</DialogTitle>
+            <DialogDescription className="sr-only">{requestLabel} image preview</DialogDescription>
             <div className="relative flex max-h-[78vh] items-center justify-center overflow-hidden rounded-md bg-black/95">
               <img
                 src={currentImage.signed_url}
-                alt={`Complaint image ${activeImageIndex + 1} of ${images.length}`}
+                alt={`${requestLabel} image ${activeImageIndex + 1} of ${images.length}`}
                 className="max-h-[78vh] w-full object-contain transition-transform duration-200"
                 style={{ transform: `scale(${zoomLevel})` }}
                 draggable={false}
@@ -92,7 +94,7 @@ export function RequestAttachmentList({
                     type="button"
                     size="icon"
                     variant="secondary"
-                    aria-label="Previous complaint image"
+                    aria-label={`Previous ${requestLabel.toLowerCase()} image`}
                     className="absolute left-3 top-1/2 z-20 h-11 w-11 -translate-y-1/2 rounded-full border border-white/20 bg-white/95 text-black shadow-lg hover:bg-white"
                     onClick={() => moveImage(-1)}
                   >
@@ -102,7 +104,7 @@ export function RequestAttachmentList({
                     type="button"
                     size="icon"
                     variant="secondary"
-                    aria-label="Next complaint image"
+                    aria-label={`Next ${requestLabel.toLowerCase()} image`}
                     className="absolute right-3 top-1/2 z-20 h-11 w-11 -translate-y-1/2 rounded-full border border-white/20 bg-white/95 text-black shadow-lg hover:bg-white"
                     onClick={() => moveImage(1)}
                   >
@@ -146,14 +148,14 @@ export function RequestAttachmentList({
       <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
         {video && (
           <DialogContent className="max-h-[95vh] w-[calc(100vw-1.5rem)] max-w-6xl gap-3 overflow-hidden p-3 sm:p-5">
-            <DialogTitle className="sr-only">Complaint video</DialogTitle>
-            <DialogDescription className="sr-only">Complaint video preview</DialogDescription>
+            <DialogTitle className="sr-only">{requestLabel} video</DialogTitle>
+            <DialogDescription className="sr-only">{requestLabel} video preview</DialogDescription>
             <div className="flex max-h-[78vh] items-center justify-center overflow-hidden rounded-md bg-black/95">
               <video
                 key={video.path}
                 controls
                 preload="metadata"
-                aria-label="Complaint video preview"
+                aria-label={`${requestLabel} video preview`}
                 className="max-h-[78vh] max-w-full object-contain"
                 src={video.signed_url}
               >

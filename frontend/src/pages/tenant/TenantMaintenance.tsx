@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ImagePreview } from "@/components/ImagePreview";
+import { RequestAttachmentList } from "@/components/RequestAttachmentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -8,11 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Wrench, X, Loader2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { sessionStore } from "@/lib/api";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { cancelTenantMaintenanceRequest, createTenantMaintenanceRequest, listTenantMaintenanceRequests } from "@/lib/tenantRequests";
+import {
+  cancelTenantMaintenanceRequest,
+  createTenantMaintenanceRequest,
+  listTenantMaintenanceRequests,
+  MaintenanceAttachmentSaveError,
+} from "@/lib/tenantRequests";
 
 const TenantMaintenance = () => {
   const { toast } = useToast();
@@ -22,25 +27,46 @@ const TenantMaintenance = () => {
   const { data, refetch, error } = useSupabasePolling(loadRequests, 5000, Boolean(userId));
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Other", description: "", priority: "Medium" });
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [video, setVideo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const photosInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  const clearAttachments = () => {
+    setPhotos([]);
+    setVideo(null);
+    if (photosInputRef.current) photosInputRef.current.value = "";
+    if (videoInputRef.current) videoInputRef.current.value = "";
+  };
 
   const submit = async () => {
     if (!userId) return;
     setSaving(true);
     try {
-      await createTenantMaintenanceRequest(form, photo);
+      const attachments = [
+        ...photos.map(file => ({ file, type: "image" as const })),
+        ...(video ? [{ file: video, type: "video" as const }] : []),
+      ];
+      await createTenantMaintenanceRequest(form, attachments);
       toast({ title: "Request submitted" });
       setOpen(false);
       setForm({ title: "", category: "Other", description: "", priority: "Medium" });
-      setPhoto(null);
+      clearAttachments();
       await refetch();
     } catch (error) {
+      const requestFiled = error instanceof MaintenanceAttachmentSaveError;
       toast({
-        title: "Unable to submit request",
+        title: requestFiled ? "Request submitted, but attachments were not saved" : "Unable to submit request",
         description: error instanceof Error ? error.message : "An unexpected error occurred.",
         variant: "destructive",
       });
+      if (requestFiled) {
+        setOpen(false);
+        setForm({ title: "", category: "Other", description: "", priority: "Medium" });
+        clearAttachments();
+        await refetch();
+      }
     } finally {
       setSaving(false);
     }
@@ -98,14 +124,11 @@ const TenantMaintenance = () => {
               </div>
               <p className="text-xs text-muted-foreground mb-2">{r.category} · {r.priority}</p>
               <p className="text-sm text-muted-foreground">{r.description}</p>
-              {r.photo_url && (
-                <ImagePreview
-                  src={r.photo_url}
-                  alt="Maintenance request attachment"
-                  triggerClassName="mt-3 max-w-full overflow-hidden rounded-md border border-border"
-                  imageClassName="max-h-72 max-w-full object-contain"
-                />
-              )}
+              <RequestAttachmentList
+                attachments={r.attachments}
+                legacyPhotoUrl={r.photo_url}
+                requestLabel="Maintenance"
+              />
               {r.status_history && r.status_history.length > 0 && (
                 <div className="mt-3 border-l-2 border-border pl-3 space-y-2">
                   {r.status_history.map((entry, index) => (
@@ -153,17 +176,86 @@ const TenantMaintenance = () => {
               </Select></div>
             <div className="grid gap-1.5"><Label>Description</Label>
               <Textarea rows={5} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div className="grid gap-1.5"><Label htmlFor="maintenance-photo">Photo (optional)</Label>
-              <Input id="maintenance-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => {
-                const file = e.target.files?.[0] ?? null;
-                if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
-                  toast({ title: "Choose a JPG, PNG, or WEBP photo up to 10MB", variant: "destructive" });
-                  e.target.value = "";
-                  return;
-                }
-                setPhoto(file);
-              }} />
-              <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP up to 10MB.</p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="maintenance-photos">Images (optional, up to 5)</Label>
+              <Input
+                ref={photosInputRef}
+                id="maintenance-photos"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                onChange={event => {
+                  const selectedFiles = Array.from(event.target.files ?? []);
+                  event.target.value = "";
+                  if (photos.length + selectedFiles.length > 5) {
+                    toast({ title: "You can attach up to five images", variant: "destructive" });
+                    return;
+                  }
+                  if (selectedFiles.some(file =>
+                    !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+                    || file.size <= 0
+                    || file.size > 10 * 1024 * 1024
+                  )) {
+                    toast({ title: "Choose JPG, PNG, or WEBP images up to 10MB each", variant: "destructive" });
+                    return;
+                  }
+                  setPhotos(current => [...current, ...selectedFiles]);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP up to 10MB each.</p>
+              {photos.map((file, index) => (
+                <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate">{file.name}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    aria-label={`Remove image ${file.name}`}
+                    onClick={() => setPhotos(current => current.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="maintenance-video">Video (optional)</Label>
+              <Input
+                ref={videoInputRef}
+                id="maintenance-video"
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                onChange={event => {
+                  const selectedFile = event.target.files?.[0] ?? null;
+                  event.target.value = "";
+                  if (selectedFile && (
+                    !["video/mp4", "video/webm", "video/quicktime"].includes(selectedFile.type)
+                    || selectedFile.size <= 0
+                    || selectedFile.size > 50 * 1024 * 1024
+                  )) {
+                    toast({ title: "Choose an MP4, WEBM, or MOV video up to 50MB", variant: "destructive" });
+                    return;
+                  }
+                  setVideo(selectedFile);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 50MB.</p>
+              {video && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate">{video.name}</span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    aria-label="Remove video"
+                    onClick={() => setVideo(null)}
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

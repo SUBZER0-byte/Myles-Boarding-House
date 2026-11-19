@@ -11,6 +11,7 @@ describe("complaint attachments", () => {
     render(
       <RequestAttachmentList
         legacyPhotoUrl="https://signed.example/legacy.jpg"
+        requestLabel="Complaint"
         attachments={[
           {
             attachment_id: 1,

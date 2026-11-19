@@ -168,7 +168,11 @@ const AdminComplaints = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{c.description}</p>
-              <RequestAttachmentList attachments={c.attachments} legacyPhotoUrl={c.photo_url} />
+              <RequestAttachmentList
+                attachments={c.attachments}
+                legacyPhotoUrl={c.photo_url}
+                requestLabel="Complaint"
+              />
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mb-3 border-l-2 border-border pl-3 space-y-1.5">
                   {c.status_history.map((entry, index) => (

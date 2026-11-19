@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ImagePreview } from "@/components/ImagePreview";
+import { RequestAttachmentList } from "@/components/RequestAttachmentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,7 +7,12 @@ import { Wrench, Trash2, Loader2 } from "lucide-react";
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { deleteMaintenanceRequest, listAdminMaintenanceRequests, updateMaintenanceStatus } from "@/lib/tenantRequests";
+import {
+  deleteMaintenanceRequest,
+  listAdminMaintenanceRequests,
+  updateMaintenanceStatus,
+  type TenantMaintenanceRequest,
+} from "@/lib/tenantRequests";
 
 const AdminMaintenance = () => {
   const { toast } = useToast();
@@ -27,9 +32,12 @@ const AdminMaintenance = () => {
       });
     }
   };
-  const remove = async (requestId: number) => {
+  const remove = async (request: TenantMaintenanceRequest) => {
     try {
-      const message = await deleteMaintenanceRequest(requestId);
+      const message = await deleteMaintenanceRequest(
+        request.request_id,
+        (request.attachments ?? []).map(attachment => attachment.path),
+      );
       toast({ title: message, variant: message.includes("could not be removed") ? "destructive" : "default" });
       await refetch();
     } catch (error) {
@@ -73,14 +81,11 @@ const AdminMaintenance = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{r.description}</p>
-              {r.photo_url && (
-                <ImagePreview
-                  src={r.photo_url}
-                  alt="Maintenance request attachment"
-                  triggerClassName="mb-3 max-w-full overflow-hidden rounded-md border border-border"
-                  imageClassName="max-h-72 max-w-full object-contain"
-                />
-              )}
+              <RequestAttachmentList
+                attachments={r.attachments}
+                legacyPhotoUrl={r.photo_url}
+                requestLabel="Maintenance"
+              />
               {r.status_history && r.status_history.length > 0 && (
                 <div className="mb-3 border-l-2 border-border pl-3 space-y-1.5">
                   {r.status_history.map((entry, index) => (
@@ -102,7 +107,7 @@ const AdminMaintenance = () => {
                     <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => void remove(r.request_id)}><Trash2 size={14} /></Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => void remove(r)}><Trash2 size={14} /></Button>
               </div>
             </div>
           ))}

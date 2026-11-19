@@ -27,7 +27,10 @@ vi.mock("@/lib/supabase", () => ({
 import {
   cancelTenantComplaint,
   createTenantComplaint,
+  createTenantMaintenanceRequest,
   createTenantRoomChangeRequest,
+  deleteMaintenanceRequest,
+  listAdminMaintenanceRequests,
   listAdminComplaints,
   listTenantComplaints,
   updateComplaintStatus,
@@ -102,6 +105,43 @@ describe("tenant request workflows", () => {
         expect.objectContaining({ type: "image", sort_order: 0 }),
         expect.objectContaining({ type: "image", sort_order: 1 }),
         expect.objectContaining({ type: "video", sort_order: 2 }),
+      ],
+    });
+  });
+
+  it("uploads multiple images and an optional video for maintenance requests", async () => {
+    invoke.mockResolvedValue({ data: { type: "success", request_id: 31 }, error: null });
+    rpc.mockResolvedValue({ data: { type: "success" }, error: null });
+    const image = new File(["image"], "sink.jpg", { type: "image/jpeg" });
+    const video = new File(["video"], "leak.mp4", { type: "video/mp4" });
+
+    await createTenantMaintenanceRequest({
+      title: "Leaking sink",
+      description: "Water is leaking below the sink.",
+      category: "Plumbing",
+      priority: "High",
+    }, [
+      { file: image, type: "image" },
+      { file: video, type: "video" },
+    ]);
+
+    expect(invoke).toHaveBeenCalledWith("tenant-requests", {
+      body: {
+        action: "tenant_create_maintenance",
+        data: {
+          title: "Leaking sink",
+          description: "Water is leaking below the sink.",
+          category: "Plumbing",
+          priority: "High",
+          photo_path: null,
+        },
+      },
+    });
+    expect(rpc).toHaveBeenCalledWith("attach_tenant_maintenance_attachments", {
+      p_request_id: 31,
+      p_attachments: [
+        expect.objectContaining({ type: "image", sort_order: 0 }),
+        expect.objectContaining({ type: "video", sort_order: 1 }),
       ],
     });
   });
@@ -206,6 +246,44 @@ describe("tenant request workflows", () => {
       signed_url: "https://signed.example/complaint.jpg",
     })]);
     expect(result[1].attachments).toEqual([]);
+  });
+
+  it("signs and returns maintenance attachments for Admin requests", async () => {
+    const attachmentPath = "tenant-auth-id/maintenance.jpg";
+    invoke.mockResolvedValue({
+      data: { type: "success", data: [{ request_id: 7, title: "Leaking sink" }] },
+      error: null,
+    });
+    rpc.mockResolvedValue({
+      data: [{
+        attachment_id: 3,
+        request_id: 7,
+        path: attachmentPath,
+        type: "image",
+        sort_order: 0,
+      }],
+      error: null,
+    });
+    createSignedUrls.mockResolvedValue({
+      data: [{ path: attachmentPath, signedUrl: "https://signed.example/maintenance.jpg", error: null }],
+      error: null,
+    });
+
+    const result = await listAdminMaintenanceRequests();
+
+    expect(result[0].attachments).toEqual([expect.objectContaining({
+      path: attachmentPath,
+      signed_url: "https://signed.example/maintenance.jpg",
+    })]);
+  });
+
+  it("removes maintenance media after an Admin deletes its request", async () => {
+    invoke.mockResolvedValue({ data: { type: "success", message: "Deleted." }, error: null });
+    const attachmentPath = "tenant-auth-id/maintenance.jpg";
+
+    await expect(deleteMaintenanceRequest(7, [attachmentPath])).resolves.toBe("Deleted.");
+
+    expect(remove).toHaveBeenCalledWith([attachmentPath]);
   });
 
   it("surfaces API errors instead of treating a failed request as success", async () => {
