@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   addPromotionalVideoComment,
+  addPromotionalVideoReply,
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
   deleteMyPromotionalVideoComment,
@@ -36,6 +37,14 @@ describe("promotional video discussion", () => {
         comment: "Looks great!",
         created_at: "2026-11-18T12:00:00Z",
         is_mine: false,
+        replies_count: 1,
+        replies: [{
+          reply_id: 4,
+          full_name: "Another Guest",
+          reply: "I agree!",
+          created_at: "2026-11-18T13:00:00Z",
+          is_mine: false,
+        }],
       }],
     };
     rpc.mockResolvedValue({ data: discussion, error: null });
@@ -137,6 +146,20 @@ describe("promotional video discussion", () => {
     rpc.mockClear();
     await expect(updateMyPromotionalVideoComment(12, "  ")).rejects.toThrow("between 1 and 1,000");
     await expect(updateMyPromotionalVideoComment(12, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("posts replies through the authenticated comment-reply RPC and validates their length", async () => {
+    rpc.mockResolvedValue({ data: { type: "success", reply_id: 15 }, error: null });
+    await expect(addPromotionalVideoReply(3, "  I agree!  ")).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("add_promotional_video_reply", {
+      p_comment_id: 3,
+      p_reply: "I agree!",
+    });
+
+    rpc.mockClear();
+    await expect(addPromotionalVideoReply(3, " ")).rejects.toThrow("between 1 and 1,000");
+    await expect(addPromotionalVideoReply(3, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
     expect(rpc).not.toHaveBeenCalled();
   });
 });

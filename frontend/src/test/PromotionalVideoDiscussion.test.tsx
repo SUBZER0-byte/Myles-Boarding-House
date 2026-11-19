@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   addPromotionalVideoComment,
+  addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
@@ -13,6 +14,7 @@ const {
   profile,
 } = vi.hoisted(() => ({
   addPromotionalVideoComment: vi.fn(),
+  addPromotionalVideoReply: vi.fn(),
   deleteMyPromotionalVideoComment: vi.fn(),
   getPromotionalVideoDiscussion: vi.fn(),
   togglePromotionalVideoLike: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("@/lib/AuthProvider", () => ({
 }));
 vi.mock("@/lib/promotionalVideo", () => ({
   addPromotionalVideoComment,
+  addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
@@ -56,15 +59,26 @@ describe("promotional video discussion UI", () => {
         comment: "Great video",
         created_at: "2026-11-18T12:00:00Z",
         is_mine: true,
+        replies_count: 0,
+        replies: [],
       }, {
         comment_id: 5,
         full_name: "Another Tenant",
         comment: "Another perspective",
         created_at: "2026-11-18T11:00:00Z",
         is_mine: false,
+        replies_count: 1,
+        replies: [{
+          reply_id: 14,
+          full_name: "Replying Guest",
+          reply: "Thanks for sharing this.",
+          created_at: "2026-11-18T11:30:00Z",
+          is_mine: false,
+        }],
       }],
     });
     addPromotionalVideoComment.mockReset().mockResolvedValue(undefined);
+    addPromotionalVideoReply.mockReset().mockResolvedValue(undefined);
     deleteMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment deleted.");
     togglePromotionalVideoLike.mockReset().mockResolvedValue({ liked: true, likes_count: 3 });
     updateMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment updated.");
@@ -83,6 +97,11 @@ describe("promotional video discussion UI", () => {
     expect(screen.getByText("Sign in")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sign in to like video" })).toBeDisabled();
     expect(screen.queryByLabelText("Add a comment")).toBeNull();
+    expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show replies (1)" }));
+    expect(screen.getByText("Thanks for sharing this.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hide replies" }));
+    expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
   });
 
   it("lets a signed-in user like the video and post a comment", async () => {
@@ -119,5 +138,19 @@ describe("promotional video discussion UI", () => {
     expect(await screen.findByText("Delete your comment?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Delete comment" }));
     await waitFor(() => expect(deleteMyPromotionalVideoComment).toHaveBeenCalledWith(4));
+  });
+
+  it("allows signed-in users to reply to another user's comment", async () => {
+    profile.current = { user_id: 7, full_name: "A Tenant" };
+    render(<BrowserRouter><PromotionalVideoDiscussion /></BrowserRouter>);
+
+    expect(await screen.findByText("Another perspective")).toBeTruthy();
+    expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Reply", exact: true }));
+    const replyBox = screen.getByLabelText("Reply to Another Tenant");
+    fireEvent.change(replyBox, { target: { value: "Thanks for sharing!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Post reply" }));
+
+    await waitFor(() => expect(addPromotionalVideoReply).toHaveBeenCalledWith(5, "Thanks for sharing!"));
   });
 });

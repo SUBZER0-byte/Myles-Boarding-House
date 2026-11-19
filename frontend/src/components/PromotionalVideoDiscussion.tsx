@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthProvider";
 import {
   addPromotionalVideoComment,
+  addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
@@ -11,7 +12,7 @@ import {
   type PromotionalVideoDiscussion as Discussion,
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl } from "@/lib/promotionalVideoUrls";
-import { Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -22,6 +23,10 @@ export function PromotionalVideoDiscussion() {
   const [loading, setLoading] = useState(true);
   const [savingComment, setSavingComment] = useState(false);
   const [savingLike, setSavingLike] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Set<number>>(() => new Set());
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [savingReply, setSavingReply] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingComment, setEditingComment] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -111,6 +116,32 @@ export function PromotionalVideoDiscussion() {
       setError(caught instanceof Error ? caught.message : "Could not delete your comment.");
     } finally {
       setDeletingComment(false);
+    }
+  };
+
+  const toggleReplies = (commentId: number) => {
+    setExpandedReplies(current => {
+      const next = new Set(current);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+  };
+
+  const submitReply = async (commentId: number) => {
+    if (!profile || !replyText.trim()) return;
+    setSavingReply(true);
+    setError("");
+    try {
+      await addPromotionalVideoReply(commentId, replyText);
+      setReplyText("");
+      setReplyingToId(null);
+      setExpandedReplies(current => new Set(current).add(commentId));
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not post your reply.");
+    } finally {
+      setSavingReply(false);
     }
   };
 
@@ -273,6 +304,94 @@ export function PromotionalVideoDiscussion() {
                   </div>
                 ) : (
                   <p className="mt-1 whitespace-pre-wrap break-words text-sm">{item.comment}</p>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  {item.replies_count > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      aria-expanded={expandedReplies.has(item.comment_id)}
+                      onClick={() => toggleReplies(item.comment_id)}
+                    >
+                      {expandedReplies.has(item.comment_id)
+                        ? <ChevronUp size={14} />
+                        : <ChevronDown size={14} />}
+                      {expandedReplies.has(item.comment_id) ? "Hide replies" : `Show replies (${item.replies_count})`}
+                    </Button>
+                  )}
+                  {!item.is_mine && (
+                    profile ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setReplyingToId(current => current === item.comment_id ? null : item.comment_id);
+                          setReplyText("");
+                          setExpandedReplies(current => new Set(current).add(item.comment_id));
+                          setError("");
+                        }}
+                      >
+                        <MessageCircle size={14} />
+                        {replyingToId === item.comment_id ? "Cancel reply" : "Reply"}
+                      </Button>
+                    ) : (
+                      <Link
+                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                        to="/login"
+                        state={{ returnTo: "/#promotional-video" }}
+                      >
+                        Sign in to reply
+                      </Link>
+                    )
+                  )}
+                </div>
+                {expandedReplies.has(item.comment_id) && (
+                  <div className="ml-3 mt-2 space-y-3 border-l-2 border-border pl-3 sm:ml-5 sm:pl-4">
+                    {item.replies.map(reply => (
+                      <div key={reply.reply_id} className="rounded-md bg-background/70 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">{reply.full_name}</p>
+                          <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
+                            {new Date(reply.created_at).toLocaleString()}
+                          </time>
+                        </div>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm">{reply.reply}</p>
+                      </div>
+                    ))}
+                    {item.replies_count > item.replies.length && (
+                      <p className="text-xs text-muted-foreground">
+                        Showing the latest {item.replies.length} of {item.replies_count} replies.
+                      </p>
+                    )}
+                    {replyingToId === item.comment_id && (
+                      <div className="space-y-2">
+                        <label htmlFor={`promotional-video-reply-${item.comment_id}`} className="text-sm font-medium">
+                          Reply to {item.full_name}
+                        </label>
+                        <Textarea
+                          id={`promotional-video-reply-${item.comment_id}`}
+                          value={replyText}
+                          onChange={event => setReplyText(event.target.value)}
+                          placeholder="Write a reply…"
+                          maxLength={1000}
+                          rows={2}
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">{replyText.length}/1,000</span>
+                          <Button
+                            type="button"
+                            onClick={() => void submitReply(item.comment_id)}
+                            disabled={savingReply || !replyText.trim()}
+                          >
+                            {savingReply ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                            Post reply
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </article>
             ))

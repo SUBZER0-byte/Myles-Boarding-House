@@ -6,6 +6,16 @@ export interface PromotionalVideoComment {
   comment: string;
   created_at: string;
   is_mine: boolean;
+  replies_count: number;
+  replies: PromotionalVideoReply[];
+}
+
+export interface PromotionalVideoReply {
+  reply_id: number;
+  full_name: string;
+  reply: string;
+  created_at: string;
+  is_mine: boolean;
 }
 
 export interface PromotionalVideoDiscussion {
@@ -58,15 +68,38 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         || typeof item.comment !== "string"
         || typeof item.created_at !== "string"
         || typeof item.is_mine !== "boolean"
+        || typeof item.replies_count !== "number"
+        || !Array.isArray(item.replies)
       ) {
         throw new Error("The video discussion service returned an invalid comment.");
       }
+      const replies = item.replies.map((reply): PromotionalVideoReply => {
+        if (
+          !isRecord(reply)
+          || typeof reply.reply_id !== "number"
+          || typeof reply.full_name !== "string"
+          || typeof reply.reply !== "string"
+          || typeof reply.created_at !== "string"
+          || typeof reply.is_mine !== "boolean"
+        ) {
+          throw new Error("The video discussion service returned an invalid reply.");
+        }
+        return {
+          reply_id: reply.reply_id,
+          full_name: reply.full_name,
+          reply: reply.reply,
+          created_at: reply.created_at,
+          is_mine: reply.is_mine,
+        };
+      });
       return {
         comment_id: item.comment_id,
         full_name: item.full_name,
         comment: item.comment,
         created_at: item.created_at,
         is_mine: item.is_mine,
+        replies_count: item.replies_count,
+        replies,
       };
     })
     : null;
@@ -223,6 +256,23 @@ export function updateMyPromotionalVideoComment(commentId: number, comment: stri
 
 export function deleteMyPromotionalVideoComment(commentId: number): Promise<string> {
   return runMyCommentAction("delete", commentId);
+}
+
+export async function addPromotionalVideoReply(commentId: number, reply: string): Promise<void> {
+  const value = reply.trim();
+  if (!value || value.length > 1000) {
+    throw new Error("Replies must be between 1 and 1,000 characters.");
+  }
+  const { data, error } = await supabase.rpc("add_promotional_video_reply", {
+    p_comment_id: commentId,
+    p_reply: value,
+  });
+  if (error) throw new Error(error.message || "Could not post your reply.");
+  if (!isRecord(data) || data.type !== "success" || typeof data.reply_id !== "number") {
+    throw new Error(isRecord(data) && typeof data.message === "string"
+      ? data.message
+      : "The reply service returned an invalid response.");
+  }
 }
 
 export async function addPromotionalVideoComment(comment: string): Promise<void> {
