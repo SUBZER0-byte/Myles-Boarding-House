@@ -8,13 +8,25 @@ import {
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
+  togglePromotionalVideoReaction,
   updateMyPromotionalVideoComment,
+  type PromotionalVideoReaction,
+  type PromotionalVideoReactionType,
   type PromotionalVideoDiscussion as Discussion,
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl } from "@/lib/promotionalVideoUrls";
 import { ChevronDown, ChevronUp, Heart, Loader2, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
+const reactionOptions: { type: PromotionalVideoReactionType; emoji: string; label: string }[] = [
+  { type: "like", emoji: "👍", label: "Like" },
+  { type: "love", emoji: "❤️", label: "Love" },
+  { type: "haha", emoji: "😂", label: "Haha" },
+  { type: "wow", emoji: "😮", label: "Wow" },
+  { type: "sad", emoji: "😢", label: "Sad" },
+  { type: "angry", emoji: "😡", label: "Angry" },
+];
 
 export function PromotionalVideoDiscussion() {
   const { profile, loading: authLoading } = useAuth();
@@ -23,6 +35,7 @@ export function PromotionalVideoDiscussion() {
   const [loading, setLoading] = useState(true);
   const [savingComment, setSavingComment] = useState(false);
   const [savingLike, setSavingLike] = useState(false);
+  const [savingReactionTarget, setSavingReactionTarget] = useState<string | null>(null);
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(() => new Set());
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -143,6 +156,66 @@ export function PromotionalVideoDiscussion() {
     } finally {
       setSavingReply(false);
     }
+  };
+
+  const react = async (
+    targetType: "comment" | "reply",
+    targetId: number,
+    reaction: PromotionalVideoReactionType,
+  ) => {
+    if (!profile) return;
+    const targetKey = `${targetType}-${targetId}`;
+    setSavingReactionTarget(targetKey);
+    setError("");
+    try {
+      await togglePromotionalVideoReaction(targetType, targetId, reaction);
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update your reaction.");
+    } finally {
+      setSavingReactionTarget(null);
+    }
+  };
+
+  const renderReactionBar = (
+    targetType: "comment" | "reply",
+    targetId: number,
+    reactions: PromotionalVideoReaction[],
+  ) => {
+    const targetKey = `${targetType}-${targetId}`;
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {reactionOptions.map(option => {
+          const summary = reactions.find(item => item.reaction === option.type);
+          return (
+            <Button
+              key={option.type}
+              type="button"
+              size="sm"
+              variant={summary?.reacted_by_me ? "secondary" : "ghost"}
+              className="h-8 min-w-8 px-2"
+              aria-label={`React with ${option.label.toLowerCase()} (${summary?.count ?? 0})`}
+              aria-pressed={summary?.reacted_by_me ?? false}
+              title={option.label}
+              disabled={!profile || savingReactionTarget === targetKey}
+              onClick={() => void react(targetType, targetId, option.type)}
+            >
+              <span aria-hidden="true">{option.emoji}</span>
+              {(summary?.count ?? 0) > 0 && <span>{summary?.count}</span>}
+            </Button>
+          );
+        })}
+        {!profile && (
+          <Link
+            className="px-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+            to="/login"
+            state={{ returnTo: "/#promotional-video" }}
+          >
+            Sign in to react
+          </Link>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -305,6 +378,9 @@ export function PromotionalVideoDiscussion() {
                 ) : (
                   <p className="mt-1 whitespace-pre-wrap break-words text-sm">{item.comment}</p>
                 )}
+                <div className="mt-2">
+                  {renderReactionBar("comment", item.comment_id, item.reactions)}
+                </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
                   {item.replies_count > 0 && (
                     <Button
@@ -358,6 +434,9 @@ export function PromotionalVideoDiscussion() {
                           </time>
                         </div>
                         <p className="mt-1 whitespace-pre-wrap break-words text-sm">{reply.reply}</p>
+                        <div className="mt-2">
+                          {renderReactionBar("reply", reply.reply_id, reply.reactions)}
+                        </div>
                       </div>
                     ))}
                     {item.replies_count > item.replies.length && (

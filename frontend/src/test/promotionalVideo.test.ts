@@ -17,6 +17,7 @@ import {
   listAdminPromotionalVideo,
   saveAdminPromotionalVideoUrl,
   togglePromotionalVideoLike,
+  togglePromotionalVideoReaction,
   updateMyPromotionalVideoComment,
 } from "@/lib/promotionalVideo";
 
@@ -38,12 +39,14 @@ describe("promotional video discussion", () => {
         created_at: "2026-11-18T12:00:00Z",
         is_mine: false,
         replies_count: 1,
+        reactions: [{ reaction: "love", count: 2, reacted_by_me: false }],
         replies: [{
           reply_id: 4,
           full_name: "Another Guest",
           reply: "I agree!",
           created_at: "2026-11-18T13:00:00Z",
           is_mine: false,
+          reactions: [{ reaction: "like", count: 1, reacted_by_me: true }],
         }],
       }],
     };
@@ -161,5 +164,22 @@ describe("promotional video discussion", () => {
     await expect(addPromotionalVideoReply(3, " ")).rejects.toThrow("between 1 and 1,000");
     await expect(addPromotionalVideoReply(3, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("toggles a reaction on either a comment or a reply through the authenticated RPC", async () => {
+    rpc.mockResolvedValue({ data: { type: "success", active: true, reaction: "love" }, error: null });
+    await expect(togglePromotionalVideoReaction("comment", 3, "love")).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenNthCalledWith(1, "toggle_promotional_video_reaction", {
+      p_target_type: "comment",
+      p_target_id: 3,
+      p_reaction: "love",
+    });
+
+    await togglePromotionalVideoReaction("reply", 4, "like");
+    expect(rpc).toHaveBeenNthCalledWith(2, "toggle_promotional_video_reaction", {
+      p_target_type: "reply",
+      p_target_id: 4,
+      p_reaction: "like",
+    });
   });
 });
