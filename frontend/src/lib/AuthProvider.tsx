@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { loadMyProfile, refreshSupabaseProfile, type AuthProfile } from "@/lib/auth";
+import { loadMyProfile, type AuthProfile } from "@/lib/auth";
 import { sessionStore } from "@/lib/api";
 
 type AuthContextValue = {
@@ -14,27 +14,16 @@ const AuthContext = createContext<AuthContextValue>({ profile: null, loading: tr
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const authUserId = useRef<string | null>(null);
+  const hasProfile = useRef(false);
 
   useEffect(() => {
     let active = true;
-    let refreshInProgress = false;
-
-    const refresh = async () => {
-      if (refreshInProgress) return;
-      refreshInProgress = true;
-      try {
-        const nextProfile = await refreshSupabaseProfile();
-        if (active) setProfile(nextProfile);
-      } catch (error) {
-        console.error("Could not refresh the Supabase profile", error);
-      } finally {
-        refreshInProgress = false;
-        if (active) setLoading(false);
-      }
-    };
 
     const syncAuthState = (event: AuthChangeEvent, session: Session | null) => {
       if (!session) {
+        authUserId.current = null;
+        hasProfile.current = false;
         sessionStore.clear();
         if (active) {
           setProfile(null);
@@ -42,8 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      if (event === "TOKEN_REFRESHED") return;
-      if (active && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) {
+      const sameUser = authUserId.current === session.user.id;
+      authUserId.current = session.user.id;
+      if (event === "TOKEN_REFRESHED" && sameUser && hasProfile.current) return;
+      if (active && (!sameUser || !hasProfile.current)) {
         setLoading(true);
       }
       void Promise.resolve()
@@ -51,29 +42,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((nextProfile) => {
           if (!active) return;
           sessionStore.set(nextProfile);
+          hasProfile.current = true;
           setProfile(nextProfile);
         })
         .catch((error: unknown) => {
           console.error("Could not load the Supabase profile", error);
-          if (active) setProfile(null);
+          if (active) {
+            hasProfile.current = false;
+            setProfile(null);
+          }
         })
         .finally(() => {
           if (active) setLoading(false);
         });
     };
 
-    void refresh();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       syncAuthState(event, session);
     });
-    const interval = window.setInterval(() => void refresh(), 10_000);
-    window.addEventListener("focus", refresh);
 
     return () => {
       active = false;
       subscription.unsubscribe();
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refresh);
     };
   }, []);
 

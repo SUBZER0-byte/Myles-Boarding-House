@@ -62,19 +62,26 @@ describe("AuthProvider", () => {
 
   afterEach(() => cleanup());
 
-  it("keeps the active page mounted during Supabase token refresh", async () => {
+  it("keeps the active page mounted when focus returns and Supabase refreshes its token", async () => {
     render(<AuthProvider><ProtectedScreen /></AuthProvider>);
+    const session = { user: { id: "auth-user-7" } };
+    await act(async () => {
+      authStateListener.current?.("INITIAL_SESSION", session);
+      await Promise.resolve();
+    });
     fireEvent.click(await screen.findByRole("button", { name: "Save draft" }));
     expect(screen.getByText("Draft: unfinished form data")).toBeTruthy();
 
     await act(async () => {
-      authStateListener.current?.("TOKEN_REFRESHED", { access_token: "refreshed" });
+      authStateListener.current?.("TOKEN_REFRESHED", session);
+      window.dispatchEvent(new Event("focus"));
       await Promise.resolve();
     });
 
     await waitFor(() => {
       expect(screen.getByText("Draft: unfinished form data")).toBeTruthy();
     });
-    expect(loadMyProfile).not.toHaveBeenCalled();
+    expect(loadMyProfile).toHaveBeenCalledTimes(1);
+    expect(refreshSupabaseProfile).not.toHaveBeenCalled();
   });
 });
