@@ -1,5 +1,4 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ImagePreview } from "@/components/ImagePreview";
 import { RequestAttachmentList } from "@/components/RequestAttachmentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -128,15 +127,7 @@ const TenantComplaints = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">{c.description}</p>
-              {c.photo_url && (
-                <ImagePreview
-                  src={c.photo_url}
-                  alt="Complaint attachment"
-                  triggerClassName="mt-3 max-w-full overflow-hidden rounded-md border border-border"
-                  imageClassName="max-h-72 max-w-full object-contain"
-                />
-              )}
-              <RequestAttachmentList attachments={c.attachments} />
+              <RequestAttachmentList attachments={c.attachments} legacyPhotoUrl={c.photo_url} />
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mt-3 border-l-2 border-border pl-3 space-y-2">
                   {c.status_history.map((entry, index) => (
