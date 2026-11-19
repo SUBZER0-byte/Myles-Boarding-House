@@ -141,6 +141,7 @@ describe("promotional video discussion", () => {
         username: "guest",
         comment: "A nice place",
         created_at: "2026-11-18T12:00:00Z",
+        likes_count: 3,
       }],
       replies: [{
         reply_id: 9,

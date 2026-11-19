@@ -14,7 +14,7 @@ import {
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl, getYoutubeVideoId } from "@/lib/promotionalVideoUrls";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
-import { Heart, Loader2, MessageCircle, RefreshCw, Save, Trash2, Video } from "lucide-react";
+import { Heart, Loader2, MessageCircle, RefreshCw, Save, ThumbsUp, Trash2, Video } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type RemovalTarget =
@@ -102,9 +102,6 @@ const AdminPromotionalVideo = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold">Promotional Video</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Update the landing-page video and moderate its comments, replies, and likes. Changes update automatically.
-            </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void refetch()} disabled={loading}>
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -206,6 +203,10 @@ const AdminPromotionalVideo = () => {
                     </time>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm">{comment.comment}</p>
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <ThumbsUp size={14} aria-hidden="true" />
+                    {comment.likes_count} {comment.likes_count === 1 ? "like" : "likes"}
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -254,7 +255,8 @@ const AdminPromotionalVideo = () => {
                     Reply to {reply.commenter_name}: “{reply.comment}”
                   </p>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm">{reply.reply}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                    <ThumbsUp size={14} aria-hidden="true" />
                     {reply.likes_count} {reply.likes_count === 1 ? "like" : "likes"}
                   </p>
                 </div>

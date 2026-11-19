@@ -46,6 +46,7 @@ describe("Admin promotional video management", () => {
         username: "guest",
         comment: "A nice place",
         created_at: "2026-11-18T12:00:00Z",
+        likes_count: 3,
       }],
       replies: [{
         reply_id: 18,
@@ -82,6 +83,9 @@ describe("Admin promotional video management", () => {
     expect(await screen.findByText("A nice place")).toBeTruthy();
     expect(await screen.findByText("I agree!")).toBeTruthy();
     expect(screen.getByText("Reply to Guest User: “A nice place”")).toBeTruthy();
+    expect(screen.getByText("3 likes")).toBeTruthy();
+    expect(screen.getByText("2 likes")).toBeTruthy();
+    expect(screen.queryByText(/Changes update automatically/)).toBeNull();
     expect(screen.getByTitle("Promotional video preview").getAttribute("src"))
       .toBe("https://www.youtube.com/embed/abcdefghijk");
 
@@ -121,6 +125,7 @@ describe("Admin promotional video management", () => {
         username: "guest",
         comment: "A nice place",
         created_at: "2026-11-18T12:00:00Z",
+        likes_count: 0,
       }],
       replies: [],
       likes: [],

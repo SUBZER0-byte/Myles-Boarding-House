@@ -32,7 +32,7 @@ export interface PromotionalVideoDiscussion {
 
 export interface PromotionalVideoAdminComment extends Omit<
   PromotionalVideoComment,
-  "is_mine" | "replies_count" | "likes_count" | "liked_by_me" | "replies"
+  "is_mine" | "replies_count" | "liked_by_me" | "replies"
 > {
   user_id: number;
   username: string;
@@ -222,6 +222,7 @@ export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdmin
       || typeof item.username !== "string"
       || typeof item.comment !== "string"
       || typeof item.created_at !== "string"
+      || typeof item.likes_count !== "number"
     ) {
       throw new Error("The promotional video management service returned an invalid comment.");
     }
@@ -232,6 +233,7 @@ export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdmin
       username: item.username,
       comment: item.comment,
       created_at: item.created_at,
+      likes_count: item.likes_count,
     };
   });
 
