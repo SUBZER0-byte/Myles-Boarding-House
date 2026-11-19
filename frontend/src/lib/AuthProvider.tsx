@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { loadMyProfile, refreshSupabaseProfile, type AuthProfile } from "@/lib/auth";
 import { sessionStore } from "@/lib/api";
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const syncAuthState = (session: Session | null) => {
+    const syncAuthState = (event: AuthChangeEvent, session: Session | null) => {
       if (!session) {
         sessionStore.clear();
         if (active) {
@@ -42,7 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      if (active) setLoading(true);
+      if (event === "TOKEN_REFRESHED") return;
+      if (active && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) {
+        setLoading(true);
+      }
       void Promise.resolve()
         .then(() => loadMyProfile())
         .then((nextProfile) => {
@@ -60,8 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     void refresh();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncAuthState(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      syncAuthState(event, session);
     });
     const interval = window.setInterval(() => void refresh(), 10_000);
     window.addEventListener("focus", refresh);
