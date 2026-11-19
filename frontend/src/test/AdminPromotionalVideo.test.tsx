@@ -5,12 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
+  deleteAdminPromotionalVideoReply,
   listAdminPromotionalVideo,
   saveAdminPromotionalVideoUrl,
   toast,
 } = vi.hoisted(() => ({
   deleteAdminPromotionalVideoComment: vi.fn(),
   deleteAdminPromotionalVideoLike: vi.fn(),
+  deleteAdminPromotionalVideoReply: vi.fn(),
   listAdminPromotionalVideo: vi.fn(),
   saveAdminPromotionalVideoUrl: vi.fn(),
   toast: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock("@/hooks/use-toast", () => ({
 vi.mock("@/lib/promotionalVideo", () => ({
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
+  deleteAdminPromotionalVideoReply,
   listAdminPromotionalVideo,
   saveAdminPromotionalVideoUrl,
 }));
@@ -44,6 +47,17 @@ describe("Admin promotional video management", () => {
         comment: "A nice place",
         created_at: "2026-11-18T12:00:00Z",
       }],
+      replies: [{
+        reply_id: 18,
+        comment_id: 12,
+        full_name: "Another Guest",
+        username: "anotherguest",
+        reply: "I agree!",
+        created_at: "2026-11-18T13:00:00Z",
+        likes_count: 2,
+        comment: "A nice place",
+        commenter_name: "Guest User",
+      }],
       likes: [{
         user_id: 4,
         full_name: "Guest User",
@@ -54,12 +68,15 @@ describe("Admin promotional video management", () => {
     saveAdminPromotionalVideoUrl.mockResolvedValue("Promotional video URL saved.");
     deleteAdminPromotionalVideoComment.mockResolvedValue("Comment deleted.");
     deleteAdminPromotionalVideoLike.mockResolvedValue("Like removed.");
+    deleteAdminPromotionalVideoReply.mockResolvedValue("Reply deleted.");
   });
 
   it("previews and saves a changed video URL, and offers comment and like moderation", async () => {
     render(<AdminPromotionalVideo />);
 
     expect(await screen.findByText("A nice place")).toBeTruthy();
+    expect(await screen.findByText("I agree!")).toBeTruthy();
+    expect(screen.getByText("Reply to Guest User: “A nice place”")).toBeTruthy();
     expect(screen.getByTitle("Promotional video preview").getAttribute("src"))
       .toBe("https://www.youtube.com/embed/abcdefghijk");
 
@@ -77,6 +94,11 @@ describe("Admin promotional video management", () => {
     expect(await screen.findByText("Delete this comment?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(deleteAdminPromotionalVideoComment).toHaveBeenCalledWith(12));
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete reply by Another Guest" }));
+    expect(await screen.findByText("Delete this reply?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(deleteAdminPromotionalVideoReply).toHaveBeenCalledWith(18));
 
     fireEvent.click(screen.getByRole("button", { name: "Remove like by Guest User" }));
     expect(await screen.findByText("Remove this like?")).toBeTruthy();

@@ -12,6 +12,7 @@ import {
   addPromotionalVideoReply,
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
+  deleteAdminPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
   deleteMyPromotionalVideoReply,
   getPromotionalVideoDiscussion,
@@ -141,6 +142,17 @@ describe("promotional video discussion", () => {
         comment: "A nice place",
         created_at: "2026-11-18T12:00:00Z",
       }],
+      replies: [{
+        reply_id: 9,
+        comment_id: 8,
+        full_name: "Replying User",
+        username: "replying",
+        reply: "A useful detail",
+        created_at: "2026-11-18T13:00:00Z",
+        likes_count: 2,
+        comment: "A nice place",
+        commenter_name: "Guest User",
+      }],
       likes: [{
         user_id: 3,
         full_name: "Guest User",
@@ -152,9 +164,17 @@ describe("promotional video discussion", () => {
       data: { type: "success", data: managementData },
       error: null,
     });
+    rpc.mockResolvedValueOnce({
+      data: { type: "success", replies: managementData.replies },
+      error: null,
+    });
 
     await expect(listAdminPromotionalVideo()).resolves.toEqual(managementData);
     expect(rpc).toHaveBeenCalledWith("manage_admin_promotional_video", {
+      p_action: "list",
+      p_data: {},
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "manage_admin_promotional_video_replies", {
       p_action: "list",
       p_data: {},
     });
@@ -162,16 +182,21 @@ describe("promotional video discussion", () => {
     rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
     await saveAdminPromotionalVideoUrl(" https://youtu.be/abcdefghijk ");
     await deleteAdminPromotionalVideoComment(8);
+    await deleteAdminPromotionalVideoReply(9);
     await deleteAdminPromotionalVideoLike(3);
-    expect(rpc).toHaveBeenNthCalledWith(2, "manage_admin_promotional_video", {
+    expect(rpc).toHaveBeenNthCalledWith(3, "manage_admin_promotional_video", {
       p_action: "save_video_url",
       p_data: { video_url: "https://youtu.be/abcdefghijk" },
     });
-    expect(rpc).toHaveBeenNthCalledWith(3, "manage_admin_promotional_video", {
+    expect(rpc).toHaveBeenNthCalledWith(4, "manage_admin_promotional_video", {
       p_action: "delete_comment",
       p_data: { comment_id: 8 },
     });
-    expect(rpc).toHaveBeenNthCalledWith(4, "manage_admin_promotional_video", {
+    expect(rpc).toHaveBeenNthCalledWith(5, "manage_admin_promotional_video_replies", {
+      p_action: "delete",
+      p_data: { reply_id: 9 },
+    });
+    expect(rpc).toHaveBeenNthCalledWith(6, "manage_admin_promotional_video", {
       p_action: "delete_like",
       p_data: { user_id: 3 },
     });

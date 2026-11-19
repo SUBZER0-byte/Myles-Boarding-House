@@ -45,9 +45,22 @@ export interface PromotionalVideoAdminLike {
   created_at: string;
 }
 
+export interface PromotionalVideoAdminReply {
+  reply_id: number;
+  comment_id: number;
+  full_name: string;
+  username: string;
+  reply: string;
+  created_at: string;
+  likes_count: number;
+  comment: string;
+  commenter_name: string;
+}
+
 export interface PromotionalVideoAdminData {
   video_url: string;
   comments: PromotionalVideoAdminComment[];
+  replies: PromotionalVideoAdminReply[];
   likes: PromotionalVideoAdminLike[];
 }
 
@@ -169,13 +182,27 @@ function assertSuccessResponse(data: unknown, fallback: string): Record<string, 
 }
 
 export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdminData> {
-  const { data, error } = await supabase.rpc("manage_admin_promotional_video", {
-    p_action: "list",
-    p_data: {},
-  });
-  if (error) throw new Error(error.message || "Could not load promotional video management.");
+  const [managementResult, repliesResult] = await Promise.all([
+    supabase.rpc("manage_admin_promotional_video", {
+      p_action: "list",
+      p_data: {},
+    }),
+    supabase.rpc("manage_admin_promotional_video_replies", {
+      p_action: "list",
+      p_data: {},
+    }),
+  ]);
+  if (managementResult.error) {
+    throw new Error(managementResult.error.message || "Could not load promotional video management.");
+  }
+  if (repliesResult.error) {
+    throw new Error(repliesResult.error.message || "Could not load promotional video replies.");
+  }
 
-  const response = assertSuccessResponse(data, "Could not load promotional video management.");
+  const response = assertSuccessResponse(
+    managementResult.data,
+    "Could not load promotional video management.",
+  );
   const result = response.data;
   if (
     !isRecord(result)
@@ -226,7 +253,42 @@ export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdmin
     };
   });
 
-  return { video_url: result.video_url, comments, likes };
+  const repliesResponse = assertSuccessResponse(
+    repliesResult.data,
+    "Could not load promotional video replies.",
+  );
+  if (!Array.isArray(repliesResponse.replies)) {
+    throw new Error("The promotional video management service returned invalid replies.");
+  }
+  const replies = repliesResponse.replies.map((item): PromotionalVideoAdminReply => {
+    if (
+      !isRecord(item)
+      || typeof item.reply_id !== "number"
+      || typeof item.comment_id !== "number"
+      || typeof item.full_name !== "string"
+      || typeof item.username !== "string"
+      || typeof item.reply !== "string"
+      || typeof item.created_at !== "string"
+      || typeof item.likes_count !== "number"
+      || typeof item.comment !== "string"
+      || typeof item.commenter_name !== "string"
+    ) {
+      throw new Error("The promotional video management service returned an invalid reply.");
+    }
+    return {
+      reply_id: item.reply_id,
+      comment_id: item.comment_id,
+      full_name: item.full_name,
+      username: item.username,
+      reply: item.reply,
+      created_at: item.created_at,
+      likes_count: item.likes_count,
+      comment: item.comment,
+      commenter_name: item.commenter_name,
+    };
+  });
+
+  return { video_url: result.video_url, comments, replies, likes };
 }
 
 async function runAdminVideoAction(
@@ -257,6 +319,16 @@ export function deleteAdminPromotionalVideoComment(commentId: number): Promise<s
     { comment_id: commentId },
     "Could not delete the video comment.",
   );
+}
+
+export async function deleteAdminPromotionalVideoReply(replyId: number): Promise<string> {
+  const { data, error } = await supabase.rpc("manage_admin_promotional_video_replies", {
+    p_action: "delete",
+    p_data: { reply_id: replyId },
+  });
+  if (error) throw new Error(error.message || "Could not delete the promotional video reply.");
+  const response = assertSuccessResponse(data, "Could not delete the promotional video reply.");
+  return typeof response.message === "string" ? response.message : "Reply deleted.";
 }
 
 export function deleteAdminPromotionalVideoLike(userId: number): Promise<string> {

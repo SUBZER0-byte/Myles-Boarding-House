@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
+  deleteAdminPromotionalVideoReply,
   listAdminPromotionalVideo,
   saveAdminPromotionalVideoUrl,
   type PromotionalVideoAdminData,
@@ -17,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type RemovalTarget =
   | { kind: "comment"; id: number; label: string }
+  | { kind: "reply"; id: number; label: string }
   | { kind: "like"; id: number; label: string };
 
 const AdminPromotionalVideo = () => {
@@ -80,13 +82,19 @@ const AdminPromotionalVideo = () => {
     try {
       const message = removalTarget.kind === "comment"
         ? await deleteAdminPromotionalVideoComment(removalTarget.id)
-        : await deleteAdminPromotionalVideoLike(removalTarget.id);
+        : removalTarget.kind === "reply"
+          ? await deleteAdminPromotionalVideoReply(removalTarget.id)
+          : await deleteAdminPromotionalVideoLike(removalTarget.id);
       toast({ title: message });
       setRemovalTarget(null);
       await loadManagementData();
     } catch (error) {
       toast({
-        title: removalTarget.kind === "comment" ? "Could not delete comment" : "Could not remove like",
+        title: removalTarget.kind === "comment"
+          ? "Could not delete comment"
+          : removalTarget.kind === "reply"
+            ? "Could not delete reply"
+            : "Could not remove like",
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
@@ -102,7 +110,7 @@ const AdminPromotionalVideo = () => {
           <div>
             <h1 className="font-display text-2xl font-bold">Promotional Video</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Update the landing-page video and moderate its comments and likes.
+              Update the landing-page video and moderate its comments, replies, and likes.
             </p>
           </div>
           <Button type="button" variant="outline" onClick={() => void loadManagementData()} disabled={loading}>
@@ -157,13 +165,20 @@ const AdminPromotionalVideo = () => {
           )}
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               <MessageCircle size={18} className="text-primary" />
               Comments
             </div>
             <p className="mt-2 font-display text-3xl font-bold">{data?.comments.length ?? 0}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MessageCircle size={18} className="text-primary" />
+              Replies
+            </div>
+            <p className="mt-2 font-display text-3xl font-bold">{data?.replies.length ?? 0}</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -221,6 +236,57 @@ const AdminPromotionalVideo = () => {
 
         <section className="space-y-3">
           <div>
+            <h2 className="font-semibold">Video replies</h2>
+            <p className="text-xs text-muted-foreground">Review replies in context and remove replies that should no longer appear publicly.</p>
+          </div>
+          {loading && !data ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 size={15} className="animate-spin" /> Loading replies…
+            </p>
+          ) : data?.replies.length ? (
+            data.replies.map(reply => (
+              <article key={reply.reply_id} className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="text-sm font-semibold">{reply.full_name}</p>
+                    <span className="text-xs text-muted-foreground">@{reply.username}</span>
+                    <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
+                      {new Date(reply.created_at).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Reply to {reply.commenter_name}: “{reply.comment}”
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm">{reply.reply}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {reply.likes_count} {reply.likes_count === 1 ? "like" : "likes"}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="shrink-0 text-destructive"
+                  aria-label={`Delete reply by ${reply.full_name}`}
+                  onClick={() => setRemovalTarget({
+                    kind: "reply",
+                    id: reply.reply_id,
+                    label: `reply by ${reply.full_name}`,
+                  })}
+                >
+                  <Trash2 size={16} />
+                </Button>
+              </article>
+            ))
+          ) : (
+            <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+              {loadError ? "Replies could not be loaded." : "No replies yet."}
+            </p>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <div>
             <h2 className="font-semibold">Video likes</h2>
             <p className="text-xs text-muted-foreground">Review accounts that liked the video or remove a like.</p>
           </div>
@@ -268,7 +334,11 @@ const AdminPromotionalVideo = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {removalTarget?.kind === "comment" ? "Delete this comment?" : "Remove this like?"}
+              {removalTarget?.kind === "comment"
+                ? "Delete this comment?"
+                : removalTarget?.kind === "reply"
+                  ? "Delete this reply?"
+                  : "Remove this like?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently remove the {removalTarget?.label} from the promotional video.
