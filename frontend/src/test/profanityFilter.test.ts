@@ -14,4 +14,31 @@ describe("filterProfanity", () => {
     expect(filterProfanity("Gago ka, puta; putang ina mo! Yawa."))
       .toBe("**** ka, ****; ****** *** mo! ****.");
   });
+
+  it("filters listed English and Filipino insults and preserves phrase spacing", () => {
+    const words = [
+      "idiot",
+      "moron",
+      "stupid",
+      "loser",
+      "scumbag",
+      "jerk",
+      "freak",
+      "retard",
+      "baliw",
+      "demonyo",
+      "hayop",
+      "animal",
+      "peste",
+      "kingina",
+      "tite",
+      "pepe",
+      "puke",
+      "bayag",
+    ];
+    expect(filterProfanity(words.join(" ")))
+      .toBe(words.map(word => "*".repeat(word.length)).join(" "));
+    expect(filterProfanity("WALANG HIYA; anak ng puta!"))
+      .toBe("****** ****; **** ** ****!");
+  });
 });
