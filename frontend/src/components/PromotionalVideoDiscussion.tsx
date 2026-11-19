@@ -7,10 +7,12 @@ import {
   addPromotionalVideoComment,
   addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
+  deleteMyPromotionalVideoReply,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoDiscussionLike,
   togglePromotionalVideoLike,
   updateMyPromotionalVideoComment,
+  updateMyPromotionalVideoReply,
   type PromotionalVideoDiscussion as Discussion,
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl } from "@/lib/promotionalVideoUrls";
@@ -30,6 +32,11 @@ export function PromotionalVideoDiscussion() {
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
   const [savingReply, setSavingReply] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState<number | null>(null);
+  const [editingReply, setEditingReply] = useState("");
+  const [savingReplyEdit, setSavingReplyEdit] = useState(false);
+  const [deleteReplyId, setDeleteReplyId] = useState<number | null>(null);
+  const [deletingReply, setDeletingReply] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingComment, setEditingComment] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -114,6 +121,9 @@ export function PromotionalVideoDiscussion() {
       setDeleteCommentId(null);
       setEditingCommentId(null);
       setEditingComment("");
+      setDeleteReplyId(null);
+      setEditingReplyId(null);
+      setEditingReply("");
       await refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not delete your comment.");
@@ -145,6 +155,41 @@ export function PromotionalVideoDiscussion() {
       setError(caught instanceof Error ? caught.message : "Could not post your reply.");
     } finally {
       setSavingReply(false);
+    }
+  };
+
+  const saveReplyEdit = async () => {
+    if (editingReplyId === null || !editingReply.trim()) return;
+    setSavingReplyEdit(true);
+    setError("");
+    try {
+      await updateMyPromotionalVideoReply(editingReplyId, editingReply);
+      setEditingReplyId(null);
+      setEditingReply("");
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update your reply.");
+    } finally {
+      setSavingReplyEdit(false);
+    }
+  };
+
+  const removeReply = async () => {
+    if (deleteReplyId === null) return;
+    setDeletingReply(true);
+    setError("");
+    try {
+      await deleteMyPromotionalVideoReply(deleteReplyId);
+      setDeleteReplyId(null);
+      if (editingReplyId === deleteReplyId) {
+        setEditingReplyId(null);
+        setEditingReply("");
+      }
+      await refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not delete your reply.");
+    } finally {
+      setDeletingReply(false);
     }
   };
 
@@ -411,12 +456,79 @@ export function PromotionalVideoDiscussion() {
                     {item.replies.map(reply => (
                       <div key={reply.reply_id} className="rounded-md bg-background/70 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-sm font-semibold">{reply.full_name}</p>
-                          <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
-                            {new Date(reply.created_at).toLocaleString()}
-                          </time>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p className="text-sm font-semibold">{reply.full_name}</p>
+                            <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
+                              {new Date(reply.created_at).toLocaleString()}
+                            </time>
+                          </div>
+                          {profile && reply.is_mine && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                aria-label="Edit my reply"
+                                onClick={() => {
+                                  setEditingReplyId(reply.reply_id);
+                                  setEditingReply(reply.reply);
+                                  setError("");
+                                }}
+                              >
+                                <Pencil size={14} />
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive"
+                                aria-label="Delete my reply"
+                                onClick={() => setDeleteReplyId(reply.reply_id)}
+                              >
+                                <Trash2 size={14} />
+                                Delete
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm">{filterProfanity(reply.reply)}</p>
+                        {editingReplyId === reply.reply_id ? (
+                          <div className="mt-2 space-y-2">
+                            <Textarea
+                              aria-label="Edit reply"
+                              value={editingReply}
+                              onChange={event => setEditingReply(event.target.value)}
+                              maxLength={1000}
+                              rows={2}
+                            />
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs text-muted-foreground">{editingReply.length}/1,000</span>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingReplyId(null);
+                                    setEditingReply("");
+                                  }}
+                                  disabled={savingReplyEdit}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  onClick={() => void saveReplyEdit()}
+                                  disabled={savingReplyEdit || !editingReply.trim()}
+                                >
+                                  {savingReplyEdit ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                                  Save changes
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{filterProfanity(reply.reply)}</p>
+                        )}
                         <div className="mt-2">
                           {renderDiscussionLikeButton("reply", reply.reply_id, reply.likes_count, reply.liked_by_me)}
                         </div>
@@ -485,6 +597,31 @@ export function PromotionalVideoDiscussion() {
               disabled={deletingComment}
             >
               {deletingComment ? <Loader2 size={16} className="animate-spin" /> : "Delete comment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={deleteReplyId !== null}
+        onOpenChange={open => !open && !deletingReply && setDeleteReplyId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your reply?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your reply from the promotional video discussion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingReply}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={event => {
+                event.preventDefault();
+                void removeReply();
+              }}
+              disabled={deletingReply}
+            >
+              {deletingReply ? <Loader2 size={16} className="animate-spin" /> : "Delete reply"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

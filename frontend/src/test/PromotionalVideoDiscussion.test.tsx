@@ -8,19 +8,23 @@ const {
   addPromotionalVideoComment,
   addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
+  deleteMyPromotionalVideoReply,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
   togglePromotionalVideoDiscussionLike,
   updateMyPromotionalVideoComment,
+  updateMyPromotionalVideoReply,
   profile,
 } = vi.hoisted(() => ({
   addPromotionalVideoComment: vi.fn(),
   addPromotionalVideoReply: vi.fn(),
   deleteMyPromotionalVideoComment: vi.fn(),
+  deleteMyPromotionalVideoReply: vi.fn(),
   getPromotionalVideoDiscussion: vi.fn(),
   togglePromotionalVideoLike: vi.fn(),
   togglePromotionalVideoDiscussionLike: vi.fn(),
   updateMyPromotionalVideoComment: vi.fn(),
+  updateMyPromotionalVideoReply: vi.fn(),
   profile: { current: null as null | { user_id: number; full_name: string } },
 }));
 
@@ -40,10 +44,12 @@ vi.mock("@/lib/promotionalVideo", () => ({
   addPromotionalVideoComment,
   addPromotionalVideoReply,
   deleteMyPromotionalVideoComment,
+  deleteMyPromotionalVideoReply,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
   togglePromotionalVideoDiscussionLike,
   updateMyPromotionalVideoComment,
+  updateMyPromotionalVideoReply,
 }));
 
 import { PromotionalVideoDiscussion } from "@/components/PromotionalVideoDiscussion";
@@ -89,9 +95,11 @@ describe("promotional video discussion UI", () => {
     addPromotionalVideoComment.mockReset().mockResolvedValue(undefined);
     addPromotionalVideoReply.mockReset().mockResolvedValue(undefined);
     deleteMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment deleted.");
+    deleteMyPromotionalVideoReply.mockReset().mockResolvedValue("Reply deleted.");
     togglePromotionalVideoLike.mockReset().mockResolvedValue({ liked: true, likes_count: 3 });
     togglePromotionalVideoDiscussionLike.mockReset().mockResolvedValue(undefined);
     updateMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment updated.");
+    updateMyPromotionalVideoReply.mockReset().mockResolvedValue("Reply updated.");
   });
 
   afterEach(() => cleanup());
@@ -200,6 +208,63 @@ describe("promotional video discussion UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Post reply" }));
 
     await waitFor(() => expect(addPromotionalVideoReply).toHaveBeenCalledWith(5, "Thanks for sharing!"));
+  });
+
+  it("allows users to edit and delete only their own replies", async () => {
+    profile.current = { user_id: 7, full_name: "A Tenant" };
+    getPromotionalVideoDiscussion.mockReset().mockResolvedValue({
+      video_url: "https://www.youtube.com/watch?v=abcdefghijk",
+      likes_count: 2,
+      comments_count: 1,
+      liked_by_me: false,
+      comments: [{
+        comment_id: 5,
+        full_name: "Another Tenant",
+        comment: "Another perspective",
+        created_at: "2026-11-18T11:00:00Z",
+        is_mine: false,
+        replies_count: 2,
+        likes_count: 0,
+        liked_by_me: false,
+        replies: [{
+          reply_id: 14,
+          full_name: "A Tenant",
+          reply: "My reply",
+          created_at: "2026-11-18T11:30:00Z",
+          is_mine: true,
+          likes_count: 0,
+          liked_by_me: false,
+        }, {
+          reply_id: 15,
+          full_name: "Another Guest",
+          reply: "Someone else's reply",
+          created_at: "2026-11-18T11:45:00Z",
+          is_mine: false,
+          likes_count: 0,
+          liked_by_me: false,
+        }],
+      }],
+    });
+
+    render(<BrowserRouter><PromotionalVideoDiscussion /></BrowserRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: "Show replies (2)" }));
+    expect(await screen.findByText("My reply")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Edit my reply" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Delete my reply" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit my reply" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Edit reply" }), {
+      target: { value: "Updated reply" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => {
+      expect(updateMyPromotionalVideoReply).toHaveBeenCalledWith(14, "Updated reply");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete my reply" }));
+    expect(await screen.findByText("Delete your reply?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Delete reply" }));
+    await waitFor(() => expect(deleteMyPromotionalVideoReply).toHaveBeenCalledWith(14));
   });
 
   it("allows signed-in users to like comments and replies", async () => {

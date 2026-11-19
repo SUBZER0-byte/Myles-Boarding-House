@@ -315,6 +315,36 @@ export async function addPromotionalVideoReply(commentId: number, reply: string)
   }
 }
 
+async function runMyReplyAction(
+  action: "update" | "delete",
+  replyId: number,
+  reply?: string,
+): Promise<string> {
+  const replyValue = reply?.trim();
+  if (action === "update" && (!replyValue || replyValue.length > 1000)) {
+    throw new Error("Replies must be between 1 and 1,000 characters.");
+  }
+  const { data, error } = action === "update"
+    ? await supabase.rpc("update_my_promotional_video_reply", {
+      p_reply_id: replyId,
+      p_reply: replyValue,
+    })
+    : await supabase.rpc("delete_my_promotional_video_reply", {
+      p_reply_id: replyId,
+    });
+  if (error) throw new Error(error.message || `Could not ${action} your reply.`);
+  const response = assertSuccessResponse(data, `Could not ${action} your reply.`);
+  return typeof response.message === "string" ? response.message : "Saved.";
+}
+
+export function updateMyPromotionalVideoReply(replyId: number, reply: string): Promise<string> {
+  return runMyReplyAction("update", replyId, reply);
+}
+
+export function deleteMyPromotionalVideoReply(replyId: number): Promise<string> {
+  return runMyReplyAction("delete", replyId);
+}
+
 export async function togglePromotionalVideoDiscussionLike(
   targetType: "comment" | "reply",
   targetId: number,

@@ -13,12 +13,14 @@ import {
   deleteAdminPromotionalVideoComment,
   deleteAdminPromotionalVideoLike,
   deleteMyPromotionalVideoComment,
+  deleteMyPromotionalVideoReply,
   getPromotionalVideoDiscussion,
   listAdminPromotionalVideo,
   saveAdminPromotionalVideoUrl,
   togglePromotionalVideoDiscussionLike,
   togglePromotionalVideoLike,
   updateMyPromotionalVideoComment,
+  updateMyPromotionalVideoReply,
 } from "@/lib/promotionalVideo";
 
 describe("promotional video discussion", () => {
@@ -205,6 +207,25 @@ describe("promotional video discussion", () => {
     rpc.mockClear();
     await expect(addPromotionalVideoReply(3, " ")).rejects.toThrow("between 1 and 1,000");
     await expect(addPromotionalVideoReply(3, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("uses owner-only RPCs to update and delete replies and validates edits", async () => {
+    rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
+    await updateMyPromotionalVideoReply(15, "  Updated reply  ");
+    await deleteMyPromotionalVideoReply(15);
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_reply", {
+      p_reply_id: 15,
+      p_reply: "Updated reply",
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_reply", {
+      p_reply_id: 15,
+    });
+
+    rpc.mockClear();
+    await expect(updateMyPromotionalVideoReply(15, "  ")).rejects.toThrow("between 1 and 1,000");
+    await expect(updateMyPromotionalVideoReply(15, "x".repeat(1001))).rejects.toThrow("between 1 and 1,000");
     expect(rpc).not.toHaveBeenCalled();
   });
 
