@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ImagePreview } from "@/components/ImagePreview";
+import { RequestAttachmentList } from "@/components/RequestAttachmentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -66,7 +67,10 @@ const AdminComplaints = () => {
 
   const remove = async (complaint: TenantComplaint) => {
     try {
-      const message = await deleteComplaint(complaint.complaint_id);
+      const message = await deleteComplaint(
+        complaint.complaint_id,
+        (complaint.attachments ?? []).map(attachment => attachment.path),
+      );
       toast({ title: message, variant: message.includes("could not be removed") ? "destructive" : "default" });
       await refetch();
     } catch (error) {
@@ -99,7 +103,7 @@ const AdminComplaints = () => {
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
 
         <div className="flex gap-2 flex-wrap">
-          {["all","Submitted","Acknowledged","In Progress","Resolved"].map(s => (
+          {["all","Submitted","Acknowledged","In Progress","Resolved","Cancelled"].map(s => (
             <Button key={s} size="sm" variant={filter === s ? "default" : "secondary"} onClick={() => setFilter(s)}>{s === "all" ? "All" : s}</Button>
           ))}
         </div>
@@ -173,6 +177,7 @@ const AdminComplaints = () => {
                   imageClassName="max-h-72 max-w-full object-contain"
                 />
               )}
+              <RequestAttachmentList attachments={c.attachments} />
               {c.status_history && c.status_history.length > 0 && (
                 <div className="mb-3 border-l-2 border-border pl-3 space-y-1.5">
                   {c.status_history.map((entry, index) => (
