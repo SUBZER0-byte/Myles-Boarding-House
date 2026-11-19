@@ -7,16 +7,9 @@ export interface PromotionalVideoComment {
   created_at: string;
   is_mine: boolean;
   replies_count: number;
-  reactions: PromotionalVideoReaction[];
+  likes_count: number;
+  liked_by_me: boolean;
   replies: PromotionalVideoReply[];
-}
-
-export type PromotionalVideoReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry";
-
-export interface PromotionalVideoReaction {
-  reaction: PromotionalVideoReactionType;
-  count: number;
-  reacted_by_me: boolean;
 }
 
 export interface PromotionalVideoReply {
@@ -25,7 +18,8 @@ export interface PromotionalVideoReply {
   reply: string;
   created_at: string;
   is_mine: boolean;
-  reactions: PromotionalVideoReaction[];
+  likes_count: number;
+  liked_by_me: boolean;
 }
 
 export interface PromotionalVideoDiscussion {
@@ -36,7 +30,10 @@ export interface PromotionalVideoDiscussion {
   comments: PromotionalVideoComment[];
 }
 
-export interface PromotionalVideoAdminComment extends Omit<PromotionalVideoComment, "is_mine"> {
+export interface PromotionalVideoAdminComment extends Omit<
+  PromotionalVideoComment,
+  "is_mine" | "replies_count" | "likes_count" | "liked_by_me" | "replies"
+> {
   user_id: number;
   username: string;
 }
@@ -66,34 +63,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-const reactionTypes: readonly string[] = ["like", "love", "haha", "wow", "sad", "angry"];
-
-function isReactionType(value: string): value is PromotionalVideoReactionType {
-  return reactionTypes.includes(value);
-}
-
-function parseReactions(value: unknown): PromotionalVideoReaction[] {
-  if (!Array.isArray(value)) {
-    throw new Error("The video discussion service returned invalid reactions.");
-  }
-  return value.map((item): PromotionalVideoReaction => {
-    if (
-      !isRecord(item)
-      || typeof item.reaction !== "string"
-      || !isReactionType(item.reaction)
-      || typeof item.count !== "number"
-      || typeof item.reacted_by_me !== "boolean"
-    ) {
-      throw new Error("The video discussion service returned an invalid reaction.");
-    }
-    return {
-      reaction: item.reaction,
-      count: item.count,
-      reacted_by_me: item.reacted_by_me,
-    };
-  });
-}
-
 export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoDiscussion> {
   const { data, error } = await supabase.rpc("get_promotional_video_discussion");
   if (error) throw new Error(error.message || "Could not load video comments and likes.");
@@ -107,7 +76,8 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         || typeof item.created_at !== "string"
         || typeof item.is_mine !== "boolean"
         || typeof item.replies_count !== "number"
-        || !Array.isArray(item.reactions)
+        || typeof item.likes_count !== "number"
+        || typeof item.liked_by_me !== "boolean"
         || !Array.isArray(item.replies)
       ) {
         throw new Error("The video discussion service returned an invalid comment.");
@@ -120,7 +90,8 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
           || typeof reply.reply !== "string"
           || typeof reply.created_at !== "string"
           || typeof reply.is_mine !== "boolean"
-          || !Array.isArray(reply.reactions)
+          || typeof reply.likes_count !== "number"
+          || typeof reply.liked_by_me !== "boolean"
         ) {
           throw new Error("The video discussion service returned an invalid reply.");
         }
@@ -130,7 +101,8 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
           reply: reply.reply,
           created_at: reply.created_at,
           is_mine: reply.is_mine,
-          reactions: parseReactions(reply.reactions),
+          likes_count: reply.likes_count,
+          liked_by_me: reply.liked_by_me,
         };
       });
       return {
@@ -140,7 +112,8 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         created_at: item.created_at,
         is_mine: item.is_mine,
         replies_count: item.replies_count,
-        reactions: parseReactions(item.reactions),
+        likes_count: item.likes_count,
+        liked_by_me: item.liked_by_me,
         replies,
       };
     })
@@ -318,21 +291,19 @@ export async function addPromotionalVideoReply(commentId: number, reply: string)
   }
 }
 
-export async function togglePromotionalVideoReaction(
+export async function togglePromotionalVideoDiscussionLike(
   targetType: "comment" | "reply",
   targetId: number,
-  reaction: PromotionalVideoReactionType,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("toggle_promotional_video_reaction", {
+  const { data, error } = await supabase.rpc("toggle_promotional_video_discussion_like", {
     p_target_type: targetType,
     p_target_id: targetId,
-    p_reaction: reaction,
   });
-  if (error) throw new Error(error.message || "Could not update your reaction.");
+  if (error) throw new Error(error.message || "Could not update your like.");
   if (!isRecord(data) || data.type !== "success" || typeof data.active !== "boolean") {
     throw new Error(isRecord(data) && typeof data.message === "string"
       ? data.message
-      : "The reaction service returned an invalid response.");
+      : "The like service returned an invalid response.");
   }
 }
 

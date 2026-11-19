@@ -10,7 +10,7 @@ const {
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
-  togglePromotionalVideoReaction,
+  togglePromotionalVideoDiscussionLike,
   updateMyPromotionalVideoComment,
   profile,
 } = vi.hoisted(() => ({
@@ -19,7 +19,7 @@ const {
   deleteMyPromotionalVideoComment: vi.fn(),
   getPromotionalVideoDiscussion: vi.fn(),
   togglePromotionalVideoLike: vi.fn(),
-  togglePromotionalVideoReaction: vi.fn(),
+  togglePromotionalVideoDiscussionLike: vi.fn(),
   updateMyPromotionalVideoComment: vi.fn(),
   profile: { current: null as null | { user_id: number; full_name: string } },
 }));
@@ -42,7 +42,7 @@ vi.mock("@/lib/promotionalVideo", () => ({
   deleteMyPromotionalVideoComment,
   getPromotionalVideoDiscussion,
   togglePromotionalVideoLike,
-  togglePromotionalVideoReaction,
+  togglePromotionalVideoDiscussionLike,
   updateMyPromotionalVideoComment,
 }));
 
@@ -63,7 +63,8 @@ describe("promotional video discussion UI", () => {
         created_at: "2026-11-18T12:00:00Z",
         is_mine: true,
         replies_count: 0,
-        reactions: [],
+        likes_count: 1,
+        liked_by_me: false,
         replies: [],
       }, {
         comment_id: 5,
@@ -72,22 +73,16 @@ describe("promotional video discussion UI", () => {
         created_at: "2026-11-18T11:00:00Z",
         is_mine: false,
         replies_count: 1,
-        reactions: [{
-          reaction: "love",
-          count: 2,
-          reacted_by_me: false,
-        }],
+        likes_count: 2,
+        liked_by_me: false,
         replies: [{
           reply_id: 14,
           full_name: "Replying Guest",
           reply: "Thanks for sharing this.",
           created_at: "2026-11-18T11:30:00Z",
           is_mine: false,
-          reactions: [{
-            reaction: "like",
-            count: 1,
-            reacted_by_me: false,
-          }],
+          likes_count: 1,
+          liked_by_me: false,
         }],
       }],
     });
@@ -95,7 +90,7 @@ describe("promotional video discussion UI", () => {
     addPromotionalVideoReply.mockReset().mockResolvedValue(undefined);
     deleteMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment deleted.");
     togglePromotionalVideoLike.mockReset().mockResolvedValue({ liked: true, likes_count: 3 });
-    togglePromotionalVideoReaction.mockReset().mockResolvedValue(undefined);
+    togglePromotionalVideoDiscussionLike.mockReset().mockResolvedValue(undefined);
     updateMyPromotionalVideoComment.mockReset().mockResolvedValue("Comment updated.");
   });
 
@@ -111,8 +106,8 @@ describe("promotional video discussion UI", () => {
       .toBe("https://www.youtube.com/embed/abcdefghijk");
     expect(screen.getByText("Sign in")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sign in to like video" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "React with love (2)" })).toBeDisabled();
-    expect(screen.getAllByText("Sign in to react")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Like comment (2)" })).toBeDisabled();
+    expect(screen.getAllByText("Sign in to like")).toHaveLength(2);
     expect(screen.queryByLabelText("Add a comment")).toBeNull();
     expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Show replies (1)" }));
@@ -163,7 +158,7 @@ describe("promotional video discussion UI", () => {
 
     expect(await screen.findByText("Another perspective")).toBeTruthy();
     expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Reply", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Reply$/ }));
     const replyBox = screen.getByLabelText("Reply to Another Tenant");
     fireEvent.change(replyBox, { target: { value: "Thanks for sharing!" } });
     fireEvent.click(screen.getByRole("button", { name: "Post reply" }));
@@ -171,21 +166,21 @@ describe("promotional video discussion UI", () => {
     await waitFor(() => expect(addPromotionalVideoReply).toHaveBeenCalledWith(5, "Thanks for sharing!"));
   });
 
-  it("allows signed-in users to react to comments and replies", async () => {
+  it("allows signed-in users to like comments and replies", async () => {
     profile.current = { user_id: 7, full_name: "A Tenant" };
     render(<BrowserRouter><PromotionalVideoDiscussion /></BrowserRouter>);
 
     expect(await screen.findByText("Another perspective")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "React with love (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Like comment (2)" }));
     await waitFor(() => {
-      expect(togglePromotionalVideoReaction).toHaveBeenCalledWith("comment", 5, "love");
+      expect(togglePromotionalVideoDiscussionLike).toHaveBeenCalledWith("comment", 5);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Show replies (1)" }));
     expect(await screen.findByText("Thanks for sharing this.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "React with like (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Like reply (1)" }));
     await waitFor(() => {
-      expect(togglePromotionalVideoReaction).toHaveBeenCalledWith("reply", 14, "like");
+      expect(togglePromotionalVideoDiscussionLike).toHaveBeenCalledWith("reply", 14);
     });
   });
 });
