@@ -9,4 +9,9 @@ describe("filterProfanity", () => {
   it("matches whole words without changing clean words or punctuation", () => {
     expect(filterProfanity("classical passage; shit.")).toBe("classical passage; ****.");
   });
+
+  it("filters common Filipino profanity, including multiword phrases", () => {
+    expect(filterProfanity("Gago ka, puta; putang ina mo! Yawa."))
+      .toBe("**** ka, ****; ****** *** mo! ****.");
+  });
 });
