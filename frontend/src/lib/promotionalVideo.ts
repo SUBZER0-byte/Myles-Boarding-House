@@ -63,6 +63,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function parseTargetLikes(value: Record<string, unknown>): {
+  likes_count: number;
+  liked_by_me: boolean;
+} {
+  if ("likes_count" in value || "liked_by_me" in value) {
+    if (typeof value.likes_count !== "number" || typeof value.liked_by_me !== "boolean") {
+      throw new Error("The video discussion service returned invalid like data.");
+    }
+    return { likes_count: value.likes_count, liked_by_me: value.liked_by_me };
+  }
+
+  const legacyLike = Array.isArray(value.reactions)
+    ? value.reactions.find(item => isRecord(item) && item.reaction === "like")
+    : undefined;
+  if (legacyLike === undefined) return { likes_count: 0, liked_by_me: false };
+  if (
+    !isRecord(legacyLike)
+    || typeof legacyLike.count !== "number"
+    || typeof legacyLike.reacted_by_me !== "boolean"
+  ) {
+    throw new Error("The video discussion service returned invalid like data.");
+  }
+  return {
+    likes_count: legacyLike.count,
+    liked_by_me: legacyLike.reacted_by_me,
+  };
+}
+
 export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoDiscussion> {
   const { data, error } = await supabase.rpc("get_promotional_video_discussion");
   if (error) throw new Error(error.message || "Could not load video comments and likes.");
@@ -76,12 +104,11 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         || typeof item.created_at !== "string"
         || typeof item.is_mine !== "boolean"
         || typeof item.replies_count !== "number"
-        || typeof item.likes_count !== "number"
-        || typeof item.liked_by_me !== "boolean"
         || !Array.isArray(item.replies)
       ) {
         throw new Error("The video discussion service returned an invalid comment.");
       }
+      const commentLikes = parseTargetLikes(item);
       const replies = item.replies.map((reply): PromotionalVideoReply => {
         if (
           !isRecord(reply)
@@ -90,19 +117,17 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
           || typeof reply.reply !== "string"
           || typeof reply.created_at !== "string"
           || typeof reply.is_mine !== "boolean"
-          || typeof reply.likes_count !== "number"
-          || typeof reply.liked_by_me !== "boolean"
         ) {
           throw new Error("The video discussion service returned an invalid reply.");
         }
+        const replyLikes = parseTargetLikes(reply);
         return {
           reply_id: reply.reply_id,
           full_name: reply.full_name,
           reply: reply.reply,
           created_at: reply.created_at,
           is_mine: reply.is_mine,
-          likes_count: reply.likes_count,
-          liked_by_me: reply.liked_by_me,
+          ...replyLikes,
         };
       });
       return {
@@ -112,8 +137,7 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         created_at: item.created_at,
         is_mine: item.is_mine,
         replies_count: item.replies_count,
-        likes_count: item.likes_count,
-        liked_by_me: item.liked_by_me,
+        ...commentLikes,
         replies,
       };
     })
@@ -295,11 +319,29 @@ export async function togglePromotionalVideoDiscussionLike(
   targetType: "comment" | "reply",
   targetId: number,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("toggle_promotional_video_discussion_like", {
+  const result = await supabase.rpc("toggle_promotional_video_discussion_like", {
     p_target_type: targetType,
     p_target_id: targetId,
   });
-  if (error) throw new Error(error.message || "Could not update your like.");
+  if (result.error) {
+    if (result.error.code !== "PGRST202" && result.error.code !== "42883") {
+      throw new Error(result.error.message || "Could not update your like.");
+    }
+    const legacyResult = await supabase.rpc("toggle_promotional_video_reaction", {
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_reaction: "like",
+    });
+    if (legacyResult.error) {
+      throw new Error(legacyResult.error.message || "Could not update your like.");
+    }
+    assertDiscussionLikeSuccess(legacyResult.data);
+    return;
+  }
+  assertDiscussionLikeSuccess(result.data);
+}
+
+function assertDiscussionLikeSuccess(data: unknown): void {
   if (!isRecord(data) || data.type !== "success" || typeof data.active !== "boolean") {
     throw new Error(isRecord(data) && typeof data.message === "string"
       ? data.message

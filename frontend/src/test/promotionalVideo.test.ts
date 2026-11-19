@@ -58,6 +58,46 @@ describe("promotional video discussion", () => {
     expect(rpc).toHaveBeenCalledWith("get_promotional_video_discussion");
   });
 
+  it("loads comments from the previous discussion response and derives Like counts", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        video_url: "https://www.youtube.com/watch?v=abcdefghijk",
+        likes_count: 7,
+        comments_count: 1,
+        liked_by_me: false,
+        comments: [{
+          comment_id: 3,
+          full_name: "Video Guest",
+          comment: "Looks great!",
+          created_at: "2026-11-18T12:00:00Z",
+          is_mine: false,
+          replies_count: 1,
+          reactions: [
+            { reaction: "like", count: 2, reacted_by_me: true },
+            { reaction: "love", count: 1, reacted_by_me: false },
+          ],
+          replies: [{
+            reply_id: 4,
+            full_name: "Another Guest",
+            reply: "I agree!",
+            created_at: "2026-11-18T13:00:00Z",
+            is_mine: false,
+            reactions: [],
+          }],
+        }],
+      },
+      error: null,
+    });
+
+    await expect(getPromotionalVideoDiscussion()).resolves.toMatchObject({
+      comments: [{
+        likes_count: 2,
+        liked_by_me: true,
+        replies: [{ likes_count: 0, liked_by_me: false }],
+      }],
+    });
+  });
+
   it("posts trimmed comments without accepting a client-supplied user ID", async () => {
     rpc.mockResolvedValue({ data: { type: "success", comment_id: 9 }, error: null });
 
@@ -180,6 +220,28 @@ describe("promotional video discussion", () => {
     expect(rpc).toHaveBeenNthCalledWith(2, "toggle_promotional_video_discussion_like", {
       p_target_type: "reply",
       p_target_id: 4,
+    });
+  });
+
+  it("falls back to the previous Like reaction RPC when the new RPC is unavailable", async () => {
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: "PGRST202", message: "New like RPC is unavailable." },
+    });
+    rpc.mockResolvedValueOnce({
+      data: { type: "success", active: true },
+      error: null,
+    });
+
+    await expect(togglePromotionalVideoDiscussionLike("comment", 3)).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenNthCalledWith(1, "toggle_promotional_video_discussion_like", {
+      p_target_type: "comment",
+      p_target_id: 3,
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "toggle_promotional_video_reaction", {
+      p_target_type: "comment",
+      p_target_id: 3,
+      p_reaction: "like",
     });
   });
 });
