@@ -13,8 +13,9 @@ import {
   type PromotionalVideoAdminData,
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl, getYoutubeVideoId } from "@/lib/promotionalVideoUrls";
+import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { Heart, Loader2, MessageCircle, RefreshCw, Save, Trash2, Video } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 type RemovalTarget =
   | { kind: "comment"; id: number; label: string }
@@ -23,32 +24,23 @@ type RemovalTarget =
 
 const AdminPromotionalVideo = () => {
   const { toast } = useToast();
-  const [data, setData] = useState<PromotionalVideoAdminData | null>(null);
+  const { data, loading, error: loadError, refetch } = useSupabasePolling<PromotionalVideoAdminData>(
+    listAdminPromotionalVideo,
+    5000,
+  );
   const [videoUrl, setVideoUrl] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [videoUrlDirty, setVideoUrlDirty] = useState(false);
   const [savingUrl, setSavingUrl] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removalTarget, setRemovalTarget] = useState<RemovalTarget | null>(null);
   const previewUrl = getYoutubeEmbedUrl(videoUrl);
-
-  const loadManagementData = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-    try {
-      const result = await listAdminPromotionalVideo();
-      setData(result);
-      setVideoUrl(result.video_url);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load promotional video management.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const storedVideoUrl = data?.video_url;
 
   useEffect(() => {
-    void loadManagementData();
-  }, [loadManagementData]);
+    if (storedVideoUrl !== undefined && !videoUrlDirty) {
+      setVideoUrl(storedVideoUrl);
+    }
+  }, [storedVideoUrl, videoUrlDirty]);
 
   const saveVideoUrl = async () => {
     if (!getYoutubeVideoId(videoUrl)) {
@@ -64,7 +56,8 @@ const AdminPromotionalVideo = () => {
     try {
       const message = await saveAdminPromotionalVideoUrl(videoUrl);
       toast({ title: message });
-      await loadManagementData();
+      await refetch();
+      setVideoUrlDirty(false);
     } catch (error) {
       toast({
         title: "Could not save promotional video URL",
@@ -87,7 +80,7 @@ const AdminPromotionalVideo = () => {
           : await deleteAdminPromotionalVideoLike(removalTarget.id);
       toast({ title: message });
       setRemovalTarget(null);
-      await loadManagementData();
+      await refetch();
     } catch (error) {
       toast({
         title: removalTarget.kind === "comment"
@@ -110,10 +103,10 @@ const AdminPromotionalVideo = () => {
           <div>
             <h1 className="font-display text-2xl font-bold">Promotional Video</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Update the landing-page video and moderate its comments, replies, and likes.
+              Update the landing-page video and moderate its comments, replies, and likes. Changes update automatically.
             </p>
           </div>
-          <Button type="button" variant="outline" onClick={() => void loadManagementData()} disabled={loading}>
+          <Button type="button" variant="outline" onClick={() => void refetch()} disabled={loading}>
             {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             Refresh
           </Button>
@@ -137,7 +130,10 @@ const AdminPromotionalVideo = () => {
                 id="promotional-video-url"
                 type="url"
                 value={videoUrl}
-                onChange={event => setVideoUrl(event.target.value)}
+                onChange={event => {
+                  setVideoUrl(event.target.value);
+                  setVideoUrlDirty(true);
+                }}
                 placeholder="https://www.youtube.com/watch?v=..."
                 maxLength={2048}
               />

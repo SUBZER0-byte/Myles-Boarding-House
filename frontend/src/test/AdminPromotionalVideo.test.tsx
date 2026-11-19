@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   deleteAdminPromotionalVideoComment,
@@ -71,6 +71,11 @@ describe("Admin promotional video management", () => {
     deleteAdminPromotionalVideoReply.mockResolvedValue("Reply deleted.");
   });
 
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
   it("previews and saves a changed video URL, and offers comment and like moderation", async () => {
     render(<AdminPromotionalVideo />);
 
@@ -104,5 +109,50 @@ describe("Admin promotional video management", () => {
     expect(await screen.findByText("Remove this like?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(deleteAdminPromotionalVideoLike).toHaveBeenCalledWith(4));
+  });
+
+  it("automatically reloads management data without replacing an unsaved video URL", async () => {
+    const initialData = {
+      video_url: "https://www.youtube.com/watch?v=abcdefghijk",
+      comments: [{
+        comment_id: 12,
+        user_id: 4,
+        full_name: "Guest User",
+        username: "guest",
+        comment: "A nice place",
+        created_at: "2026-11-18T12:00:00Z",
+      }],
+      replies: [],
+      likes: [],
+    };
+    const refreshedData = {
+      ...initialData,
+      video_url: "https://youtu.be/lmnopqrstuv",
+      comments: [{
+        ...initialData.comments[0],
+        comment: "Posted by another user",
+      }],
+    };
+    listAdminPromotionalVideo.mockReset()
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValue(refreshedData);
+    vi.useFakeTimers();
+    render(<AdminPromotionalVideo />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText("A nice place")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("YouTube video URL"), {
+      target: { value: "https://youtu.be/zyxwvutsrq1" },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(screen.getByText("Posted by another user")).toBeTruthy();
+    expect(screen.getByLabelText("YouTube video URL")).toHaveValue("https://youtu.be/zyxwvutsrq1");
+    expect(listAdminPromotionalVideo).toHaveBeenCalledTimes(2);
   });
 });
