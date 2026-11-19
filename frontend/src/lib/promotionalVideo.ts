@@ -182,7 +182,7 @@ function assertSuccessResponse(data: unknown, fallback: string): Record<string, 
 }
 
 export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdminData> {
-  const [managementResult, repliesResult] = await Promise.all([
+  const [managementResult, repliesResult, landingDiscussion] = await Promise.all([
     supabase.rpc("manage_admin_promotional_video", {
       p_action: "list",
       p_data: {},
@@ -191,6 +191,7 @@ export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdmin
       p_action: "list",
       p_data: {},
     }),
+    getPromotionalVideoDiscussion(),
   ]);
   if (managementResult.error) {
     throw new Error(managementResult.error.message || "Could not load promotional video management.");
@@ -290,7 +291,27 @@ export async function listAdminPromotionalVideo(): Promise<PromotionalVideoAdmin
     };
   });
 
-  return { video_url: result.video_url, comments, replies, likes };
+  const landingCommentLikes = new Map(
+    landingDiscussion.comments.map(comment => [comment.comment_id, comment.likes_count]),
+  );
+  const landingReplyLikes = new Map(
+    landingDiscussion.comments.flatMap(comment =>
+      comment.replies.map(reply => [reply.reply_id, reply.likes_count] as const),
+    ),
+  );
+
+  return {
+    video_url: result.video_url,
+    comments: comments.map(comment => ({
+      ...comment,
+      likes_count: landingCommentLikes.get(comment.comment_id) ?? comment.likes_count,
+    })),
+    replies: replies.map(reply => ({
+      ...reply,
+      likes_count: landingReplyLikes.get(reply.reply_id) ?? reply.likes_count,
+    })),
+    likes,
+  };
 }
 
 async function runAdminVideoAction(
