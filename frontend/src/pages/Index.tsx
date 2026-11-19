@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
 import { ratingCategories } from "@/lib/ratingCategories";
+import { filterProfanity } from "@/lib/profanityFilter";
 
 import logo from "@/assets/logo.png";
 import heroSlide1 from "../../Promotion/773975397_1801893280820553_5956689233169011423_n (1).jpg";
@@ -443,7 +444,7 @@ const Index = () => {
                       className="min-w-[85vw] max-w-[85vw] sm:min-w-[300px] sm:max-w-[300px] md:min-w-[360px] md:max-w-[360px] snap-center sm:snap-start flex-shrink-0 rounded-lg border border-border bg-card p-6 flex flex-col"
                     >
                       <Quote className="text-primary/30 mb-3" size={28} />
-                      <p className="text-sm text-foreground/80 flex-1 italic line-clamp-4">"{r.comment}"</p>
+                      <p className="text-sm text-foreground/80 flex-1 italic line-clamp-4">"{filterProfanity(r.comment)}"</p>
                       <div className="flex items-center gap-1 mt-4">
                         <RatingStars value={Number(r.rating)} size={14} colorClass="fill-accent text-accent" emptyClass="text-muted-foreground/30" />
                       </div>

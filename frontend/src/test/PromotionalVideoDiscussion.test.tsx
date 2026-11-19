@@ -116,6 +116,42 @@ describe("promotional video discussion UI", () => {
     expect(screen.queryByText("Thanks for sharing this.")).toBeNull();
   });
 
+  it("censors profane words in public comments and replies", async () => {
+    getPromotionalVideoDiscussion.mockReset().mockResolvedValue({
+      video_url: "https://www.youtube.com/watch?v=abcdefghijk",
+      likes_count: 0,
+      comments_count: 1,
+      liked_by_me: false,
+      comments: [{
+        comment_id: 1,
+        full_name: "A Tenant",
+        comment: "The FUCK is shit.",
+        created_at: "2026-11-18T12:00:00Z",
+        is_mine: false,
+        replies_count: 1,
+        likes_count: 0,
+        liked_by_me: false,
+        replies: [{
+          reply_id: 2,
+          full_name: "Another Tenant",
+          reply: "What the hell!",
+          created_at: "2026-11-18T13:00:00Z",
+          is_mine: false,
+          likes_count: 0,
+          liked_by_me: false,
+        }],
+      }],
+    });
+
+    render(<BrowserRouter><PromotionalVideoDiscussion /></BrowserRouter>);
+    expect(await screen.findByText("The **** is ****.")).toBeTruthy();
+    expect(screen.queryByText("The FUCK is shit.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show replies (1)" }));
+    expect(screen.getByText("What the ****!")).toBeTruthy();
+    expect(screen.queryByText("What the hell!")).toBeNull();
+  });
+
   it("lets a signed-in user like the video and post a comment", async () => {
     profile.current = { user_id: 7, full_name: "A Tenant" };
     render(<BrowserRouter><PromotionalVideoDiscussion /></BrowserRouter>);

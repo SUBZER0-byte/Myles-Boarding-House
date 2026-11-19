@@ -2,6 +2,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthProvider";
+import { filterProfanity } from "@/lib/profanityFilter";
 import {
   addPromotionalVideoComment,
   addPromotionalVideoReply,
@@ -358,7 +359,7 @@ export function PromotionalVideoDiscussion() {
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm">{item.comment}</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm">{filterProfanity(item.comment)}</p>
                 )}
                 <div className="mt-2">
                   {renderDiscussionLikeButton("comment", item.comment_id, item.likes_count, item.liked_by_me)}
@@ -415,7 +416,7 @@ export function PromotionalVideoDiscussion() {
                             {new Date(reply.created_at).toLocaleString()}
                           </time>
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm">{reply.reply}</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm">{filterProfanity(reply.reply)}</p>
                         <div className="mt-2">
                           {renderDiscussionLikeButton("reply", reply.reply_id, reply.likes_count, reply.liked_by_me)}
                         </div>
