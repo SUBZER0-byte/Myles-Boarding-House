@@ -44,6 +44,10 @@ function roomImageUrl(image: string | null | undefined): string {
   return getAdminRoomCoverUrl(image);
 }
 
+function roomHasAllocation(status: string): boolean {
+  return ["Occupied", "Reserved", "Reserving"].includes(status);
+}
+
 const AdminRooms = () => {
   const { toast } = useToast();
   const loadRooms = useCallback(() => getMyAdminRooms(), []);
@@ -173,8 +177,18 @@ const AdminRooms = () => {
       await setMyAdminRoomStatus(r.room_id, status);
       void refetch();
     } catch (error) {
+      void refetch();
+      const message = error instanceof Error ? error.message : "Could not update room status.";
+      if (message.includes("Room status cannot be set to Available while the room is assigned or reserved")) {
+        toast({
+          title: "Room is assigned or reserved",
+          description: "Its status cannot be changed to Available until its active tenants, bookings, or holds are cleared.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
-        title: error instanceof Error ? error.message : "Could not update room status.",
+        title: message,
         variant: "destructive",
       });
     }
@@ -230,7 +244,7 @@ const AdminRooms = () => {
                 <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Available" disabled={roomHasAllocation(r.status)}>Available</SelectItem>
                     <SelectItem value="Occupied">Occupied</SelectItem>
                     <SelectItem value="Reserved">Reserved</SelectItem>
                     <SelectItem value="Maintenance">Maintenance</SelectItem>
@@ -274,12 +288,17 @@ const AdminRooms = () => {
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Available">Available</SelectItem>
+                  <SelectItem value="Available" disabled={Boolean(selected && roomHasAllocation(selected.status))}>Available</SelectItem>
                   <SelectItem value="Occupied">Occupied</SelectItem>
                   <SelectItem value="Reserved">Reserved</SelectItem>
                   <SelectItem value="Maintenance">Maintenance</SelectItem>
                 </SelectContent>
               </Select></div>
+            {selected && roomHasAllocation(selected.status) && (
+              <p className="text-xs text-muted-foreground">
+                Available is disabled while this room has active tenants, bookings, or holds.
+              </p>
+            )}
             <div className="grid gap-1.5"><Label>Image</Label>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => {
                 const f = e.target.files?.[0] || null;
