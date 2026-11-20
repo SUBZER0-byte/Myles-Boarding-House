@@ -120,7 +120,7 @@ const downloadPaymentPdf = (payments: Payment[], tenantName: string) => {
     `Stay period${stayPeriods.length === 1 ? "" : "s"}: ${stayPeriods.join("; ") || "Not available"}`,
     `Generated: ${formatPhilippineDateTime(new Date())}`,
     "",
-    "MONTH / PERIOD            DUE DATE       STATUS         AMOUNT",
+    "MONTH / PERIOD            DUE DATE       STATUS         AMOUNT (PER PERSON)",
     "---------------------------------------------------------------------",
   ];
 
@@ -363,7 +363,7 @@ const TenantPayments = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
             <div>
               <h2 className="font-display font-semibold text-lg">Payment record</h2>
-              <p className="text-sm text-muted-foreground mt-1">Monthly rent from check-in through check-out</p>
+              <p className="text-sm text-muted-foreground mt-1">Monthly rent at the fixed per-person room rate, from check-in through check-out</p>
             </div>
             <Button
               variant="outline"

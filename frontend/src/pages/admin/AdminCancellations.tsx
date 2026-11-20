@@ -236,7 +236,7 @@ const AdminCancellations = () => {
                   <div className="border border-border rounded-lg overflow-hidden text-sm">
                     <div className="grid grid-cols-3 divide-x divide-border">
                       <div className="p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Monthly Rent</p>
+                        <p className="text-xs text-muted-foreground mb-1">Monthly Rent per Person</p>
                         <p className="font-semibold">{peso(r.monthly_rent)}</p>
                       </div>
                       <div className="p-3 text-center">

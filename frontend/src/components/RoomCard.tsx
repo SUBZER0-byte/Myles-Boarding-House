@@ -77,7 +77,7 @@ export function RoomCard({ room, onView }: RoomCardProps) {
       <div className="mt-auto space-y-2 pt-3">
         <p className="text-sm font-semibold">
           ₱{room.monthly_rent.toLocaleString()}
-          <span className="text-xs font-normal text-muted-foreground">/mo</span>
+          <span className="text-xs font-normal text-muted-foreground">/person/mo</span>
         </p>
         <button
           type="button"

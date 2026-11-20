@@ -36,7 +36,7 @@ export function RoomDetailsDialog({ room, open, onOpenChange }: RoomDetailsDialo
             <DialogTitle className="font-display text-2xl">Room {room.room_number}</DialogTitle>
             <DialogDescription>{formatRoomFloor(room.floor_number)}</DialogDescription>
             <p className="text-primary font-bold text-xl mt-1">
-              ₱{room.monthly_rent.toLocaleString()}<span className="text-sm text-muted-foreground font-normal">/month</span>
+              ₱{room.monthly_rent.toLocaleString()}<span className="text-sm text-muted-foreground font-normal">/person/month</span>
             </p>
           </DialogHeader>
 

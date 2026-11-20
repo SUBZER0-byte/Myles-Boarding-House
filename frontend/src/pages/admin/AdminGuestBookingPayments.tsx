@@ -162,7 +162,7 @@ const AdminGuestBookingPayments = () => {
                 <div className="grid sm:grid-cols-3 gap-3 my-3 text-sm">
                   <p><span className="text-muted-foreground">Current move-out:</span> {request.original_check_out_date}</p>
                   <p><span className="text-muted-foreground">Requested:</span> <strong>{request.requested_check_out_date}</strong></p>
-                  <p><span className="text-muted-foreground">Rent:</span> ₱{Number(request.monthly_rent || 0).toLocaleString()}/month</p>
+                  <p><span className="text-muted-foreground">Rent per person:</span> ₱{Number(request.monthly_rent || 0).toLocaleString()}/month</p>
                 </div>
                 {request.status === "Pending" && (
                   <div className="flex justify-end gap-2">

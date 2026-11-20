@@ -101,7 +101,7 @@ const GuestDashboard = () => {
                       <p className="truncate text-xs text-slate-500 dark:text-muted-foreground">{formatRoomFloor(r.floor_number)}</p>
                     </div>
                   </div>
-                  <span className="shrink-0 whitespace-nowrap text-right text-sm font-bold text-slate-700 dark:text-foreground">{peso(r.monthly_rent)}/mo</span>
+                  <span className="shrink-0 whitespace-nowrap text-right text-sm font-bold text-slate-700 dark:text-foreground">{peso(r.monthly_rent)}/person/mo</span>
                 </div>
               ))}
             </div>

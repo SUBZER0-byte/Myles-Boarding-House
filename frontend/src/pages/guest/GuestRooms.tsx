@@ -126,7 +126,7 @@ const GuestRooms = () => {
     () => [...unavailableDateSet].map((date) => new Date(`${date}T00:00:00`)),
     [unavailableDateSet],
   );
-  const roomMonthlyRent = Number(bookingRoom?.monthly_rent ?? 0);
+  const monthlyRentPerPerson = Number(bookingRoom?.monthly_rent ?? 0);
 
   useEffect(() => {
     setSaved(readSavedRoomIds());
@@ -344,9 +344,9 @@ const GuestRooms = () => {
     }
   };
 
-  const totalRent = roomMonthlyRent * stayMonths;
-  const securityDeposit = roomMonthlyRent;
-  const advanceRent = roomMonthlyRent;
+  const totalRent = monthlyRentPerPerson * stayMonths;
+  const securityDeposit = monthlyRentPerPerson;
+  const advanceRent = monthlyRentPerPerson;
   const initialPayment = form.payment_plan === "Pay One Month Rent"
     ? advanceRent
     : securityDeposit + advanceRent;
@@ -426,7 +426,7 @@ const GuestRooms = () => {
                 )}
                 <div className="mt-auto pt-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">{peso(Number(r.monthly_rent))}<span className="text-xs text-muted-foreground">/mo</span></span>
+                    <span className="font-semibold text-sm">{peso(Number(r.monthly_rent))}<span className="text-xs text-muted-foreground">/person/mo</span></span>
                     <button
                       type="button"
                       onClick={() => toggleSave(Number(r.room_id))}
@@ -512,7 +512,7 @@ const GuestRooms = () => {
                   </span>
                   <span className="text-lg font-semibold">
                     {peso(Number(quickViewRoom.monthly_rent))}
-                    <span className="text-sm font-normal text-muted-foreground">/mo</span>
+                    <span className="text-sm font-normal text-muted-foreground">/person/mo</span>
                   </span>
                 </div>
                 <RoomOccupantGender genders={quickViewRoom.occupant_genders} className="mt-3" />
@@ -580,7 +580,7 @@ const GuestRooms = () => {
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Booking Details</DialogTitle>
             <DialogDescription className="text-xs">
-              {bookingRoom ? `Room ${bookingRoom.room_number} — ${peso(Number(bookingRoom.monthly_rent))}/mo` : ""}
+              {bookingRoom ? `Room ${bookingRoom.room_number} — ${peso(Number(bookingRoom.monthly_rent))}/person/month` : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -693,7 +693,7 @@ const GuestRooms = () => {
             </Button>
             </>}
             {step === 2 && <>
-              <div className="rounded-md bg-muted/50 p-3 text-sm"><p>Length of stay: <strong>{stayMonths} month{stayMonths === 1 ? "" : "s"}</strong></p><p>Estimated total: <strong>{peso(totalRent)}</strong></p></div>
+              <div className="rounded-md bg-muted/50 p-3 text-sm"><p>Length of stay: <strong>{stayMonths} month{stayMonths === 1 ? "" : "s"}</strong></p><p>Estimated total for 1 person: <strong>{peso(totalRent)}</strong></p></div>
               <div className="space-y-2"><Label className="text-xs">Payment Plan</Label>
                 <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={form.payment_plan} onChange={(e) => setForm({ ...form, payment_plan: e.target.value })}>
                   <option>Pay Monthly</option>
@@ -704,7 +704,7 @@ const GuestRooms = () => {
             </>}
             {step === 3 && <>
               <div className="grid gap-2 text-sm rounded-md border border-border p-3">
-                <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent:</strong> {peso(Number(bookingRoom?.monthly_rent || 0))}</p><p><strong>Total rent:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {form.payment_plan}</p>
+                <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent per person:</strong> {peso(monthlyRentPerPerson)}</p><p><strong>Total rent for 1 person:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {form.payment_plan}</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 {form.payment_plan === "Pay One Month Rent"

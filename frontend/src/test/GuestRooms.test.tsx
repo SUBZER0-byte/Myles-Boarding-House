@@ -80,6 +80,9 @@ describe("GuestRooms temporary hold cancellation", () => {
   beforeEach(() => {
     Object.assign(room, {
       status: "Available",
+      capacity: 1,
+      monthly_rent: 1000,
+      occupant_genders: [],
       available_beds: 1,
       available_for_dates: true,
       has_active_booking: false,
@@ -169,6 +172,32 @@ describe("GuestRooms temporary hold cancellation", () => {
       "value",
       format(moveOutDate, "PPP"),
     );
+  });
+
+  it("calculates booking rent from the per-person rate, not room capacity", async () => {
+    room.capacity = 4;
+    room.available_beds = 4;
+    render(<GuestRooms />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
+    await screen.findByRole("heading", { name: "Terms & Agreement" });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Agree & Continue" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select move-in date" }));
+    const moveInDate = new Date();
+    moveInDate.setHours(0, 0, 0, 0);
+    fireEvent.click(screen.getByRole("gridcell", { name: String(moveInDate.getDate()) }));
+    fireEvent.change(screen.getByLabelText("Length of Stay (months)"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Payment Plan" }));
+
+    expect(await screen.findByText(/Estimated total for 1 person:/)).toHaveTextContent("₱2,000");
+    fireEvent.click(screen.getByRole("button", { name: "Review Booking" }));
+
+    expect(screen.getByText(/Monthly rent per person:/).parentElement).toHaveTextContent("₱1,000");
+    expect(screen.getByText(/Total rent for 1 person:/).parentElement).toHaveTextContent("₱2,000");
+    expect(screen.getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
   });
 
   it("does not leave a hold or reopen booking when the quick view closes during hold acquisition", async () => {

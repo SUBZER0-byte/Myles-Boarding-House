@@ -275,7 +275,7 @@ const TenantCancellation = () => {
 
                 <div className="border border-border rounded-lg overflow-hidden">
                   <div className="flex justify-between p-3 bg-muted/40 text-sm">
-                    <span className="text-muted-foreground">Monthly rent</span>
+                    <span className="text-muted-foreground">Monthly rent per person</span>
                     <span className="font-medium">{peso(preview.monthly_rent)}</span>
                   </div>
                   <div className="flex justify-between p-3 text-sm border-t border-border">
@@ -372,7 +372,7 @@ function RefundBreakdown({ r }: { r: Pick<CancellationStatus, "monthly_rent" | "
   return (
     <div className="border border-border rounded-lg overflow-hidden text-sm">
       <div className="flex justify-between p-3 bg-muted/40">
-        <span className="text-muted-foreground">Monthly rent</span>
+        <span className="text-muted-foreground">Monthly rent per person</span>
         <span>{peso(r.monthly_rent)}</span>
       </div>
       <div className="flex justify-between p-3 border-t border-border">

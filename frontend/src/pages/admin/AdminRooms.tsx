@@ -234,7 +234,7 @@ const AdminRooms = () => {
               <p className="text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
               <RoomOccupantGender genders={r.occupant_genders} />
               <div className="flex items-center justify-between pt-2 border-t border-border">
-                <span className="font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/mo</span>
+                <span className="font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
                 <span className="text-xs text-muted-foreground">
                   {r.occupants} occupant(s)
                   {Number(r.capacity) >= 2 && ` · ${Math.max(0, Number(r.capacity) - Number(r.occupants))} bedspace${Number(r.capacity) - Number(r.occupants) === 1 ? "" : "s"} available`}
@@ -281,7 +281,7 @@ const AdminRooms = () => {
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>Capacity</Label>
                 <Input type="number" min={1} value={form.capacity} onChange={e => setForm({ ...form, capacity: +e.target.value })} /></div>
-              <div className="grid gap-1.5"><Label>Monthly Rent (₱)</Label>
+              <div className="grid gap-1.5"><Label>Monthly Rent per Person (₱)</Label>
                 <Input type="number" min={0} value={form.monthly_rent} onChange={e => setForm({ ...form, monthly_rent: +e.target.value })} /></div>
             </div>
             <div className="grid gap-1.5"><Label>Status</Label>

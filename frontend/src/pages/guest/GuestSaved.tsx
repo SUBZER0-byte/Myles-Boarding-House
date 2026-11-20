@@ -100,7 +100,7 @@ const GuestSaved = () => {
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm">
                         {peso(r.monthly_rent)}
-                        <span className="text-xs text-muted-foreground">/mo</span>
+                        <span className="text-xs text-muted-foreground">/person/mo</span>
                       </span>
                       <button
                         onClick={() => remove(r.room_id)}

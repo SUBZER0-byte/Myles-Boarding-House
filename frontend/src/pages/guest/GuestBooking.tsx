@@ -217,7 +217,7 @@ const GuestBooking = () => {
                       <InfoRow
                         icon={<Clock size={14} />}
                         label="Security Deposit Due"
-                        value={`₱${Number(b.monthly_rent || 0).toLocaleString()} at move-in (${b.move_in_date || "move-in date"})`}
+                        value={`₱${Number(b.monthly_rent || 0).toLocaleString()} per person at move-in (${b.move_in_date || "move-in date"})`}
                       />
                     )}
                     <InfoRow icon={<ReceiptText size={14} />} label="Total Rent" value={`₱${Number(b.total_rent || 0).toLocaleString()}`} />

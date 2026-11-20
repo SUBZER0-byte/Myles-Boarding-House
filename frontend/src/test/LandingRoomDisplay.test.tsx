@@ -49,7 +49,7 @@ describe("Landing page room display", () => {
 
     expect(screen.getByRole("heading", { name: "Room 17" })).toBeTruthy();
     expect(screen.getByText("Occupied")).toBeTruthy();
-    expect(screen.getByRole("dialog").textContent).toContain("₱4,500/month");
+    expect(screen.getByRole("dialog").textContent).toContain("₱4,500/person/month");
     expect(screen.getByText("Capacity: 2")).toBeTruthy();
     expect(screen.getByText("Registered occupant gender(s): Female")).toBeTruthy();
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
