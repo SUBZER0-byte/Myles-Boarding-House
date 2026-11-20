@@ -13,6 +13,7 @@ export interface PublicRoom {
   status: string;
   image: string | null;
   occupant_genders?: OccupantGender[];
+  has_active_booking?: boolean;
   occupants?: number;
   available_beds?: number;
   available_for_dates?: boolean;
@@ -69,18 +70,25 @@ export async function getPublicRooms(): Promise<PublicRoom[]> {
 }
 
 export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: string): Promise<PublicRoom[]> {
-  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse_with_floor", {
+  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse_with_booking_state", {
     p_check_in_date: checkInDate,
     p_check_out_date: checkOutDate,
   });
   if (error) throw error;
   if (!Array.isArray(data)) throw new Error("The room availability service returned an invalid list.");
   return [...data as PublicRoom[]]
-    .map((room) => ({
-      ...room,
-      floor_number: parseFloorNumber(room.floor_number),
-      occupant_genders: parseOccupantGenders(room.occupant_genders),
-    }))
+    .map((room) => {
+      if (typeof room.has_active_booking !== "boolean") {
+        throw new Error("The room service returned invalid booking ownership data.");
+      }
+
+      return {
+        ...room,
+        floor_number: parseFloorNumber(room.floor_number),
+        occupant_genders: parseOccupantGenders(room.occupant_genders),
+        has_active_booking: room.has_active_booking,
+      };
+    })
     .sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 

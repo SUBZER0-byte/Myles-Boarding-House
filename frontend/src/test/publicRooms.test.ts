@@ -50,14 +50,17 @@ describe("public room reads", () => {
 
   it("loads database room status, date-specific capacity, and current occupant genders", async () => {
     const rooms = [
-      { room_id: 10, room_number: "10", floor_number: 1, status: "Occupied", occupant_genders: ["Male"] },
-      { room_id: 2, room_number: "2", floor_number: 2, status: "Occupied", occupant_genders: ["Female"] },
+      { room_id: 10, room_number: "10", floor_number: 1, status: "Occupied", occupant_genders: ["Male"], has_active_booking: true },
+      { room_id: 2, room_number: "2", floor_number: 2, status: "Occupied", occupant_genders: ["Female"], has_active_booking: false },
     ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01"))
-      .resolves.toEqual([rooms[1], rooms[0]]);
-    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse_with_floor", {
+      .resolves.toEqual([
+        { ...rooms[1], occupant_genders: ["Female"] },
+        { ...rooms[0], occupant_genders: ["Male"] },
+      ]);
+    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse_with_booking_state", {
       p_check_in_date: "2026-12-01",
       p_check_out_date: "2027-01-01",
     });
@@ -66,6 +69,15 @@ describe("public room reads", () => {
   it("rejects malformed availability responses", async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).rejects.toThrow("invalid list");
+  });
+
+  it("rejects booking ownership data that is not a boolean", async () => {
+    rpc.mockResolvedValue({
+      data: [{ room_id: 1, room_number: "1", floor_number: 1, occupant_genders: [], has_active_booking: "true" }],
+      error: null,
+    });
+    await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01"))
+      .rejects.toThrow("invalid booking ownership data");
   });
 
   it("rejects room reads with an invalid floor number", async () => {

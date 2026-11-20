@@ -27,6 +27,7 @@ const {
     occupant_genders: [],
     available_beds: 1,
     available_for_dates: true,
+    has_active_booking: false,
   },
 }));
 
@@ -81,6 +82,7 @@ describe("GuestRooms temporary hold cancellation", () => {
       status: "Available",
       available_beds: 1,
       available_for_dates: true,
+      has_active_booking: false,
     });
     acquireMyGuestRoomHold.mockReset().mockResolvedValue({ expires_at: "2026-11-14T22:17:00Z" });
     releaseMyGuestRoomHold.mockReset().mockResolvedValue(null);
@@ -106,6 +108,18 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText("Registered occupant gender(s): Female")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
     expect(within(screen.getByRole("dialog")).getByText("Registered occupant gender(s): Female")).toBeTruthy();
+  });
+
+  it("prevents booking the same room again while it is in the guest's active bookings", async () => {
+    room.has_active_booking = true;
+    render(<GuestRooms />);
+
+    const cardButton = await screen.findByRole("button", { name: "Already in My Bookings" });
+    expect(cardButton).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Already in My Bookings" }))
+      .toBeDisabled();
+    expect(acquireMyGuestRoomHold).not.toHaveBeenCalled();
   });
 
   it("releases the five-minute hold when the terms modal is closed before a booking is saved", async () => {

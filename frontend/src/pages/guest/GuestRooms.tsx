@@ -205,6 +205,14 @@ const GuestRooms = () => {
 
   const startBooking = async (room: PublicRoom) => {
     if (acquiringHold) return;
+    if (room.has_active_booking) {
+      toast({
+        title: "Room already in My Bookings",
+        description: "You already have an active booking for this room. Check My Booking for its current status.",
+        variant: "destructive",
+      });
+      return;
+    }
     const flowRevision = ++bookingFlowRevision.current;
     setAcquiringHold(true);
     setAcquiringHoldRoomId(room.room_id);
@@ -236,9 +244,19 @@ const GuestRooms = () => {
         await releaseRoomHold();
         return;
       }
+      const message = error instanceof Error ? error.message : "Please try again.";
+      if (message.includes("already have an active booking for this room")) {
+        toast({
+          title: "Room already in My Bookings",
+          description: "You already have an active booking for this room. Check My Booking for its current status.",
+          variant: "destructive",
+        });
+        refetchRooms();
+        return;
+      }
       toast({
         title: "Unable to reserve room",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: message,
         variant: "destructive",
       });
       refetchRooms();
@@ -377,6 +395,7 @@ const GuestRooms = () => {
             const availableForDates = Number(r.available_for_dates) === 1 || r.available_for_dates === true;
             const hasAvailableBeds = Number(r.available_beds) > 0;
             const isMaintenance = roomStatus === "maintenance";
+            const hasActiveBooking = r.has_active_booking === true;
             const statusLabel = r.status || "Unknown";
             const key = roomStatus;
             return (
@@ -430,7 +449,11 @@ const GuestRooms = () => {
                     <Maximize2 size={14} />
                     Quick view
                   </Button>
-                  {!isMaintenance && (!hasDateRange ? hasAvailableBeds : availableForDates) ? (
+                  {hasActiveBooking ? (
+                    <Button className="w-full" size="sm" variant="outline" disabled>
+                      Already in My Bookings
+                    </Button>
+                  ) : !isMaintenance && (!hasDateRange ? hasAvailableBeds : availableForDates) ? (
                     <Button className="w-full" size="sm" disabled={acquiringHold} onClick={() => startBooking(r)}>
                       {acquiringHoldRoomId === r.room_id ? "Reserving..." : "Book Now"}
                     </Button>
@@ -461,9 +484,11 @@ const GuestRooms = () => {
             const availableForDates = Number(quickViewRoom.available_for_dates) === 1 || quickViewRoom.available_for_dates === true;
             const hasAvailableBeds = Number(quickViewRoom.available_beds) > 0;
             const isMaintenance = roomStatus === "maintenance";
+            const hasActiveBooking = quickViewRoom.has_active_booking === true;
             const statusLabel = quickViewRoom.status || "Unknown";
             const statusKey = roomStatus;
             const isBookable = !isMaintenance
+              && !hasActiveBooking
               && (hasDateRange ? availableForDates : hasAvailableBeds);
             const isSaved = saved.includes(Number(quickViewRoom.room_id));
 
@@ -516,7 +541,9 @@ const GuestRooms = () => {
                     disabled={!isBookable || acquiringHold}
                     onClick={() => startBooking(quickViewRoom)}
                   >
-                    {acquiringHoldRoomId === quickViewRoom.room_id ? "Reserving..." : isBookable ? "Book Now" : statusLabel}
+                    {acquiringHoldRoomId === quickViewRoom.room_id
+                      ? "Reserving..."
+                      : hasActiveBooking ? "Already in My Bookings" : isBookable ? "Book Now" : statusLabel}
                   </Button>
                 </div>
               </DialogContent>

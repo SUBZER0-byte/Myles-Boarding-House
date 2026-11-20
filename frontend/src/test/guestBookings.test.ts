@@ -83,6 +83,16 @@ describe("Supabase guest booking service", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("surfaces the server rejection when the guest already has an active booking for that room", async () => {
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: new Error("You already have an active booking for this room"),
+    });
+
+    await expect(acquireMyGuestRoomHold({ room_id: 8 }))
+      .rejects.toThrow("You already have an active booking for this room");
+  });
+
   it("sends booking retries with their idempotency key and does not send an email identity", async () => {
     const input = {
       room_id: 8,
