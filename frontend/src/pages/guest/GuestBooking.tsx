@@ -15,7 +15,7 @@ import { useRef, useState } from "react";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { useToast } from "@/hooks/use-toast";
 import { sessionStore } from "@/lib/api";
-import { formatPhilippineDate, formatPhilippineDateTime } from "@/lib/philippineTime";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import {
   cancelMyGuestBooking,
@@ -227,7 +227,7 @@ const GuestBooking = () => {
                     <InfoRow
                       icon={<Clock size={14} />}
                       label="Booked On"
-                      value={formatPhilippineDate(b.created_at)}
+                      value={formatPhilippineDateTime(b.created_at)}
                     />
                     {b.status === "Pending" && Number(b.payment_expires_at_epoch) > 0 && (
                       <InfoRow
@@ -329,7 +329,7 @@ const GuestBooking = () => {
                     <p className="font-medium text-sm">Room {b.room_number}</p>
                     <p className="text-xs text-muted-foreground">
                       {b.reservation_type === "entire_room" ? "Entire room · " : ""}
-                      Booked {formatPhilippineDate(b.created_at)} · Move-in {b.move_in_date}
+                      Booked {formatPhilippineDateTime(b.created_at)} · Move-in {b.move_in_date}
                     </p>
                   </div>
                 </div>
