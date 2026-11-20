@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { BedDouble } from "lucide-react";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
+import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import type { RoomDisplayData } from "@/components/RoomCard";
 
 interface RoomDetailsDialogProps {
@@ -53,6 +54,7 @@ export function RoomDetailsDialog({ room, open, onOpenChange }: RoomDetailsDialo
               Capacity: {room.capacity}
             </span>
           </div>
+          <RoomOccupantGender genders={room.occupant_genders} className="mt-3" />
           {room.capacity >= 2 && (
             <p className="mt-3 text-sm text-muted-foreground">
               {room.available_beds} bedspace(s) available

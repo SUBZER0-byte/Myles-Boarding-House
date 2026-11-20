@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
+export type OccupantGender = "Male" | "Female" | "Not provided";
+
 export interface PublicRoom {
   room_id: number;
   room_number: string;
@@ -10,9 +12,20 @@ export interface PublicRoom {
   description: string | null;
   status: string;
   image: string | null;
+  occupant_genders?: OccupantGender[];
   occupants?: number;
   available_beds?: number;
   available_for_dates?: boolean;
+}
+
+export function parseOccupantGenders(value: unknown): OccupantGender[] {
+  if (value === undefined || value === null) return [];
+  const isOccupantGender = (gender: unknown): gender is OccupantGender =>
+    gender === "Male" || gender === "Female" || gender === "Not provided";
+  if (!Array.isArray(value) || !value.every(isOccupantGender)) {
+    throw new Error("The room service returned invalid occupant gender data.");
+  }
+  return [...new Set(value)];
 }
 
 export interface PublicRoomPhoto {
@@ -36,19 +49,24 @@ export function getPublicRoomImageUrl(image: string | null | undefined): string 
 }
 
 export async function getPublicRooms(): Promise<PublicRoom[]> {
-  const { data, error } = await supabase.rpc("get_public_rooms");
+  const { data, error } = await supabase.rpc("get_public_rooms_with_occupant_genders");
   if (error) throw error;
-  return [...((data ?? []) as PublicRoom[])].sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
+  if (!Array.isArray(data)) throw new Error("The room service returned an invalid list.");
+  return [...data as PublicRoom[]]
+    .map((room) => ({ ...room, occupant_genders: parseOccupantGenders(room.occupant_genders) }))
+    .sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 
 export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: string): Promise<PublicRoom[]> {
-  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse", {
+  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse_with_occupant_genders", {
     p_check_in_date: checkInDate,
     p_check_out_date: checkOutDate,
   });
   if (error) throw error;
   if (!Array.isArray(data)) throw new Error("The room availability service returned an invalid list.");
-  return [...data as PublicRoom[]].sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
+  return [...data as PublicRoom[]]
+    .map((room) => ({ ...room, occupant_genders: parseOccupantGenders(room.occupant_genders) }))
+    .sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
 
 export async function getPublicRoomPhotos(roomId: number): Promise<PublicRoomPhoto[]> {

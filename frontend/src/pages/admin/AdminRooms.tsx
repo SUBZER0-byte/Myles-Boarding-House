@@ -1,6 +1,8 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { RoomPhotosManager, type RoomPhotosManagerHandle } from "@/components/RoomPhotosManager";
 import { ImagePreview } from "@/components/ImagePreview";
+import { RoomOccupantGender } from "@/components/RoomOccupantGender";
+import type { OccupantGender } from "@/lib/publicRooms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -32,6 +34,7 @@ interface Room {
   description: string | null;
   image?: string | null;
   occupants: number;
+  occupant_genders?: OccupantGender[];
 }
 
 const empty = { room_number: "", room_type: "Single", capacity: 1, monthly_rent: 0, status: "Available", description: "" };
@@ -214,6 +217,7 @@ const AdminRooms = () => {
                 <Badge variant={variant(r.status)} className="text-xs">{r.status}</Badge>
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
+              <RoomOccupantGender genders={r.occupant_genders} />
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <span className="font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/mo</span>
                 <span className="text-xs text-muted-foreground">

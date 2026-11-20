@@ -1,4 +1,4 @@
-import { compareRoomNumbers, getPublicRoomImageUrl } from "@/lib/publicRooms";
+import { compareRoomNumbers, getPublicRoomImageUrl, parseOccupantGenders, type OccupantGender } from "@/lib/publicRooms";
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
@@ -12,6 +12,7 @@ export interface AdminRoom {
   description: string | null;
   image: string | null;
   occupants: number;
+  occupant_genders: OccupantGender[];
 }
 
 export interface AdminRoomInput {
@@ -159,6 +160,7 @@ function parseRooms(value: unknown): AdminRoom[] {
       description: typeof row.description === "string" ? row.description : null,
       image: typeof row.image === "string" ? row.image : null,
       occupants: typeof row.occupants === "number" ? row.occupants : 0,
+      occupant_genders: parseOccupantGenders(row.occupant_genders),
     };
   }).sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }

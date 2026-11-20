@@ -1,6 +1,8 @@
 import { BedDouble, Image as ImageIcon } from "lucide-react";
 import { ImagePreview } from "@/components/ImagePreview";
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
+import { RoomOccupantGender } from "@/components/RoomOccupantGender";
+import type { OccupantGender } from "@/lib/publicRooms";
 
 export interface RoomDisplayData {
   room_id: number;
@@ -12,6 +14,7 @@ export interface RoomDisplayData {
   capacity: number;
   available_beds: number;
   description: string | null;
+  occupant_genders?: OccupantGender[];
 }
 
 interface RoomCardProps {
@@ -61,6 +64,7 @@ export function RoomCard({ room, onView }: RoomCardProps) {
         </span>
       </div>
       <p className="mb-2 text-xs text-muted-foreground">{room.room_type}</p>
+      <RoomOccupantGender genders={room.occupant_genders} className="mb-2" />
       {room.capacity >= 2 && (
         <p className="mb-2 text-xs text-muted-foreground">
           {room.available_beds} bedspace(s) available

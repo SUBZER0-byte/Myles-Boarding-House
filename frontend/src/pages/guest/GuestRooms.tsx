@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
+import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import { BedDouble, CalendarDays, Heart, Loader2, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -394,6 +395,7 @@ const GuestRooms = () => {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{r.room_type}</p>
+                <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
                 {Number(r.capacity) >= 2 && (
                   <p className="text-xs text-muted-foreground mb-2">
                     {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0)))} bedspace(s) available
@@ -487,6 +489,7 @@ const GuestRooms = () => {
                     <span className="text-sm font-normal text-muted-foreground">/mo</span>
                   </span>
                 </div>
+                <RoomOccupantGender genders={quickViewRoom.occupant_genders} className="mt-3" />
                 {Number(quickViewRoom.capacity) >= 2 && (
                   <p className="text-sm text-muted-foreground">
                     {Number(quickViewRoom.available_beds ?? Math.max(0, Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)))} bedspace

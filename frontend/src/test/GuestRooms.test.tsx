@@ -24,6 +24,7 @@ const {
     status: "Available",
     image: null,
     occupants: 0,
+    occupant_genders: [],
     available_beds: 1,
     available_for_dates: true,
   },
@@ -96,6 +97,15 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText("Occupied")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
     expect(within(screen.getByRole("dialog")).getByText("Occupied")).toBeTruthy();
+  });
+
+  it("shows the current occupant gender in Browse Rooms and its quick view", async () => {
+    room.occupant_genders = ["Female"];
+    render(<GuestRooms />);
+
+    expect(await screen.findByText("Registered occupant gender(s): Female")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
+    expect(within(screen.getByRole("dialog")).getByText("Registered occupant gender(s): Female")).toBeTruthy();
   });
 
   it("releases the five-minute hold when the terms modal is closed before a booking is saved", async () => {

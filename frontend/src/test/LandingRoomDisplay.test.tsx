@@ -24,6 +24,7 @@ const room: RoomDisplayData = {
   capacity: 2,
   available_beds: 1,
   description: "Two-bed room near the common kitchen.",
+  occupant_genders: ["Female"],
 };
 
 describe("Landing page room display", () => {
@@ -33,6 +34,7 @@ describe("Landing page room display", () => {
     expect(screen.getByText("Occupied")).toBeTruthy();
     expect(screen.getByText("1 bedspace(s) available")).toBeTruthy();
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
+    expect(screen.getByText("Registered occupant gender(s): Female")).toBeTruthy();
     expect(screen.getByRole("button", { name: "View Details" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /book/i })).toBeNull();
     expect(screen.getByRole("img", { name: "Room 17 overview" })).toHaveAttribute(
@@ -49,6 +51,7 @@ describe("Landing page room display", () => {
     expect(screen.getByText("Occupied")).toBeTruthy();
     expect(screen.getByRole("dialog").textContent).toContain("₱4,500/month");
     expect(screen.getByText("Capacity: 2")).toBeTruthy();
+    expect(screen.getByText("Registered occupant gender(s): Female")).toBeTruthy();
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /book/i })).toBeNull();
   });

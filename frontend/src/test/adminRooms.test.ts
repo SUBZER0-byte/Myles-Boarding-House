@@ -47,6 +47,7 @@ describe("Admin rooms", () => {
           description: null,
           image: null,
           occupants: 0,
+          occupant_genders: ["Female"],
         },
         {
           room_id: 2,
@@ -63,8 +64,8 @@ describe("Admin rooms", () => {
       error: null,
     });
     await expect(getMyAdminRooms()).resolves.toMatchObject([
-      { room_id: 2, room_number: "2", monthly_rent: 9000 },
-      { room_id: 10, room_number: "10", monthly_rent: 9000 },
+      { room_id: 2, room_number: "2", monthly_rent: 9000, occupant_genders: [] },
+      { room_id: 10, room_number: "10", monthly_rent: 9000, occupant_genders: ["Female"] },
     ]);
   });
 
