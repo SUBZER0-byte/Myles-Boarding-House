@@ -31,6 +31,7 @@ import {
   saveMyAdminSettingsProfile,
   type AdminSettingsProfile,
 } from "@/lib/adminProfile";
+import { GENDER_OPTIONS } from "@/lib/gender";
 import {
   getMyAdminHouseSettings,
   saveMyAdminHouseSettings,
@@ -868,8 +869,21 @@ const AdminSettings = () => {
                   onChange={e => setProfile({ ...profile, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
                 /></div>
             </div>
-            <div className="grid gap-1.5"><Label>Gender</Label>
-              <Input value={profile.gender ?? "Not provided"} readOnly /></div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="admin-gender">Gender</Label>
+              <select
+                id="admin-gender"
+                value={profile.gender ?? ""}
+                onChange={event => setProfile({
+                  ...profile,
+                  gender: GENDER_OPTIONS.find(option => option === event.target.value) ?? null,
+                })}
+                className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm"
+              >
+                <option value="">Select gender</option>
+                {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
             <Button onClick={saveProfile} disabled={saving}>{saving ? "Saving…" : "Save Profile"}</Button>
           </>}
         </div>

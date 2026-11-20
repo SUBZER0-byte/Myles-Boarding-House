@@ -29,7 +29,7 @@ describe("Admin guest Supabase workflows", () => {
   it("creates and updates guests without using the PHP endpoint", async () => {
     invoke.mockResolvedValueOnce({ data: { type: "success", user_id: 8 }, error: null });
     invoke.mockResolvedValueOnce({ data: { type: "success" }, error: null });
-    const guest = { full_name: "New Guest", email: "guest@example.com" };
+    const guest = { full_name: "New Guest", email: "guest@example.com", gender: "Female" };
 
     await expect(createAdminGuest(guest)).resolves.toBe(8);
     await expect(updateAdminGuest({ ...guest, user_id: 8 })).resolves.toBeUndefined();

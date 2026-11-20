@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
-import { formatGender } from "@/lib/gender";
+import { formatGender, GENDER_OPTIONS, isGender, type Gender } from "@/lib/gender";
 import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -49,6 +49,7 @@ const AdminGuests = () => {
     username: "",
     email: "",
     phone: "",
+    gender: null as Gender | null,
     address: "",
     birthday: "",
     emergency_contact_name: "",
@@ -60,6 +61,7 @@ const AdminGuests = () => {
     username: "",
     email: "",
     phone: "",
+    gender: null as Gender | null,
     address: "",
     birthday: "",
     emergency_contact_name: "",
@@ -99,6 +101,7 @@ const AdminGuests = () => {
       username: guest.username,
       email: guest.email,
       phone: guest.phone ?? "",
+      gender: guest.gender,
       address: guest.address ?? "",
       birthday: guest.birthday ?? "",
       emergency_contact_name: guest.emergency_contact_name ?? "",
@@ -186,7 +189,7 @@ const AdminGuests = () => {
       });
       setAddOpen(false);
       setAddPicture(null);
-      setAddForm({ full_name: "", username: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
+      setAddForm({ full_name: "", username: "", email: "", phone: "", gender: null, address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "", password: "" });
       refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Unable to create guest account", variant: "destructive" });
@@ -473,6 +476,13 @@ const AdminGuests = () => {
               <Label htmlFor="guest-add-phone">Phone</Label>
               <Input id="guest-add-phone" type="tel" inputMode="numeric" maxLength={11} placeholder="09XXXXXXXXX" value={addForm.phone} onChange={e => setAddForm({ ...addForm, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="guest-add-gender">Gender</Label>
+              <select id="guest-add-gender" value={addForm.gender ?? ""} onChange={e => setAddForm({ ...addForm, gender: isGender(e.target.value) ? e.target.value : null })} className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm">
+                <option value="">Select gender</option>
+                {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="guest-add-address">Address</Label>
               <Input id="guest-add-address" maxLength={255} value={addForm.address} onChange={e => setAddForm({ ...addForm, address: e.target.value })} />
@@ -549,6 +559,13 @@ const AdminGuests = () => {
             <div className="grid gap-1.5">
               <Label htmlFor="guest-edit-phone">Phone</Label>
               <Input id="guest-edit-phone" type="tel" inputMode="numeric" maxLength={11} placeholder="09XXXXXXXXX" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="guest-edit-gender">Gender</Label>
+              <select id="guest-edit-gender" value={editForm.gender ?? ""} onChange={e => setEditForm({ ...editForm, gender: isGender(e.target.value) ? e.target.value : null })} className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm">
+                <option value="">Select gender</option>
+                {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="guest-edit-address">Address</Label>

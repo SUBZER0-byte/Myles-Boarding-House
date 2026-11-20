@@ -11,6 +11,7 @@ import {
   createAdminTenantFromGuest,
   deleteAdminTenant,
   findAdminTenantAccounts,
+  getAdminTenantAccountGender,
   listAdminTenants,
   setAdminTenantAccountStatus,
   updateAdminTenant,
@@ -41,7 +42,7 @@ describe("Admin tenant Supabase workflows", () => {
     invoke.mockResolvedValueOnce({ data: { type: "success", tenant_id: 9, user_id: 8 }, error: null });
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
     rpc.mockResolvedValue({ data: null, error: null });
-    const tenant = { full_name: "New Tenant", email: "tenant@example.com" };
+    const tenant = { full_name: "New Tenant", email: "tenant@example.com", gender: "Female" };
 
     await expect(createAdminTenant(tenant)).resolves.toMatchObject({ tenant_id: 9, user_id: 8 });
     await expect(updateAdminTenant({ ...tenant, tenant_id: 9 })).resolves.toMatchObject({ type: "success" });
@@ -53,15 +54,25 @@ describe("Admin tenant Supabase workflows", () => {
     expect(invoke).toHaveBeenNthCalledWith(2, "admin-tenants", {
       body: { action: "update", data: { ...tenant, tenant_id: 9 } },
     });
-    expect(rpc).toHaveBeenNthCalledWith(1, "set_admin_tenant_account_status", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "set_admin_tenant_account_status", {
       p_tenant_id: 9,
       p_is_active: false,
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "set_admin_tenant_account_status", {
+    expect(rpc).toHaveBeenNthCalledWith(3, "set_admin_tenant_account_status", {
       p_tenant_id: 9,
       p_is_active: true,
     });
-    expect(rpc).toHaveBeenNthCalledWith(3, "delete_admin_tenant", { p_tenant_id: 9 });
+    expect(rpc).toHaveBeenNthCalledWith(1, "set_admin_tenant_gender", {
+      p_tenant_id: 9,
+      p_gender: "Female",
+    });
+    expect(rpc).toHaveBeenNthCalledWith(4, "delete_admin_tenant", { p_tenant_id: 9 });
+  });
+
+  it("loads the gender for a Tenant account selected in Tenant Management", async () => {
+    rpc.mockResolvedValueOnce({ data: "Male", error: null });
+    await expect(getAdminTenantAccountGender(8)).resolves.toBe("Male");
+    expect(rpc).toHaveBeenCalledWith("get_admin_tenant_account_gender", { p_user_id: 8 });
   });
 
   it("promotes a newly created account to a tenant with the selected room and stay dates", async () => {

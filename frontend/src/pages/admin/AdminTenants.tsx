@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
-import { formatGender } from "@/lib/gender";
+import { formatGender, GENDER_OPTIONS, isGender, type Gender } from "@/lib/gender";
 import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
@@ -23,6 +23,7 @@ import {
   createAdminTenantFromGuest,
   deleteAdminTenant,
   findAdminTenantAccounts,
+  getAdminTenantAccountGender,
   listAdminTenants,
   setAdminTenantAccountStatus,
   updateAdminTenant,
@@ -53,13 +54,13 @@ const AdminTenants = () => {
   const [availableRoomsError, setAvailableRoomsError] = useState("");
   const [addForm, setAddForm] = useState({
     full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
-    emergency_contact_name: "", emergency_contact_phone: "", password: "",
+    emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null as Gender | null,
     room_id: "", move_in_date: "", stay_months: "1",
   });
 
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", address: "", birthday: "", emergency_contact_name: "", emergency_contact_phone: "",
-    room_id: "", move_in_date: "", stay_months: "", username: "", new_password: "",
+    room_id: "", move_in_date: "", stay_months: "", username: "", new_password: "", gender: null as Gender | null,
   });
 
   const validPicture = (file: File) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 10 * 1024 * 1024;
@@ -162,26 +163,36 @@ const AdminTenants = () => {
     };
   }, [addOpen, addForm.move_in_date, addForm.stay_months, addMoveOutDate]);
 
-  const selectAccountSuggestion = (account: AdminTenantAccountSuggestion) => {
-    setForm(current => ({
-      ...current,
-      username: account.username,
-      full_name: account.full_name,
-      email: account.email,
-      phone: account.phone ?? "",
-      address: account.address ?? "",
-      birthday: account.birthday ?? "",
-      emergency_contact_name: account.emergency_contact_name ?? "",
-      emergency_contact_phone: account.emergency_contact_phone ?? "",
-    }));
-    setAccountSuggestions([]);
-    setSuggestionsOpen(false);
+  const selectAccountSuggestion = async (account: AdminTenantAccountSuggestion) => {
+    try {
+      const gender = await getAdminTenantAccountGender(account.user_id);
+      setForm(current => ({
+        ...current,
+        username: account.username,
+        full_name: account.full_name,
+        email: account.email,
+        phone: account.phone ?? "",
+        address: account.address ?? "",
+        birthday: account.birthday ?? "",
+        emergency_contact_name: account.emergency_contact_name ?? "",
+        emergency_contact_phone: account.emergency_contact_phone ?? "",
+        gender,
+      }));
+      setAccountSuggestions([]);
+      setSuggestionsOpen(false);
+    } catch (error) {
+      toast({
+        title: "Unable to load tenant account",
+        description: error instanceof Error ? error.message : "Could not load the account gender.",
+        variant: "destructive",
+      });
+    }
   };
 
   const openAdd = () => {
     setAddForm({
       full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
-      emergency_contact_name: "", emergency_contact_phone: "", password: "",
+      emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null,
       room_id: "", move_in_date: todayString, stay_months: "1",
     });
     setTenantPicture(null);
@@ -193,6 +204,7 @@ const AdminTenants = () => {
     setForm({
       full_name: t.full_name, email: t.email, phone: t.phone,
       address: t.address ?? "", birthday: t.birthday ?? "",
+      gender: t.gender,
       emergency_contact_name: t.emergency_contact_name ?? "", emergency_contact_phone: t.emergency_contact_phone ?? "",
       room_id: t.room_id ? String(t.room_id) : "", move_in_date: t.move_in_date,
       stay_months: getStayMonths(t.move_in_date, t.move_out_date),
@@ -220,6 +232,7 @@ const AdminTenants = () => {
         birthday: addForm.birthday,
         emergency_contact_name: addForm.emergency_contact_name,
         emergency_contact_phone: addForm.emergency_contact_phone,
+        gender: addForm.gender,
         password: addForm.password,
       });
       const tenantId = await createAdminTenantFromGuest(
@@ -284,6 +297,7 @@ const AdminTenants = () => {
         birthday: form.birthday,
         emergency_contact_name: form.emergency_contact_name,
         emergency_contact_phone: form.emergency_contact_phone,
+        gender: form.gender,
         room_id: form.room_id,
         move_in_date: form.move_in_date,
         move_out_date: editMoveOutDate,
@@ -389,6 +403,14 @@ const AdminTenants = () => {
       </div>
       <div className="grid gap-1.5"><Label>Address</Label>
         <Input maxLength={255} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="tenant-edit-gender">Gender</Label>
+        <select id="tenant-edit-gender" value={form.gender ?? ""} disabled={editOpen && !form.username.trim()} onChange={e => setForm({ ...form, gender: isGender(e.target.value) ? e.target.value : null })} className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm">
+          <option value="">Select gender</option>
+          {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+        {editOpen && !form.username.trim() && <p className="text-xs text-muted-foreground">Link a Tenant login to save gender.</p>}
+      </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="grid gap-1.5"><Label>Birthday</Label>
           <Input type="date" value={form.birthday} onChange={e => setForm({ ...form, birthday: e.target.value })} /></div>
@@ -715,6 +737,13 @@ const AdminTenants = () => {
             <div className="grid gap-1.5">
               <Label htmlFor="tenant-add-phone">Phone</Label>
               <Input id="tenant-add-phone" required type="tel" inputMode="numeric" maxLength={11} placeholder="09XXXXXXXXX" autoComplete="tel" value={addForm.phone} onChange={event => setAddForm({ ...addForm, phone: event.target.value.replace(/\D/g, "").slice(0, 11) })} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-add-gender">Gender</Label>
+              <select id="tenant-add-gender" value={addForm.gender ?? ""} onChange={event => setAddForm({ ...addForm, gender: isGender(event.target.value) ? event.target.value : null })} className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm">
+                <option value="">Select gender</option>
+                {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="tenant-add-address">Address</Label>

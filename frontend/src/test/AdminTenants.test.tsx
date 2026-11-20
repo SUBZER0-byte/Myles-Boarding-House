@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 const {
   createAdminGuest,
   createAdminTenantFromGuest,
+  getAdminTenantAccountGender,
   getPublicRoomsForDates,
   refetch,
   tryRecordAdminManagementLog,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   createAdminGuest: vi.fn(),
   createAdminTenantFromGuest: vi.fn(),
+  getAdminTenantAccountGender: vi.fn(),
   getPublicRoomsForDates: vi.fn(),
   refetch: vi.fn(),
   tryRecordAdminManagementLog: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("@/lib/adminGuests", () => ({
 }));
 vi.mock("@/lib/adminTenants", () => ({
   createAdminTenantFromGuest,
+  getAdminTenantAccountGender,
   deleteAdminTenant: vi.fn(),
   findAdminTenantAccounts: vi.fn(),
   listAdminTenants: vi.fn(),
@@ -99,6 +102,7 @@ describe("Admin tenant account creation", () => {
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "newtenant" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "tenant@example.test" } });
     fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "09170000000" } });
+    fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.change(screen.getByLabelText("Temporary password"), { target: { value: "initial-password" } });
     fireEvent.change(screen.getByLabelText("Move-in date"), { target: { value: "2026-12-01" } });
     fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
@@ -114,6 +118,7 @@ describe("Admin tenant account creation", () => {
       username: "newtenant",
       email: "tenant@example.test",
       phone: "09170000000",
+      gender: "Female",
       address: "",
       birthday: "",
       emergency_contact_name: "",
@@ -135,6 +140,7 @@ describe("Admin tenant account creation", () => {
       user_id: 9,
       room_id: 4,
       full_name: "Existing Tenant",
+      gender: "Male",
       username: "existing",
       phone: "09170000000",
       email: "existing@example.test",
@@ -162,12 +168,14 @@ describe("Admin tenant account creation", () => {
     });
     fireEvent.keyDown(actionsButton, { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
     expect(screen.getByLabelText("Move-out date (calculated)")).toHaveProperty("value", "2027-02-01");
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateAdminTenant).toHaveBeenCalledWith(expect.objectContaining({
       tenant_id: 3,
+      gender: "Female",
       move_in_date: "2026-12-01",
       move_out_date: "2027-02-01",
     })));

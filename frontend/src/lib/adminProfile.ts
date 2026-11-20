@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { parseGender, type Gender } from "@/lib/gender";
+import { isGender, parseGender, type Gender } from "@/lib/gender";
 
 export interface AdminSettingsProfile {
   user_id: number;
@@ -45,9 +45,13 @@ export async function saveMyAdminSettingsProfile(profile: AdminSettingsProfile):
   if (!profile.full_name.trim() || profile.full_name.trim().length > 150) {
     throw new Error("Enter a valid name.");
   }
+  if (profile.gender !== null && !isGender(profile.gender)) {
+    throw new Error("Choose a valid gender.");
+  }
   const { error } = await supabase.rpc("update_my_admin_settings_profile", {
     p_full_name: profile.full_name,
     p_phone: profile.phone ?? "",
+    p_gender: profile.gender,
   });
   if (error) throw new Error(error.message || "Could not save administrator profile.");
 }

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { isGender, parseGender, type Gender } from "@/lib/gender";
 
 export interface AdminTenant {
   tenant_id: number;
@@ -11,7 +12,7 @@ export interface AdminTenant {
   address: string | null;
   age: number | string | null;
   birthday: string | null;
-  gender: string | null;
+  gender: Gender | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   move_in_date: string;
@@ -83,6 +84,13 @@ export async function findAdminTenantAccounts(query: string): Promise<AdminTenan
   return response.data;
 }
 
+export async function getAdminTenantAccountGender(userId: number): Promise<Gender | null> {
+  if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error("A valid tenant account is required.");
+  const { data, error } = await supabase.rpc("get_admin_tenant_account_gender", { p_user_id: userId });
+  if (error) throw new Error(error.message || "Could not load the tenant account gender.");
+  return parseGender(data);
+}
+
 export async function createAdminTenant(tenant: Record<string, unknown>): Promise<TenantResponse> {
   const response = await invokeTenantAction("create", tenant);
   if (typeof response.tenant_id !== "number") {
@@ -116,7 +124,24 @@ export async function createAdminTenantFromGuest(
 }
 
 export async function updateAdminTenant(tenant: Record<string, unknown>): Promise<TenantResponse> {
-  return invokeTenantAction("update", tenant);
+  const updatesGender = Object.prototype.hasOwnProperty.call(tenant, "gender");
+  let tenantId: number | null = null;
+  const gender = tenant.gender;
+  if (updatesGender) {
+    tenantId = Number(tenant.tenant_id);
+    if (!Number.isSafeInteger(tenantId) || tenantId <= 0) throw new Error("A valid tenant ID is required.");
+    if (gender !== null && !isGender(gender)) throw new Error("Choose a valid gender.");
+  }
+
+  const response = await invokeTenantAction("update", tenant);
+  if (updatesGender && tenantId !== null) {
+    const { error } = await supabase.rpc("set_admin_tenant_gender", {
+      p_tenant_id: tenantId,
+      p_gender: gender,
+    });
+    if (error) throw new Error(error.message || "Could not save the tenant gender.");
+  }
+  return response;
 }
 
 export async function setAdminTenantAccountStatus(tenantId: number, active: boolean): Promise<void> {

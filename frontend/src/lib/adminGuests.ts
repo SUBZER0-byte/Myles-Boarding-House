@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { Gender } from "@/lib/gender";
 
 export interface AdminGuest {
   user_id: number;
@@ -6,7 +7,7 @@ export interface AdminGuest {
   username: string;
   email: string;
   phone: string | null;
-  gender: string | null;
+  gender: Gender | null;
   address: string | null;
   age: number | null;
   birthday: string | null;

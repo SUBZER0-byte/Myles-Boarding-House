@@ -15,6 +15,7 @@ type GuestInput = {
   username?: unknown;
   email?: unknown;
   phone?: unknown;
+  gender?: unknown;
   address?: unknown;
   birthday?: unknown;
   emergency_contact_name?: unknown;
@@ -56,6 +57,19 @@ function canonicalPhone(value: unknown): string | null {
   return null;
 }
 
+function canonicalGender(value: unknown): "Male" | "Female" | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    throw new GuestInputError("Choose Male or Female for gender.");
+  }
+  const gender = value.trim();
+  if (!gender) return null;
+  if (gender !== "Male" && gender !== "Female") {
+    throw new GuestInputError("Choose Male or Female for gender.");
+  }
+  return gender;
+}
+
 function calculateAge(birthday: string): number | null {
   if (!birthday) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) throw new GuestInputError("Enter a valid birthday that is not in the future.");
@@ -82,6 +96,7 @@ function validateGuest(input: GuestInput, creating: boolean) {
   const email = text(input.email).toLowerCase();
   const phoneText = text(input.phone);
   const phone = canonicalPhone(phoneText);
+  const gender = canonicalGender(input.gender);
   const address = text(input.address);
   const birthday = text(input.birthday);
   const emergencyName = text(input.emergency_contact_name);
@@ -116,6 +131,7 @@ function validateGuest(input: GuestInput, creating: boolean) {
     username,
     email,
     phone,
+    gender,
     address: address || null,
     birthday: birthday || null,
     age,
@@ -229,6 +245,16 @@ async function handleAction(action: string, input: GuestInput, request: Request)
       if (cleanupError) console.error("Could not remove the unlinked guest Auth account:", cleanupError);
       return { body: { type: "error", message: "Guest Auth was created, but the profile could not be verified." }, status: 500 };
     }
+    const { error: genderError } = await admin.from("users")
+      .update({ gender: guest.gender })
+      .eq("user_id", profile.user_id)
+      .eq("user_type", "Guest");
+    if (genderError) {
+      console.error("Could not save the new guest gender:", genderError);
+      const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
+      if (cleanupError) console.error("Could not remove the guest Auth account after profile update failed:", cleanupError);
+      return { body: { type: "error", message: "Guest Auth was created, but the profile could not be saved." }, status: 500 };
+    }
     return { body: { type: "success", message: "Guest account created.", user_id: profile.user_id }, status: 200 };
   }
 
@@ -274,6 +300,7 @@ async function handleAction(action: string, input: GuestInput, request: Request)
       full_name: guest.full_name,
       email: guest.email,
       phone: guest.phone,
+      gender: guest.gender,
       address: guest.address,
       birthday: guest.birthday,
       age: guest.age,

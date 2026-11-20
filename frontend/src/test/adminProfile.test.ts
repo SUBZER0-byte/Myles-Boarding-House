@@ -46,6 +46,25 @@ describe("Admin profile settings", () => {
     expect(rpc).toHaveBeenNthCalledWith(2, "update_my_admin_settings_profile", {
       p_full_name: "Admin User",
       p_phone: "09123456789",
+      p_gender: "Male",
+    });
+  });
+
+  it("allows existing Admin profiles to keep gender unspecified", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(saveMyAdminSettingsProfile({
+      user_id: 1,
+      full_name: "Admin User",
+      username: "admin",
+      email: "admin@example.com",
+      phone: null,
+      gender: null,
+      profile_picture: null,
+    })).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("update_my_admin_settings_profile", {
+      p_full_name: "Admin User",
+      p_phone: "",
+      p_gender: null,
     });
   });
 
