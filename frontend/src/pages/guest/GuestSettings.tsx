@@ -175,7 +175,7 @@ const GuestSettings = () => {
               onChange={event => setProfile({ ...profile, gender: event.target.value || null })}
               className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm"
             >
-              <option value="">Not provided</option>
+              <option value="" disabled>Select gender</option>
               {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
             <p className="text-xs text-muted-foreground">Used for booking verification, not to determine room eligibility.</p>

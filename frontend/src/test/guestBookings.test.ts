@@ -146,7 +146,7 @@ describe("Supabase guest booking service", () => {
       data: [
         { booking_id: 15, gender: "Female" },
         { booking_id: 16, gender: null },
-        { booking_id: 17, gender: "Prefer not to say" },
+        { booking_id: 17, gender: "Male" },
       ],
       error: null,
     });
@@ -161,7 +161,7 @@ describe("Supabase guest booking service", () => {
     expect(rows).toEqual([
       { booking_id: 15, gender: "Female", gcash_submitted_screenshot: "https://storage.example/signed-proof" },
       { booking_id: 16, gender: null, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
-      { booking_id: 17, gender: "Prefer not to say", gcash_submitted_screenshot: null, proof_unavailable: true },
+      { booking_id: 17, gender: "Male", gcash_submitted_screenshot: null, proof_unavailable: true },
     ]);
   });
 });

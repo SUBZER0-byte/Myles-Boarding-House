@@ -25,11 +25,8 @@ const otpLifetimeMs = 10 * 60 * 1000;
 const otpCooldownMs = 60 * 1000;
 const maxOtpAttempts = 5;
 const allowedGenders = new Set([
-  "Female",
   "Male",
-  "Non-binary",
-  "Other",
-  "Prefer not to say",
+  "Female",
 ]);
 
 type AuthAction =

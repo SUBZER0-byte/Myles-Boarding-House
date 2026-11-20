@@ -34,7 +34,7 @@ describe("Admin profile settings", () => {
       username: "admin",
       email: "admin@example.com",
       phone: "09123456789",
-      gender: "Prefer not to say",
+      gender: "Male",
       profile_picture: null,
     };
     rpc.mockResolvedValueOnce({ data: [profile], error: null });

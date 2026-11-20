@@ -1,9 +1,6 @@
 export const GENDER_OPTIONS = [
-  "Female",
   "Male",
-  "Non-binary",
-  "Other",
-  "Prefer not to say",
+  "Female",
 ] as const;
 
 export type Gender = typeof GENDER_OPTIONS[number];

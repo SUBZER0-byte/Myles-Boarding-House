@@ -116,7 +116,7 @@ describe("Supabase profile settings", () => {
       age: null,
       birthday: null,
       user_type: "Tenant",
-      gender: "Unknown",
+      gender: "Non-binary",
       emergency_contact_name: null,
       emergency_contact_phone: null,
     })).rejects.toThrow("Choose a valid gender.");
