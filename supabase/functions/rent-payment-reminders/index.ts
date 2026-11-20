@@ -30,8 +30,8 @@ Deno.serve(async request => {
     return jsonResponse(401, { error: "Unauthorized." });
   }
 
-  if (Deno.env.get("TEXTBEE_ENABLED")?.toLowerCase() !== "true") {
-    return jsonResponse(503, { error: "TextBee SMS is disabled." });
+  if (Deno.env.get("RENT_PAYMENT_REMINDER_ENABLED")?.toLowerCase() !== "true") {
+    return jsonResponse(503, { error: "Rent payment reminder SMS is disabled." });
   }
   const apiKey = Deno.env.get("TEXTBEE_API_KEY")?.trim();
   const apiBase = Deno.env.get("TEXTBEE_API_BASE")?.trim();
