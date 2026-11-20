@@ -18,6 +18,7 @@ import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/li
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { calculateMoveOutDate, getStayMonths } from "@/lib/stayDates";
+import { formatRoomFloor } from "@/lib/roomFloor";
 import { createAdminGuest } from "@/lib/adminGuests";
 import {
   createAdminTenantFromGuest,
@@ -595,7 +596,7 @@ const AdminTenants = () => {
                     <p className="font-medium text-sm">{t.full_name}</p>
                     <p className="text-xs text-muted-foreground">@{t.username || "unknown"}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {t.room_number ? `Room ${t.room_number} · ${t.room_type}` : "No room assigned"}
+                      {t.room_number ? `Room ${t.room_number} · ${formatRoomFloor(t.floor_number)}` : "No room assigned"}
                     </p>
                   </div>
                 </div>
@@ -677,7 +678,7 @@ const AdminTenants = () => {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{t.room_number ? `Room ${t.room_number} · ${t.room_type}` : "No room assigned"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{t.room_number ? `Room ${t.room_number} · ${formatRoomFloor(t.floor_number)}` : "No room assigned"}</TableCell>
                     <TableCell className="min-w-48">
                       <p>{t.email}</p>
                       <p className="text-xs text-muted-foreground">{t.phone || "—"}</p>
@@ -823,7 +824,7 @@ const AdminTenants = () => {
                 <SelectContent>
                   {availableRooms.map(room => (
                     <SelectItem key={room.room_id} value={String(room.room_id)}>
-                      Room {room.room_number} · {room.room_type} · {Number(room.available_beds)} bedspace(s) available
+                      Room {room.room_number} · {formatRoomFloor(room.floor_number)} · {Number(room.available_beds)} bedspace(s) available
                     </SelectItem>
                   ))}
                 </SelectContent>

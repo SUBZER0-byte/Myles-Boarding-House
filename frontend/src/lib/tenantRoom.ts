@@ -6,7 +6,7 @@ export interface TenantRoom {
   tenant_id: number;
   booking_id?: number | null;
   room_number: string;
-  room_type: string;
+  floor_number: number;
   capacity: number;
   monthly_rent: number | string;
   status: string;
@@ -30,7 +30,9 @@ export async function getMyTenantRoom(): Promise<TenantRoom> {
     typeof row.room_id !== "number"
     || typeof row.tenant_id !== "number"
     || typeof row.room_number !== "string"
-    || typeof row.room_type !== "string"
+    || typeof row.floor_number !== "number"
+    || !Number.isInteger(row.floor_number)
+    || row.floor_number < 1
     || typeof row.capacity !== "number"
     || (typeof row.monthly_rent !== "number" && typeof row.monthly_rent !== "string")
   ) {
@@ -41,7 +43,7 @@ export async function getMyTenantRoom(): Promise<TenantRoom> {
     tenant_id: row.tenant_id,
     booking_id: typeof row.booking_id === "number" ? row.booking_id : null,
     room_number: row.room_number,
-    room_type: row.room_type,
+    floor_number: row.floor_number,
     capacity: row.capacity,
     monthly_rent: row.monthly_rent,
     status: typeof row.status === "string" ? row.status : "",

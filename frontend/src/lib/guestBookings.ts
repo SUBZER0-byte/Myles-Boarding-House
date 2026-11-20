@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
+import { getPublicRooms } from "@/lib/publicRooms";
 
 const proofBucket = "mbh-booking-payment-proofs";
 
@@ -11,7 +12,7 @@ export interface GuestBooking {
   gender: string | null;
   room_id: number | null;
   room_number: string | null;
-  room_type: string | null;
+  floor_number: number | null;
   room_status: string | null;
   reservation_type: "capacity_based" | "entire_room";
   occupant_count: number;
@@ -84,7 +85,15 @@ function requireId(value: number, label: string) {
 }
 
 export function listMyGuestBookings() {
-  return call<GuestBooking[]>("guest_list");
+  return call<GuestBooking[]>("guest_list").then(async (bookings) => {
+    if (!Array.isArray(bookings)) throw new Error("The booking service returned an invalid list.");
+    const rooms = await getPublicRooms();
+    const floorsByRoomId = new Map(rooms.map((room) => [room.room_id, room.floor_number]));
+    return bookings.map((booking) => ({
+      ...booking,
+      floor_number: booking.room_id === null ? null : floorsByRoomId.get(booking.room_id) ?? null,
+    }));
+  });
 }
 
 export function acquireMyGuestRoomHold(input: {

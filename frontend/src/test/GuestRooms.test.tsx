@@ -17,7 +17,7 @@ const {
   room: {
     room_id: 1,
     room_number: "11",
-    room_type: "Single",
+    floor_number: 1,
     capacity: 1,
     monthly_rent: 1000,
     description: null,

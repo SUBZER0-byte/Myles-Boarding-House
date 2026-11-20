@@ -4,6 +4,7 @@ import { BedDouble } from "lucide-react";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import type { RoomDisplayData } from "@/components/RoomCard";
+import { formatRoomFloor } from "@/lib/roomFloor";
 
 interface RoomDetailsDialogProps {
   room: RoomDisplayData | null;
@@ -33,7 +34,7 @@ export function RoomDetailsDialog({ room, open, onOpenChange }: RoomDetailsDialo
         <div className="p-5">
           <DialogHeader className="mb-4">
             <DialogTitle className="font-display text-2xl">Room {room.room_number}</DialogTitle>
-            <DialogDescription>{room.room_type}</DialogDescription>
+            <DialogDescription>{formatRoomFloor(room.floor_number)}</DialogDescription>
             <p className="text-primary font-bold text-xl mt-1">
               ₱{room.monthly_rent.toLocaleString()}<span className="text-sm text-muted-foreground font-normal">/month</span>
             </p>

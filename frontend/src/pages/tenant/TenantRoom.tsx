@@ -14,6 +14,7 @@ import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getAvailableTenantRooms, getMyTenantRoom } from "@/lib/tenantRoom";
 import { requestStayExtension } from "@/lib/stayExtensions";
 import { createTenantRoomChangeRequest } from "@/lib/tenantRequests";
+import { formatRoomFloor } from "@/lib/roomFloor";
 
 const TenantRoom = () => {
   const { toast } = useToast();
@@ -100,7 +101,7 @@ const TenantRoom = () => {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-display text-2xl font-bold leading-tight">Room {myRoom.room_number}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{myRoom.room_type} · Capacity {myRoom.capacity}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{formatRoomFloor(myRoom.floor_number)} · Capacity {myRoom.capacity}</p>
               </div>
               <Badge variant="secondary" className="capitalize">{myRoom.status}</Badge>
             </div>
@@ -165,7 +166,7 @@ const TenantRoom = () => {
               <div key={r.room_id} className="min-w-0 rounded-lg border border-border p-4">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">Room {r.room_number}</p>
-                  <Badge variant="secondary" className="text-xs">{r.room_type}</Badge>
+                  <Badge variant="secondary" className="text-xs">{formatRoomFloor(r.floor_number)}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">₱{Number(r.monthly_rent).toLocaleString()}/mo · cap {r.capacity}</p>
               </div>
@@ -182,7 +183,7 @@ const TenantRoom = () => {
               <SelectTrigger><SelectValue placeholder="Choose room…" /></SelectTrigger>
               <SelectContent>
                 {available.map(r => (
-                  <SelectItem key={r.room_id} value={String(r.room_id)}>Room {r.room_number} · {r.room_type}</SelectItem>
+                  <SelectItem key={r.room_id} value={String(r.room_id)}>Room {r.room_number} · {formatRoomFloor(r.floor_number)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

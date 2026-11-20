@@ -1,11 +1,11 @@
-import { compareRoomNumbers, getPublicRoomImageUrl, parseOccupantGenders, type OccupantGender } from "@/lib/publicRooms";
+import { compareRoomNumbers, getPublicRoomImageUrl, parseFloorNumber, parseOccupantGenders, type OccupantGender } from "@/lib/publicRooms";
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 
 export interface AdminRoom {
   room_id: number;
   room_number: string;
-  room_type: string;
+  floor_number: number;
   capacity: number;
   monthly_rent: number;
   status: string;
@@ -18,7 +18,7 @@ export interface AdminRoom {
 export interface AdminRoomInput {
   room_id: number | null;
   room_number: string;
-  room_type: string;
+  floor_number: number;
   capacity: number;
   monthly_rent: number;
   status: string;
@@ -143,7 +143,7 @@ function parseRooms(value: unknown): AdminRoom[] {
     if (
       typeof row.room_id !== "number"
       || typeof row.room_number !== "string"
-      || typeof row.room_type !== "string"
+      || (typeof row.floor_number !== "number" && typeof row.floor_number !== "string")
       || typeof row.capacity !== "number"
       || (typeof row.monthly_rent !== "number" && typeof row.monthly_rent !== "string")
       || typeof row.status !== "string"
@@ -153,7 +153,7 @@ function parseRooms(value: unknown): AdminRoom[] {
     return {
       room_id: row.room_id,
       room_number: row.room_number,
-      room_type: row.room_type,
+      floor_number: parseFloorNumber(Number(row.floor_number)),
       capacity: row.capacity,
       monthly_rent: Number(row.monthly_rent),
       status: row.status,
@@ -174,7 +174,9 @@ export async function getMyAdminRooms(): Promise<AdminRoom[]> {
 export async function saveMyAdminRoom(room: AdminRoomInput): Promise<number> {
   if (
     !room.room_number.trim()
-    || !room.room_type.trim()
+    || !Number.isInteger(room.floor_number)
+    || room.floor_number < 1
+    || room.floor_number > 32767
     || !Number.isInteger(room.capacity)
     || room.capacity < 1
     || !Number.isFinite(room.monthly_rent)
@@ -182,10 +184,10 @@ export async function saveMyAdminRoom(room: AdminRoomInput): Promise<number> {
   ) {
     throw new Error("Enter valid room details.");
   }
-  const { data, error } = await supabase.rpc("save_my_admin_room", {
+  const { data, error } = await supabase.rpc("save_my_admin_room_with_floor", {
     p_room_id: room.room_id,
     p_room_number: room.room_number,
-    p_room_type: room.room_type,
+    p_floor_number: room.floor_number,
     p_capacity: room.capacity,
     p_monthly_rent: room.monthly_rent,
     p_status: room.status,

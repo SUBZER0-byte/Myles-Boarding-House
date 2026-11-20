@@ -3,6 +3,7 @@ import { RoomPhotosManager, type RoomPhotosManagerHandle } from "@/components/Ro
 import { ImagePreview } from "@/components/ImagePreview";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import type { OccupantGender } from "@/lib/publicRooms";
+import { formatRoomFloor } from "@/lib/roomFloor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -27,7 +28,7 @@ import {
 interface Room {
   room_id: number;
   room_number: string;
-  room_type: string;
+  floor_number: number;
   capacity: number;
   monthly_rent: number;
   status: string;
@@ -37,7 +38,7 @@ interface Room {
   occupant_genders?: OccupantGender[];
 }
 
-const empty = { room_number: "", room_type: "Single", capacity: 1, monthly_rent: 0, status: "Available", description: "" };
+const empty = { room_number: "", floor_number: 1, capacity: 1, monthly_rent: 0, status: "Available", description: "" };
 
 function roomImageUrl(image: string | null | undefined): string {
   return getAdminRoomCoverUrl(image);
@@ -68,7 +69,7 @@ const AdminRooms = () => {
     if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
     setSelected(r);
     setForm({
-      room_number: r.room_number, room_type: r.room_type, capacity: r.capacity,
+      room_number: r.room_number, floor_number: r.floor_number, capacity: r.capacity,
       monthly_rent: r.monthly_rent, status: r.status, description: r.description || "",
     });
     setImageFile(null);
@@ -211,7 +212,7 @@ const AdminRooms = () => {
                   <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center text-primary"><BedDouble size={20} /></div>
                   <div>
                     <p className="font-medium text-sm">Room {r.room_number}</p>
-                    <p className="text-xs text-muted-foreground">{r.room_type} · cap {r.capacity}</p>
+                    <p className="text-xs text-muted-foreground">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
                   </div>
                 </div>
                 <Badge variant={variant(r.status)} className="text-xs">{r.status}</Badge>
@@ -253,15 +254,15 @@ const AdminRooms = () => {
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>Room # *</Label>
                 <Input value={form.room_number} onChange={e => setForm({ ...form, room_number: e.target.value })} /></div>
-              <div className="grid gap-1.5"><Label>Type</Label>
-                <Select value={form.room_type} onValueChange={(v) => setForm({ ...form, room_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Single">Single</SelectItem>
-                    <SelectItem value="Double">Double</SelectItem>
-                    <SelectItem value="Suite">Suite</SelectItem>
-                  </SelectContent>
-                </Select></div>
+              <div className="grid gap-1.5"><Label>Floor No. *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={32767}
+                  step={1}
+                  value={form.floor_number}
+                  onChange={event => setForm({ ...form, floor_number: Number(event.target.value) })}
+                /></div>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5"><Label>Capacity</Label>

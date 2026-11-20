@@ -40,7 +40,7 @@ describe("Admin rooms", () => {
         {
           room_id: 10,
           room_number: "10",
-          room_type: "Single",
+          floor_number: 1,
           capacity: 1,
           monthly_rent: "9000.00",
           status: "Available",
@@ -52,7 +52,7 @@ describe("Admin rooms", () => {
         {
           room_id: 2,
           room_number: "2",
-          room_type: "Single",
+          floor_number: 2,
           capacity: 1,
           monthly_rent: "9000.00",
           status: "Available",
@@ -64,8 +64,8 @@ describe("Admin rooms", () => {
       error: null,
     });
     await expect(getMyAdminRooms()).resolves.toMatchObject([
-      { room_id: 2, room_number: "2", monthly_rent: 9000, occupant_genders: [] },
-      { room_id: 10, room_number: "10", monthly_rent: 9000, occupant_genders: ["Female"] },
+      { room_id: 2, room_number: "2", floor_number: 2, monthly_rent: 9000, occupant_genders: [] },
+      { room_id: 10, room_number: "10", floor_number: 1, monthly_rent: 9000, occupant_genders: ["Female"] },
     ]);
   });
 
@@ -74,22 +74,23 @@ describe("Admin rooms", () => {
     const room = {
       room_id: null,
       room_number: "A2",
-      room_type: "Double",
+      floor_number: 2,
       capacity: 2,
       monthly_rent: 12000,
       status: "Available",
       description: "",
     };
     await expect(saveMyAdminRoom(room)).resolves.toBe(4);
-    expect(rpc).toHaveBeenCalledWith("save_my_admin_room", {
+    expect(rpc).toHaveBeenCalledWith("save_my_admin_room_with_floor", {
       p_room_id: null,
       p_room_number: "A2",
-      p_room_type: "Double",
+      p_floor_number: 2,
       p_capacity: 2,
       p_monthly_rent: 12000,
       p_status: "Available",
       p_description: "",
     });
+    await expect(saveMyAdminRoom({ ...room, floor_number: 0 })).rejects.toThrow("valid room details");
     await expect(saveMyAdminRoom({ ...room, capacity: 0 })).rejects.toThrow("valid room details");
   });
 

@@ -87,7 +87,7 @@ const Index = () => {
   const rooms: RoomDisplayData[] = (liveRooms ?? []).map((room) => ({
     room_id: room.room_id,
     room_number: room.room_number,
-    room_type: room.room_type,
+    floor_number: room.floor_number,
     image: room.image || "",
     monthly_rent: Number(room.monthly_rent),
     status: room.status || "Unknown",

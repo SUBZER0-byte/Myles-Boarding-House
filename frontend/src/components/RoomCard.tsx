@@ -3,11 +3,12 @@ import { ImagePreview } from "@/components/ImagePreview";
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import type { OccupantGender } from "@/lib/publicRooms";
+import { formatRoomFloor } from "@/lib/roomFloor";
 
 export interface RoomDisplayData {
   room_id: number;
   room_number: string;
-  room_type: string;
+  floor_number: number;
   image: string;
   monthly_rent: number;
   status: string;
@@ -63,7 +64,7 @@ export function RoomCard({ room, onView }: RoomCardProps) {
           {room.status || "Unknown"}
         </span>
       </div>
-      <p className="mb-2 text-xs text-muted-foreground">{room.room_type}</p>
+      <p className="mb-2 text-xs text-muted-foreground">{formatRoomFloor(room.floor_number)}</p>
       <RoomOccupantGender genders={room.occupant_genders} className="mb-2" />
       {room.capacity >= 2 && (
         <p className="mb-2 text-xs text-muted-foreground">

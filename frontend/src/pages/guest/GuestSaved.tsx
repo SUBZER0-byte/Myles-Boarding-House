@@ -6,6 +6,7 @@ import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { Button } from "@/components/ui/button";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
+import { formatRoomFloor } from "@/lib/roomFloor";
 
 const peso = (n: number | string) =>
   "₱" + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -90,7 +91,7 @@ const GuestSaved = () => {
                     </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground mb-2">{r.room_type}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{formatRoomFloor(r.floor_number)}</p>
                   {r.description && (
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{r.description}</p>
                   )}

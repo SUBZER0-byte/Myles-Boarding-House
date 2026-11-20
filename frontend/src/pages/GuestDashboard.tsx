@@ -8,6 +8,7 @@ import { sessionStore } from "@/lib/api";
 import { getPublicRooms, type PublicRoom } from "@/lib/publicRooms";
 import { listMyGuestBookings, type GuestBooking } from "@/lib/guestBookings";
 import { formatPhilippineDate } from "@/lib/philippineTime";
+import { formatRoomFloor } from "@/lib/roomFloor";
 type StatusKey = "Pending" | "Confirmed" | "Cancelled";
 
 const statusStyles: Record<StatusKey, { badge: string; icon: React.ReactNode }> = {
@@ -97,7 +98,7 @@ const GuestDashboard = () => {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-700 dark:text-foreground">Room {r.room_number}</p>
-                      <p className="truncate text-xs text-slate-500 dark:text-muted-foreground">{r.room_type}</p>
+                      <p className="truncate text-xs text-slate-500 dark:text-muted-foreground">{formatRoomFloor(r.floor_number)}</p>
                     </div>
                   </div>
                   <span className="shrink-0 whitespace-nowrap text-right text-sm font-bold text-slate-700 dark:text-foreground">{peso(r.monthly_rent)}/mo</span>
@@ -141,7 +142,7 @@ const GuestDashboard = () => {
                         </div>
                         <div>
                           <p className="font-display font-semibold text-base">Room {b.room_number}</p>
-                          <p className="text-xs text-muted-foreground">{b.room_type}</p>
+                          <p className="text-xs text-muted-foreground">{formatRoomFloor(b.floor_number)}</p>
                         </div>
                       </div>
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${style.badge}`}>

@@ -16,6 +16,7 @@ import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { useToast } from "@/hooks/use-toast";
 import { sessionStore } from "@/lib/api";
 import { formatPhilippineDate, formatPhilippineDateTime } from "@/lib/philippineTime";
+import { formatRoomFloor } from "@/lib/roomFloor";
 import {
   cancelMyGuestBooking,
   listMyGuestBookings,
@@ -186,7 +187,7 @@ const GuestBooking = () => {
                         <p className="font-display font-semibold text-base">
                           Room {b.room_number}
                         </p>
-                        <p className="text-xs text-muted-foreground">{b.room_type}</p>
+                        <p className="text-xs text-muted-foreground">{formatRoomFloor(b.floor_number)}</p>
                       </div>
                     </div>
                     <span

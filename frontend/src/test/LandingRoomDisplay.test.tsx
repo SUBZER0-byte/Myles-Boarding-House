@@ -17,7 +17,7 @@ import { RoomDetailsDialog } from "@/components/RoomDetailsDialog";
 const room: RoomDisplayData = {
   room_id: 17,
   room_number: "17",
-  room_type: "Double",
+  floor_number: 2,
   image: "room-17-overview.jpg",
   monthly_rent: 4500,
   status: "Occupied",

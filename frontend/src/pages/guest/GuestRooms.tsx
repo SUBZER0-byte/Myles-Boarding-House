@@ -19,6 +19,7 @@ import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
 import { format } from "date-fns";
 import { calculateMoveOutDate } from "@/lib/stayDates";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import { formatRoomFloor } from "@/lib/roomFloor";
 import {
   acquireMyGuestRoomHold,
   createMyGuestBooking,
@@ -394,7 +395,7 @@ const GuestRooms = () => {
                     {statusLabel}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">{r.room_type}</p>
+                <p className="text-xs text-muted-foreground mb-2">{formatRoomFloor(r.floor_number)}</p>
                 <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
                 {Number(r.capacity) >= 2 && (
                   <p className="text-xs text-muted-foreground mb-2">
@@ -472,7 +473,7 @@ const GuestRooms = () => {
                   <DialogTitle className="font-display text-xl">
                     Room {quickViewRoom.room_number}
                   </DialogTitle>
-                  <DialogDescription>{quickViewRoom.room_type}</DialogDescription>
+                  <DialogDescription>{formatRoomFloor(quickViewRoom.floor_number)}</DialogDescription>
                 </DialogHeader>
                 <GuestRoomPhotoSlideshow
                   roomId={quickViewRoom.room_id}
@@ -676,7 +677,7 @@ const GuestRooms = () => {
             </>}
             {step === 3 && <>
               <div className="grid gap-2 text-sm rounded-md border border-border p-3">
-                <p><strong>Room:</strong> {bookingRoom?.room_number} ({bookingRoom?.room_type})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent:</strong> {peso(Number(bookingRoom?.monthly_rent || 0))}</p><p><strong>Total rent:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {form.payment_plan}</p>
+                <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent:</strong> {peso(Number(bookingRoom?.monthly_rent || 0))}</p><p><strong>Total rent:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {form.payment_plan}</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 {form.payment_plan === "Pay One Month Rent"

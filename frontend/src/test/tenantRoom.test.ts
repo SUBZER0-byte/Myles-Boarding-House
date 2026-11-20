@@ -19,7 +19,7 @@ describe("tenant room reads", () => {
       room_id: 3,
       tenant_id: 8,
       room_number: "204",
-      room_type: "Single",
+      floor_number: 1,
       capacity: 1,
       monthly_rent: 6500,
       status: "Occupied",

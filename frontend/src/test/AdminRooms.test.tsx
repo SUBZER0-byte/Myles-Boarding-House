@@ -6,7 +6,7 @@ const { rooms } = vi.hoisted(() => ({
   rooms: [{
     room_id: 4,
     room_number: "4",
-    room_type: "Double",
+    floor_number: 2,
     capacity: 2,
     monthly_rent: 4500,
     status: "Occupied",
@@ -39,6 +39,7 @@ describe("AdminRooms", () => {
   it("shows the gender of the registered occupant for each occupied room", () => {
     render(<AdminRooms />);
 
+    expect(screen.getByText("2nd Floor · cap 2")).toBeTruthy();
     expect(screen.getByText("Registered occupant gender(s): Male")).toBeTruthy();
   });
 });

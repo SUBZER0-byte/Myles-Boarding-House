@@ -3,6 +3,7 @@ import { StatCard } from "@/components/StatCard";
 import { BedDouble, CreditCard, Megaphone, Wrench, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getTenantDashboard, type TenantDashboardData } from "@/lib/tenantDashboard";
+import { formatRoomFloor } from "@/lib/roomFloor";
 import { useEffect, useState } from "react";
 import { formatPhilippineDate } from "@/lib/philippineTime";
 
@@ -57,7 +58,7 @@ const TenantDashboard = () => {
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-muted-foreground">
               {data?.room_info
-                ? `Room ${data.room_info.room_number} · ${data.room_info.room_type}`
+                ? `Room ${data.room_info.room_number} · ${formatRoomFloor(data.room_info.floor_number)}`
                 : "Loading your room…"}
             </p>
           </div>

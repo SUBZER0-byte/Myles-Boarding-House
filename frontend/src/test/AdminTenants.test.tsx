@@ -75,7 +75,7 @@ describe("Admin tenant account creation", () => {
     getPublicRoomsForDates.mockReset().mockResolvedValue([{
       room_id: 4,
       room_number: "12",
-      room_type: "Double",
+      floor_number: 2,
       capacity: 2,
       monthly_rent: 1500,
       status: "Available",
@@ -153,7 +153,7 @@ describe("Admin tenant account creation", () => {
       move_out_date: "2027-01-01",
       is_active: 1,
       room_number: "12",
-      room_type: "Double",
+      floor_number: 2,
       profile_picture: null,
     });
     useSupabasePolling.mockReturnValue({ data: tenantList, refetch, error: null });

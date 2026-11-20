@@ -1,8 +1,9 @@
 import { supabase } from "@/lib/supabase";
+import { getPublicRooms } from "@/lib/publicRooms";
 
 export interface TenantDashboardData {
   tenant_name: string;
-  room_info: { room_id: number; room_number: string; room_type: string; monthly_rent: number; status: string } | null;
+  room_info: { room_id: number; room_number: string; floor_number: number; monthly_rent: number; status: string } | null;
   current_balance: number;
   next_due_payment: { payment_id: number; amount: number; due_date: string | null; status: string } | null;
   last_payment: { payment_id: number; amount: number; paid_at: string | null; method: string | null } | null;
@@ -28,5 +29,16 @@ export async function getTenantDashboard(): Promise<TenantDashboardData> {
   if (data?.type !== "success" || !data.data) {
     throw new Error(data?.message || "Supabase returned an invalid dashboard response.");
   }
-  return data.data;
+  if (!data.data.room_info) return data.data;
+
+  const rooms = await getPublicRooms();
+  const room = rooms.find(({ room_id }) => room_id === data.data?.room_info?.room_id);
+  if (!room) throw new Error("Your assigned room could not be found.");
+  return {
+    ...data.data,
+    room_info: {
+      ...data.data.room_info,
+      floor_number: room.floor_number,
+    },
+  };
 }

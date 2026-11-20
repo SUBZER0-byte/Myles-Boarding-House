@@ -32,7 +32,9 @@ describe("Supabase guest booking service", () => {
     getUser.mockReset();
     upload.mockReset();
     createSignedUrl.mockReset();
-    rpc.mockResolvedValue({ data: { type: "success", data: [] }, error: null });
+    rpc.mockImplementation((name: string) => Promise.resolve(name === "get_public_rooms_with_floor"
+      ? { data: [], error: null }
+      : { data: { type: "success", data: [] }, error: null }));
   });
 
   it("uses identity-scoped RPCs instead of caller-supplied email or user IDs", async () => {
@@ -43,12 +45,31 @@ describe("Supabase guest booking service", () => {
       p_action: "guest_list",
       p_data: {},
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "manage_guest_booking", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "get_public_rooms_with_floor");
+    expect(rpc).toHaveBeenNthCalledWith(3, "manage_guest_booking", {
       p_action: "guest_cancel",
       p_data: { booking_id: 15 },
     });
     expect(JSON.stringify(rpc.mock.calls)).not.toContain("email");
     expect(JSON.stringify(rpc.mock.calls)).not.toContain("user_id");
+  });
+
+  it("adds the current floor for a guest booking", async () => {
+    rpc.mockImplementation((name: string, args: { p_action?: string }) => Promise.resolve(
+      name === "get_public_rooms_with_floor"
+        ? { data: [{ room_id: 9, floor_number: 2 }], error: null }
+        : {
+          data: {
+            type: "success",
+            data: args.p_action === "guest_list" ? [{ booking_id: 12, room_id: 9 }] : [],
+          },
+          error: null,
+        },
+    ));
+
+    await expect(listMyGuestBookings()).resolves.toMatchObject([
+      { booking_id: 12, room_id: 9, floor_number: 2 },
+    ]);
   });
 
   it("rejects unavailable/unauthenticated RPC operations instead of converting them to success", async () => {

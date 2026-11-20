@@ -10,6 +10,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { getPublicRoomImageUrl, getPublicRoomPhotos, getPublicRooms, getPublicRoomsForDates } from "@/lib/publicRooms";
+import { formatRoomFloor } from "@/lib/roomFloor";
 
 describe("public room reads", () => {
   beforeEach(() => {
@@ -28,15 +29,15 @@ describe("public room reads", () => {
 
   it("uses the public room listing RPC with occupant gender data", async () => {
     const rooms = [
-      { room_id: 10, room_number: "10", occupant_genders: [] },
-      { room_id: 2, room_number: "2", occupant_genders: ["Male"] },
-      { room_id: 1, room_number: "1", occupant_genders: [] },
-      { room_id: 11, room_number: "11", occupant_genders: ["Female"] },
+      { room_id: 10, room_number: "10", floor_number: 1, occupant_genders: [] },
+      { room_id: 2, room_number: "2", floor_number: 2, occupant_genders: ["Male"] },
+      { room_id: 1, room_number: "1", floor_number: 3, occupant_genders: [] },
+      { room_id: 11, room_number: "11", floor_number: 4, occupant_genders: ["Female"] },
     ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
     await expect(getPublicRooms()).resolves.toEqual([rooms[2], rooms[1], rooms[0], rooms[3]]);
-    expect(rpc).toHaveBeenCalledWith("get_public_rooms_with_occupant_genders");
+    expect(rpc).toHaveBeenCalledWith("get_public_rooms_with_floor");
   });
 
   it("passes the selected room to the public photo RPC", async () => {
@@ -49,14 +50,14 @@ describe("public room reads", () => {
 
   it("loads database room status, date-specific capacity, and current occupant genders", async () => {
     const rooms = [
-      { room_id: 10, room_number: "10", status: "Occupied", occupant_genders: ["Male"] },
-      { room_id: 2, room_number: "2", status: "Occupied", occupant_genders: ["Female"] },
+      { room_id: 10, room_number: "10", floor_number: 1, status: "Occupied", occupant_genders: ["Male"] },
+      { room_id: 2, room_number: "2", floor_number: 2, status: "Occupied", occupant_genders: ["Female"] },
     ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01"))
       .resolves.toEqual([rooms[1], rooms[0]]);
-    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse_with_occupant_genders", {
+    expect(rpc).toHaveBeenCalledWith("get_public_rooms_for_guest_browse_with_floor", {
       p_check_in_date: "2026-12-01",
       p_check_out_date: "2027-01-01",
     });
@@ -65,5 +66,20 @@ describe("public room reads", () => {
   it("rejects malformed availability responses", async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01")).rejects.toThrow("invalid list");
+  });
+
+  it("rejects room reads with an invalid floor number", async () => {
+    rpc.mockResolvedValue({
+      data: [{ room_id: 1, room_number: "1", floor_number: 0, occupant_genders: [] }],
+      error: null,
+    });
+    await expect(getPublicRooms()).rejects.toThrow("invalid floor number");
+  });
+
+  it("formats floor numbers with the correct ordinal suffix", () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21].map(formatRoomFloor)).toEqual([
+      "1st Floor", "2nd Floor", "3rd Floor", "4th Floor",
+      "11th Floor", "12th Floor", "13th Floor", "21st Floor",
+    ]);
   });
 });

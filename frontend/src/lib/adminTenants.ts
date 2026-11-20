@@ -19,7 +19,7 @@ export interface AdminTenant {
   move_out_date: string | null;
   is_active: number;
   room_number: string | null;
-  room_type: string | null;
+  floor_number: number | null;
   profile_picture: string | null;
 }
 
