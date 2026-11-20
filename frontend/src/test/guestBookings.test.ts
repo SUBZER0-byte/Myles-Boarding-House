@@ -131,7 +131,7 @@ describe("Supabase guest booking service", () => {
 
   it("creates short-lived Admin proof links for safe Storage paths and rejects unsafe paths", async () => {
     const id = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
-    rpc.mockResolvedValue({
+    rpc.mockResolvedValueOnce({
       data: {
         type: "success",
         data: [
@@ -140,6 +140,14 @@ describe("Supabase guest booking service", () => {
           { booking_id: 17, gcash_submitted_screenshot: "../private/proof.png" },
         ],
       },
+      error: null,
+    });
+    rpc.mockResolvedValueOnce({
+      data: [
+        { booking_id: 15, gender: "Female" },
+        { booking_id: 16, gender: null },
+        { booking_id: 17, gender: "Prefer not to say" },
+      ],
       error: null,
     });
     createSignedUrl.mockResolvedValue({
@@ -151,9 +159,9 @@ describe("Supabase guest booking service", () => {
     expect(createSignedUrl).toHaveBeenCalledWith(`9c9b2860-f35e-4461-a022-47bf12fe7161/15/${id}.png`, 300);
     expect(createSignedUrl).toHaveBeenCalledWith("legacy/uploads/proof.png", 300);
     expect(rows).toEqual([
-      { booking_id: 15, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
-      { booking_id: 16, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
-      { booking_id: 17, gcash_submitted_screenshot: null, proof_unavailable: true },
+      { booking_id: 15, gender: "Female", gcash_submitted_screenshot: "https://storage.example/signed-proof" },
+      { booking_id: 16, gender: null, gcash_submitted_screenshot: "https://storage.example/signed-proof" },
+      { booking_id: 17, gender: "Prefer not to say", gcash_submitted_screenshot: null, proof_unavailable: true },
     ]);
   });
 });

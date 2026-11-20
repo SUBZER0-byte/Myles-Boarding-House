@@ -52,6 +52,7 @@ describe("Supabase profile settings", () => {
       username: "testtenant",
       email: "tenant@example.com",
       user_type: "Tenant",
+      gender: "Female",
     };
     rpc.mockResolvedValue({ data: [profile], error: null });
 
@@ -72,6 +73,7 @@ describe("Supabase profile settings", () => {
       age: "",
       birthday: null,
       user_type: "Tenant",
+      gender: "Female",
       emergency_contact_name: "",
       emergency_contact_phone: "",
     });
@@ -80,6 +82,7 @@ describe("Supabase profile settings", () => {
       p_full_name: "Test Tenant",
       p_age: null,
       p_birthday: null,
+      p_gender: "Female",
     }));
     expect(rpc.mock.calls[0][1]).not.toHaveProperty("user_id");
   });
@@ -95,10 +98,50 @@ describe("Supabase profile settings", () => {
       age: 121,
       birthday: null,
       user_type: "Tenant",
+      gender: null,
       emergency_contact_name: null,
       emergency_contact_phone: null,
     })).rejects.toThrow("Age must be a number from 0 to 120.");
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported gender values before making a profile update", async () => {
+    await expect(saveMySettingsProfile({
+      user_id: 7,
+      full_name: "Test Tenant",
+      username: "testtenant",
+      email: "tenant@example.com",
+      phone: null,
+      address: null,
+      age: null,
+      birthday: null,
+      user_type: "Tenant",
+      gender: "Unknown",
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+    })).rejects.toThrow("Choose a valid gender.");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("allows an existing profile to leave gender unspecified", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await saveMySettingsProfile({
+      user_id: 7,
+      full_name: "Test Tenant",
+      username: "testtenant",
+      email: "tenant@example.com",
+      phone: null,
+      address: null,
+      age: null,
+      birthday: null,
+      user_type: "Tenant",
+      gender: null,
+      emergency_contact_name: null,
+      emergency_contact_phone: null,
+    });
+    expect(rpc).toHaveBeenCalledWith("update_my_settings_profile", expect.objectContaining({
+      p_gender: null,
+    }));
   });
 
   it("requires the current password before setting the new password", async () => {

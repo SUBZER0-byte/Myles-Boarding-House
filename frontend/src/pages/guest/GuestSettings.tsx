@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sessionStore } from "@/lib/api";
 import { changeMyPassword, getMySettingsProfile, requestMyEmailChange, saveMySettingsProfile, type SettingsProfile } from "@/lib/profileSettings";
 import { getPasswordValidationError } from "@/lib/passwordValidation";
+import { GENDER_OPTIONS } from "@/lib/gender";
 
 const GuestSettings = () => {
   const { toast } = useToast();
@@ -164,6 +165,20 @@ const GuestSettings = () => {
           <div className="grid gap-1.5">
             <Label>Address</Label>
             <Input maxLength={255} value={profile.address ?? ""} onChange={e => setProfile({ ...profile, address: e.target.value })} placeholder="Not provided" />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="guest-gender">Gender</Label>
+            <select
+              id="guest-gender"
+              value={profile.gender ?? ""}
+              onChange={event => setProfile({ ...profile, gender: event.target.value || null })}
+              className="w-full bg-background rounded-md border border-input px-3 py-2 text-sm"
+            >
+              <option value="">Not provided</option>
+              {GENDER_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground">Used for booking verification, not to determine room eligibility.</p>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3">

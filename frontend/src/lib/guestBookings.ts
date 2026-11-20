@@ -8,6 +8,7 @@ export interface GuestBooking {
   full_name: string;
   email: string;
   phone: string | null;
+  gender: string | null;
   room_id: number | null;
   room_number: string | null;
   room_type: string | null;
@@ -38,6 +39,7 @@ export interface AdminGuestBooking {
   full_name: string;
   email: string;
   phone: string | null;
+  gender: string | null;
   room_id: number | null;
   room_number: string | null;
   reservation_type: "capacity_based" | "entire_room";
@@ -187,7 +189,8 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
 export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {
   const rows = await call<AdminGuestBooking[]>("admin_list");
   if (!Array.isArray(rows)) throw new Error("The booking service returned an invalid list.");
-  return Promise.all(rows.map(async booking => {
+  const bookingsWithGender = await attachAdminBookingGender(rows);
+  return Promise.all(bookingsWithGender.map(async booking => {
     if (!booking.gcash_submitted_screenshot) return booking;
     if (!isSupabaseStorageImagePath(booking.gcash_submitted_screenshot)) {
       return { ...booking, gcash_submitted_screenshot: null, proof_unavailable: true };
@@ -201,7 +204,33 @@ export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {
 }
 
 export function listAdminCancelledGuestBookings() {
-  return call<AdminGuestBooking[]>("admin_cancelled_list");
+  return call<AdminGuestBooking[]>("admin_cancelled_list")
+    .then(attachAdminBookingGender);
+}
+
+async function attachAdminBookingGender(bookings: AdminGuestBooking[]): Promise<AdminGuestBooking[]> {
+  const { data, error } = await supabase.rpc("list_admin_guest_booking_genders");
+  if (error) throw new Error(error.message || "Could not load booking verification details.");
+  if (!Array.isArray(data)) throw new Error("The booking service returned invalid verification details.");
+
+  const genders = new Map<number, string | null>();
+  for (const value of data) {
+    if (!value || typeof value !== "object") {
+      throw new Error("The booking service returned invalid verification details.");
+    }
+    const row = value as Record<string, unknown>;
+    const gender = row.gender;
+    if (typeof row.booking_id !== "number") {
+      throw new Error("The booking service returned invalid verification details.");
+    }
+    if (gender === null) genders.set(row.booking_id, null);
+    else if (typeof gender === "string") genders.set(row.booking_id, gender);
+    else throw new Error("The booking service returned invalid verification details.");
+  }
+  return bookings.map(booking => ({
+    ...booking,
+    gender: genders.get(booking.booking_id) ?? null,
+  }));
 }
 
 export function confirmAdminBookingPayment(bookingId: number) {

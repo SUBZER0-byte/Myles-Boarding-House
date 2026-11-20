@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthSlideshow } from "@/hooks/useAuthSlideshow";
 import { authAction, signUpGuest } from "@/lib/auth";
 import { getPostLoginPath } from "@/lib/authNavigation";
+import { GENDER_OPTIONS, isGender, type Gender } from "@/lib/gender";
 import { toast } from "sonner";
 import slide1 from "../../Promotion/Promotion_2/795696821_2068750914002786_4444334205767913973_n.jpg";
 import slide2 from "../../Promotion/Promotion_2/793924181_2511856059334424_2316540071660421728_n.jpg";
@@ -45,6 +46,7 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [gender, setGender] = useState<Gender | "">("");
   const [birthday, setBirthday] = useState("");
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
@@ -229,6 +231,10 @@ const SignUp = () => {
       setError("Please enter your address (maximum 255 characters).");
       return;
     }
+    if (!isGender(gender)) {
+      setError("Please select your gender.");
+      return;
+    }
     if (!birthday || !calculatedAge || Number(calculatedAge) > 120) {
       setError("Please enter a valid birthday.");
       return;
@@ -272,6 +278,7 @@ const SignUp = () => {
         email,
         phone,
         address: address.trim(),
+        gender,
         birthday,
         age: Number(calculatedAge),
         emergency_contact_name: emergencyContactName.trim(),
@@ -511,6 +518,23 @@ const SignUp = () => {
                     <p id="signup-age-help" className="mt-1 text-xs text-muted-foreground">Calculated from your birthday.</p>
                   </div>
                 </div>
+              </motion.div>
+
+              <motion.div className="space-y-1.5" variants={itemVariants}>
+                <label htmlFor="signup-gender" className="text-xs text-muted-foreground">Gender</label>
+                <select
+                  id="signup-gender"
+                  value={gender}
+                  onChange={(event) => setGender(event.target.value as Gender | "")}
+                  required
+                  className="w-full bg-muted rounded-md px-3 py-3 text-sm outline-none border-2 border-transparent focus:border-primary/50 transition-all"
+                >
+                  <option value="" disabled>Select gender</option>
+                  {GENDER_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Used to verify room bookings; it does not determine booking eligibility.
+                </p>
               </motion.div>
 
               {/* Phone - Floating Label */}

@@ -6,6 +6,7 @@ export interface AdminGuest {
   username: string;
   email: string;
   phone: string | null;
+  gender: string | null;
   address: string | null;
   age: number | null;
   birthday: string | null;

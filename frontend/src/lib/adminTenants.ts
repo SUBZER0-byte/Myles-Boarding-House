@@ -11,6 +11,7 @@ export interface AdminTenant {
   address: string | null;
   age: number | string | null;
   birthday: string | null;
+  gender: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   move_in_date: string;

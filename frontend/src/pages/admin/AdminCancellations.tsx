@@ -15,6 +15,7 @@ import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { listAdminCancelledGuestBookings } from "@/lib/guestBookings";
+import { formatGender } from "@/lib/gender";
 import { formatPhilippineDate, formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   approveTenantCancellation,
@@ -29,6 +30,7 @@ interface CancelledBooking {
   full_name: string;
   email: string;
   phone: string | null;
+  gender: string | null;
   room_id: number | null;
   room_number: string | null;
   monthly_rent: number | null;
@@ -327,7 +329,9 @@ const AdminCancellations = () => {
                       </div>
                       <div>
                         <p className="font-semibold">{b.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{b.email} · {b.phone || "—"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Gender: {formatGender(b.gender)} · {b.email} · {b.phone || "—"}
+                        </p>
                       </div>
                     </div>
                     <Badge variant="destructive">Cancelled</Badge>

@@ -21,6 +21,7 @@ import {
   updateAdminGuestBookingStatus,
   type AdminGuestBooking as Booking,
 } from "@/lib/guestBookings";
+import { formatGender } from "@/lib/gender";
 
 const bookingStatusOptions: Record<string, string[]> = {
   Pending: ["Pending", "Cancelled"],
@@ -183,7 +184,9 @@ const AdminGuestBookingPayments = () => {
                     <h3 className="font-medium">{b.full_name}</h3>
                     <Badge variant={variant(b.status)} className="text-xs">{b.status}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{b.email} · {b.phone || "—"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Gender: {formatGender(b.gender)} · {b.email} · {b.phone || "—"}
+                  </p>
                 </div>
               </div>
               {/* Delete button placed at top-right of card */}

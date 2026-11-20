@@ -17,6 +17,7 @@ import {
   getMyAdminSettingsProfile,
   requestAdminEmailChange,
   saveMyAdminSettingsProfile,
+  type AdminSettingsProfile,
 } from "@/lib/adminProfile";
 
 describe("Admin profile settings", () => {
@@ -27,12 +28,13 @@ describe("Admin profile settings", () => {
   });
 
   it("loads and updates only the authenticated Admin profile", async () => {
-    const profile = {
+    const profile: AdminSettingsProfile = {
       user_id: 1,
       full_name: "Admin User",
       username: "admin",
       email: "admin@example.com",
       phone: "09123456789",
+      gender: "Prefer not to say",
       profile_picture: null,
     };
     rpc.mockResolvedValueOnce({ data: [profile], error: null });

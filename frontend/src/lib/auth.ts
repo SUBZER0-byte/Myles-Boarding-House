@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { sessionStore } from "@/lib/api";
+import { isGender, parseGender, type Gender } from "@/lib/gender";
 
 export type AuthProfile = {
   user_id: number;
@@ -8,6 +9,7 @@ export type AuthProfile = {
   email: string;
   phone: string;
   user_type: string;
+  gender: Gender | null;
 };
 
 type AuthResponse = {
@@ -21,6 +23,7 @@ function parseProfile(value: unknown): AuthProfile {
     throw new Error("Your account profile could not be loaded.");
   }
   const fields = row as Record<string, unknown>;
+  const gender = parseGender(fields.gender);
   if (
     typeof fields.user_id !== "number"
     || typeof fields.username !== "string"
@@ -38,6 +41,7 @@ function parseProfile(value: unknown): AuthProfile {
     email: fields.email,
     phone: fields.phone,
     user_type: fields.user_type,
+    gender,
   };
 }
 
@@ -111,6 +115,7 @@ export async function signUpGuest(
     email: string;
     phone: string;
     address: string;
+    gender: Gender;
     birthday: string;
     age: number;
     emergency_contact_name: string;

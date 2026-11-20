@@ -425,5 +425,8 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
+[functions.auth]
+verify_jwt = false
+
 [functions.rent-payment-reminders]
 verify_jwt = false

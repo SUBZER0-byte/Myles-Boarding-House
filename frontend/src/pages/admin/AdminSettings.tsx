@@ -868,6 +868,8 @@ const AdminSettings = () => {
                   onChange={e => setProfile({ ...profile, phone: e.target.value.replace(/\D/g, "").slice(0, 11) })}
                 /></div>
             </div>
+            <div className="grid gap-1.5"><Label>Gender</Label>
+              <Input value={profile.gender ?? "Not provided"} readOnly /></div>
             <Button onClick={saveProfile} disabled={saving}>{saving ? "Saving…" : "Save Profile"}</Button>
           </>}
         </div>

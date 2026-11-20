@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
+import { isGender, parseGender } from "@/lib/gender";
 
 export interface SettingsProfile {
   user_id: number;
@@ -7,6 +8,7 @@ export interface SettingsProfile {
   username: string;
   email: string;
   phone: string | null;
+  gender: string | null;
   address: string | null;
   age: number | string | null;
   birthday: string | null;
@@ -25,6 +27,7 @@ function getProfileRow(value: unknown): SettingsProfile {
     throw new Error("Your account profile could not be loaded.");
   }
   const fields = row as Record<string, unknown>;
+  const gender = parseGender(fields.gender);
   if (
     typeof fields.user_id !== "number"
     || typeof fields.full_name !== "string"
@@ -40,6 +43,7 @@ function getProfileRow(value: unknown): SettingsProfile {
     username: fields.username,
     email: fields.email,
     phone: typeof fields.phone === "string" ? fields.phone : null,
+    gender,
     address: typeof fields.address === "string" ? fields.address : null,
     age: typeof fields.age === "number" || typeof fields.age === "string" ? fields.age : null,
     birthday: typeof fields.birthday === "string" ? fields.birthday : null,
@@ -68,6 +72,9 @@ export async function saveMySettingsProfile(profile: SettingsProfile): Promise<v
   if (age !== null && (!Number.isInteger(age) || age < 0 || age > 120)) {
     throw new Error("Age must be a number from 0 to 120.");
   }
+  if (profile.gender !== null && !isGender(profile.gender)) {
+    throw new Error("Choose a valid gender.");
+  }
 
   const { error } = await supabase.rpc("update_my_settings_profile", {
     p_full_name: profile.full_name,
@@ -77,6 +84,7 @@ export async function saveMySettingsProfile(profile: SettingsProfile): Promise<v
     p_birthday: profile.birthday || null,
     p_emergency_contact_name: profile.emergency_contact_name ?? "",
     p_emergency_contact_phone: profile.emergency_contact_phone ?? "",
+    p_gender: profile.gender,
   });
   if (error) throw new Error(error.message || "Could not save your profile.");
 }

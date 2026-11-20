@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { parseGender, type Gender } from "@/lib/gender";
 
 export interface AdminSettingsProfile {
   user_id: number;
@@ -6,6 +7,7 @@ export interface AdminSettingsProfile {
   username: string;
   email: string;
   phone: string | null;
+  gender: Gender | null;
   profile_picture: string | null;
 }
 
@@ -13,6 +15,7 @@ function parseAdminProfile(value: unknown): AdminSettingsProfile {
   const row = Array.isArray(value) ? value[0] : value;
   if (!row || typeof row !== "object") throw new Error("Administrator profile could not be loaded.");
   const profile = row as Record<string, unknown>;
+  const gender = parseGender(profile.gender);
   if (
     typeof profile.user_id !== "number"
     || typeof profile.full_name !== "string"
@@ -27,6 +30,7 @@ function parseAdminProfile(value: unknown): AdminSettingsProfile {
     username: profile.username,
     email: profile.email,
     phone: typeof profile.phone === "string" ? profile.phone : null,
+    gender,
     profile_picture: typeof profile.profile_picture === "string" ? profile.profile_picture : null,
   };
 }

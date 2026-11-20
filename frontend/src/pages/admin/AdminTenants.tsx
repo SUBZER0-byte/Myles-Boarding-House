@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
+import { formatGender } from "@/lib/gender";
 import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
@@ -593,6 +594,7 @@ const AdminTenants = () => {
                 <div className="flex items-center gap-2"><Mail size={12} /> {t.email}</div>
                 <div className="flex items-center gap-2"><Phone size={12} /> {t.phone || "—"}</div>
                 <div><span className="font-medium text-foreground">Address:</span> {t.address || "—"}</div>
+                <div><span className="font-medium text-foreground">Gender:</span> {formatGender(t.gender)}</div>
                 <div>
                   <span className="font-medium text-foreground">Birthday / Age:</span>{" "}
                   {t.birthday || "—"} / {t.age ?? "—"}
@@ -624,6 +626,7 @@ const AdminTenants = () => {
                   <TableHead>Room</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Address</TableHead>
+                  <TableHead>Gender</TableHead>
                   <TableHead>Birthday / Age</TableHead>
                   <TableHead>Emergency Contact</TableHead>
                   <TableHead>Stay</TableHead>
@@ -658,6 +661,7 @@ const AdminTenants = () => {
                       <p className="text-xs text-muted-foreground">{t.phone || "—"}</p>
                     </TableCell>
                     <TableCell className="min-w-40">{t.address || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatGender(t.gender)}</TableCell>
                     <TableCell className="whitespace-nowrap">{t.birthday || "—"} / {t.age ?? "—"}</TableCell>
                     <TableCell className="min-w-44">
                       <p>{t.emergency_contact_name || "—"}</p>
