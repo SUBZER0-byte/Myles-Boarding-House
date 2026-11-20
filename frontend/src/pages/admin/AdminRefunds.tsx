@@ -9,6 +9,7 @@ import { Loader2, Eye, CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   decideAdminRefund,
   listAdminRefundRequests,
@@ -108,7 +109,7 @@ const AdminRefunds = () => {
                 <p><span className="text-muted-foreground">Refund GCash account name:</span> {request.gcash_account_name || "—"}</p>
                 <p><span className="text-muted-foreground">Refund GCash number:</span> {request.gcash_number || "—"}</p>
                 <p><span className="text-muted-foreground">Request reason:</span> {request.reason || "Not provided"}</p>
-                <p className="text-xs text-muted-foreground">Requested {new Date(request.created_at).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Requested {formatPhilippineDateTime(request.created_at)}</p>
                 {request.screenshot_url && (
                   <ImagePreview
                     src={request.screenshot_url}

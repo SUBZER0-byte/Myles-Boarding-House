@@ -4,6 +4,7 @@ import { BedDouble, CreditCard, Megaphone, Wrench, AlertCircle, CheckCircle2, Lo
 import { Badge } from "@/components/ui/badge";
 import { getTenantDashboard, type TenantDashboardData } from "@/lib/tenantDashboard";
 import { useEffect, useState } from "react";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 
 const complaintStatuses = ["Submitted", "Acknowledged", "In Progress", "Resolved", "Cancelled"];
 const maintenanceStatuses = ["Submitted", "Acknowledged", "In Progress", "Resolved", "Cancelled"];
@@ -129,7 +130,7 @@ const TenantDashboard = () => {
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-400/15 dark:text-orange-300">
                       <Megaphone size={14} />
                     </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{formatPhilippineDate(a.created_at)}</span>
                   </div>
                   <p className="text-sm font-semibold text-slate-700 dark:text-foreground">{a.title}</p>
                   <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-muted-foreground">{a.body}</p>
@@ -163,7 +164,7 @@ const TenantDashboard = () => {
                     <p className="text-sm font-medium text-slate-700 dark:text-foreground">Last payment</p>
                     <p className="text-xs text-slate-500 dark:text-muted-foreground">
                       {data.last_payment.paid_at
-                        ? new Date(data.last_payment.paid_at).toLocaleDateString()
+                        ? formatPhilippineDate(data.last_payment.paid_at)
                         : "Date unavailable"} · {data.last_payment.method}
                     </p>
                   </div>

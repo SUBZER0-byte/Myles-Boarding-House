@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 import {
   getEligibleRefundPayments,
   listMyRefundRequests,
@@ -69,7 +70,7 @@ export function RefundRequestHistory() {
           <div key={request.refund_id} className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
             <div>
               <p className="font-medium text-sm">{request.description || `Payment #${request.payment_id}`}</p>
-              <p className="text-xs text-muted-foreground">{new Date(request.created_at).toLocaleDateString()} · {peso(Number(request.refund_amount))}</p>
+              <p className="text-xs text-muted-foreground">{formatPhilippineDate(request.created_at)} · {peso(Number(request.refund_amount))}</p>
               {request.transfer_reference && <p className="text-xs text-muted-foreground mt-1">Refund transfer transaction number: {request.transfer_reference}</p>}
               {request.transfer_screenshot_url && (
                 <ImagePreview

@@ -10,6 +10,7 @@ import { Bell, Trash2, Send, Loader2, Radio, AlertTriangle, XCircle, Check } fro
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   listNotificationRecipients,
   sendAdminNotification,
@@ -166,7 +167,7 @@ const AdminNotifications = () => {
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    to {n.username ?? `#${n.user_id}`} · {new Date(n.created_at).toLocaleString()}
+                    to {n.username ?? `#${n.user_id}`} · {formatPhilippineDateTime(n.created_at)}
                   </p>
                 </div>
                 {!n.is_read && (

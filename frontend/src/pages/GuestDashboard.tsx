@@ -7,6 +7,7 @@ import { readSavedRoomIds } from "@/lib/savedRooms";
 import { sessionStore } from "@/lib/api";
 import { getPublicRooms, type PublicRoom } from "@/lib/publicRooms";
 import { listMyGuestBookings, type GuestBooking } from "@/lib/guestBookings";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 type StatusKey = "Pending" | "Confirmed" | "Cancelled";
 
 const statusStyles: Record<StatusKey, { badge: string; icon: React.ReactNode }> = {
@@ -161,7 +162,7 @@ const GuestDashboard = () => {
                         <span className="text-muted-foreground"><ReceiptText size={14} /></span>
                         <div>
                           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Booked</p>
-                          <p className="text-sm font-medium">{new Date(b.created_at).toLocaleDateString()}</p>
+                          <p className="text-sm font-medium">{formatPhilippineDate(b.created_at)}</p>
                         </div>
                       </div>
                     </div>

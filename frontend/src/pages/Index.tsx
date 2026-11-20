@@ -16,6 +16,7 @@ import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { usePublicHomepageData } from "@/hooks/usePublicHomepageData";
 import { ratingCategories } from "@/lib/ratingCategories";
 import { filterProfanity } from "@/lib/profanityFilter";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 
 import logo from "@/assets/logo.png";
 import heroSlide1 from "../../Promotion/773975397_1801893280820553_5956689233169011423_n (1).jpg";
@@ -106,7 +107,7 @@ const Index = () => {
       category: r.category,
       comment: r.comment ?? "",
       roomNumber: r.room_number,
-      date: new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+      date: formatPhilippineDate(r.created_at),
     };
   });
   const visibleReviews = reviewCategory === "all"

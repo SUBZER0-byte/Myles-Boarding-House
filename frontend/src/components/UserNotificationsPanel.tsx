@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Bell, Check, Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserNotifications } from "@/hooks/useUserNotifications";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   deleteUserNotification,
   markAllUserNotificationsRead,
@@ -85,7 +86,7 @@ export function UserNotificationsPanel({ role }: UserNotificationsPanelProps) {
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(notification.created_at).toLocaleString()}
+                  {formatPhilippineDateTime(notification.created_at)}
                 </p>
               </div>
               {!notification.is_read && (

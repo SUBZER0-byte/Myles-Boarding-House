@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { useToast } from "@/hooks/use-toast";
 import { deleteAdminLog, listAdminLogs, type AdminLog } from "@/lib/adminLogs";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { ScrollText, Loader2, ShieldAlert, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -118,7 +119,7 @@ const AdminLogs = () => {
                 )}
                 {logs?.map((l) => (
                   <tr key={l.log_id} className="border-t border-border hover:bg-muted/30">
-                    <td className="px-4 py-2 whitespace-nowrap text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-xs text-muted-foreground">{formatPhilippineDateTime(l.created_at)}</td>
                     <td className="px-4 py-2">
                       <Badge variant="outline" className={`text-[10px] uppercase ${levelTone[l.level]}`}>
                         {l.level === "security" && <ShieldAlert size={10} className="mr-1" />}

@@ -15,6 +15,7 @@ import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { listAdminCancelledGuestBookings } from "@/lib/guestBookings";
+import { formatPhilippineDate, formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   approveTenantCancellation,
   getAdminCancellations,
@@ -253,7 +254,7 @@ const AdminCancellations = () => {
                   {r.status === "Pending" && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock size={12} />
-                      Window expires: {new Date(r.cancellation_expires_at).toLocaleString()}
+                      Window expires: {formatPhilippineDateTime(r.cancellation_expires_at)}
                     </div>
                   )}
                   {r.status === "Rejected" && r.rejection_reason && (
@@ -336,7 +337,7 @@ const AdminCancellations = () => {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <InfoCell icon={<BedDouble size={14} />} label="Room" value={b.room_number ? `Room ${b.room_number}` : "—"} />
                     <InfoCell icon={<CalendarDays size={14} />} label="Intended Move-in" value={b.move_in_date || "—"} />
-                    <InfoCell icon={<CalendarDays size={14} />} label="Booked On" value={new Date(b.created_at).toLocaleDateString()} />
+                    <InfoCell icon={<CalendarDays size={14} />} label="Booked On" value={formatPhilippineDate(b.created_at)} />
                     <InfoCell icon={<Banknote size={14} />} label="Refund Due (Rent)" value={b.monthly_rent ? peso(b.monthly_rent) : "—"} />
                   </div>
 

@@ -13,6 +13,7 @@ import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { sessionStore } from "@/lib/api";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { RefundRequestButton, RefundRequestHistory } from "@/components/RefundRequests";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   listMyRentPayments,
   newRentPaymentSubmissionId,
@@ -117,7 +118,7 @@ const downloadPaymentPdf = (payments: Payment[], tenantName: string) => {
     "",
     `Tenant: ${tenantName}`,
     `Stay period${stayPeriods.length === 1 ? "" : "s"}: ${stayPeriods.join("; ") || "Not available"}`,
-    `Generated: ${new Date().toLocaleString("en-PH")}`,
+    `Generated: ${formatPhilippineDateTime(new Date())}`,
     "",
     "MONTH / PERIOD            DUE DATE       STATUS         AMOUNT",
     "---------------------------------------------------------------------",

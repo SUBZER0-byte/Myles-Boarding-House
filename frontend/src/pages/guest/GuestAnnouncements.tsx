@@ -1,6 +1,7 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Megaphone, Loader2 } from "lucide-react";
 import { usePublicAnnouncements } from "@/hooks/usePublicInfo";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 
 const GuestAnnouncements = () => {
   const { announcements, error, loading } = usePublicAnnouncements();
@@ -33,7 +34,7 @@ const GuestAnnouncements = () => {
             <div key={a.announcement_id} className="bg-card border border-border rounded-lg p-5">
               <div className="flex items-center gap-2 mb-2">
                 <Megaphone size={14} className="text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">{formatPhilippineDateTime(a.created_at)}</span>
               </div>
               <h3 className="font-display font-semibold mb-1">{a.title}</h3>
               <p className="text-sm text-muted-foreground whitespace-pre-line">{a.body}</p>

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 import { Search, MoreHorizontal, Phone, Mail, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2, Pencil, Plus } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -361,7 +362,7 @@ const AdminGuests = () => {
                     {g.is_active ? "Active" : "Inactive"}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(g.created_at).toLocaleDateString()}
+                    {formatPhilippineDate(g.created_at)}
                   </span>
                 </div>
 
@@ -416,7 +417,7 @@ const AdminGuests = () => {
                       <p className="text-xs text-muted-foreground">{g.emergency_contact_phone || "—"}</p>
                     </TableCell>
                     <TableCell><Badge variant={g.is_active ? "default" : "secondary"}>{g.is_active ? "Active" : "Inactive"}</Badge></TableCell>
-                    <TableCell className="whitespace-nowrap">{new Date(g.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatPhilippineDate(g.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

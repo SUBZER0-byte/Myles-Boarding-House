@@ -2,6 +2,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthProvider";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { filterProfanity } from "@/lib/profanityFilter";
 import {
   addPromotionalVideoComment,
@@ -336,7 +337,7 @@ export function PromotionalVideoDiscussion() {
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <p className="text-sm font-semibold">{item.full_name}</p>
                     <time className="text-xs text-muted-foreground" dateTime={item.created_at}>
-                      {new Date(item.created_at).toLocaleString()}
+                      {formatPhilippineDateTime(item.created_at)}
                     </time>
                   </div>
                   {profile && item.is_mine && (
@@ -459,7 +460,7 @@ export function PromotionalVideoDiscussion() {
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <p className="text-sm font-semibold">{reply.full_name}</p>
                             <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
-                              {new Date(reply.created_at).toLocaleString()}
+                              {formatPhilippineDateTime(reply.created_at)}
                             </time>
                           </div>
                           {profile && reply.is_mine && (

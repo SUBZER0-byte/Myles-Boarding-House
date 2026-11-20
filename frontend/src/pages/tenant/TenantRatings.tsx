@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTenantRatings } from "@/hooks/useTenantRatings";
 import { submitTenantRating } from "@/lib/tenantRatings";
 import { ratingCategories } from "@/lib/ratingCategories";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { RatingStars } from "@/components/RatingStars";
 
 const TenantRatings = () => {
@@ -84,7 +85,7 @@ const TenantRatings = () => {
                   <div className="flex items-center gap-2">
                   <RatingStars value={Number(r.stars)} size={12} />
                   <span className="text-xs text-muted-foreground">{Number(r.stars).toFixed(1)}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground">{formatPhilippineDateTime(r.created_at)}</span>
                   <Badge variant={r.moderation_status === "Revealed" ? "default" : "secondary"} className="text-xs">{r.moderation_status}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{r.category}</p>

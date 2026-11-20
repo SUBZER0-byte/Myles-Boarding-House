@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, Loader2, Search, XCircle } from "lucide-react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDate } from "@/lib/philippineTime";
 import {
   decideAdminFullPayment,
   listAdminFullPaymentRequests,
@@ -157,7 +158,7 @@ const AdminFullPayments = () => {
                         ? <span className="font-medium text-primary">{item.reference_number ? `Ref ${item.reference_number}` : "Proof uploaded"}</span>
                         : item.has_screenshot ? "Proof on file" : "Not submitted"}
                     </td>
-                    <td className="px-4 py-3 text-xs">{new Date(item.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs">{formatPhilippineDate(item.created_at)}</td>
                     <td className="px-4 py-3"><Badge variant={badgeVariant(item.status)}>{item.status}</Badge></td>
                     <td className="px-4 py-3 text-right">
                       <Button

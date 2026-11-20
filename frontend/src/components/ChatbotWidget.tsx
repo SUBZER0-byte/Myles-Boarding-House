@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useChatPolling } from "@/hooks/useChatPolling";
 import { askChatbot, getChatbotStatus, getChatbotSuggestions, type ChatbotResponse } from "@/lib/chatbot";
+import { formatPhilippineClockTime, toPhilippineISOString } from "@/lib/philippineTime";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -99,7 +100,7 @@ export function ChatbotWidget() {
     if (!createdAt) return "";
     const d = new Date(createdAt);
     if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return formatPhilippineClockTime(d);
   };
 
   const appendMessage = (message: ChatMessage) => {
@@ -126,7 +127,7 @@ export function ChatbotWidget() {
 
     setIsStreaming(true);
     setIsTyping(false);
-    const placeholder = { role: "assistant" as const, message: "", created_at: new Date().toISOString() };
+    const placeholder = { role: "assistant" as const, message: "", created_at: toPhilippineISOString() };
     appendMessage(placeholder);
 
     let index = 0;
@@ -182,7 +183,7 @@ export function ChatbotWidget() {
       setShowLongWaitMessage(true);
     }, 8000);
 
-    appendMessage({ role: "user", message: trimmed, created_at: new Date().toISOString() });
+    appendMessage({ role: "user", message: trimmed, created_at: toPhilippineISOString() });
     setInput("");
     setIsTyping(true);
     setAiStatus("busy");

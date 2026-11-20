@@ -1176,7 +1176,7 @@ function createInitialPayPalOrder(): void {
         $orderHistory[] = [
             'order_id'=>$existingOrderId,
             'status'=>$existingStatus,
-            'closed_at'=>gmdate('c'),
+            'closed_at'=>date('c'),
         ];
         $orderHistoryJson = json_encode($orderHistory, JSON_UNESCAPED_SLASHES);
         $clear = bookingDatabase()->prepare("

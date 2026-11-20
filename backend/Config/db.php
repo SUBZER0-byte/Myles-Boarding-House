@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Manila');
+
 /**
  * MySQL connection for Myle's Boarding House.
  *
@@ -66,4 +68,7 @@ if (!$connect) {
     // Force a safe character set so bound parameters can never be misinterpreted
     // by the server's default charset (defense-in-depth alongside prepared stmts).
     @mysqli_set_charset($connect, 'utf8mb4');
+    if (!$connect->query("SET time_zone = '+08:00'")) {
+        error_log('Could not set the MySQL session timezone to Philippine time: ' . $connect->error);
+    }
 }

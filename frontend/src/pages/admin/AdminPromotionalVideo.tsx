@@ -13,6 +13,7 @@ import {
   type PromotionalVideoAdminData,
 } from "@/lib/promotionalVideo";
 import { getYoutubeEmbedUrl, getYoutubeVideoId } from "@/lib/promotionalVideoUrls";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { Heart, Loader2, MessageCircle, RefreshCw, Save, ThumbsUp, Trash2, Video } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -199,7 +200,7 @@ const AdminPromotionalVideo = () => {
                     <p className="text-sm font-semibold">{comment.full_name}</p>
                     <span className="text-xs text-muted-foreground">@{comment.username}</span>
                     <time className="text-xs text-muted-foreground" dateTime={comment.created_at}>
-                      {new Date(comment.created_at).toLocaleString()}
+                      {formatPhilippineDateTime(comment.created_at)}
                     </time>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm">{comment.comment}</p>
@@ -248,7 +249,7 @@ const AdminPromotionalVideo = () => {
                     <p className="text-sm font-semibold">{reply.full_name}</p>
                     <span className="text-xs text-muted-foreground">@{reply.username}</span>
                     <time className="text-xs text-muted-foreground" dateTime={reply.created_at}>
-                      {new Date(reply.created_at).toLocaleString()}
+                      {formatPhilippineDateTime(reply.created_at)}
                     </time>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -300,7 +301,7 @@ const AdminPromotionalVideo = () => {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{like.full_name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      @{like.username} · {new Date(like.created_at).toLocaleString()}
+                      @{like.username} · {formatPhilippineDateTime(like.created_at)}
                     </p>
                   </div>
                   <Button

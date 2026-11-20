@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Wallet, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { listPublicGcashQrs } from "@/lib/gcashQrs";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 
 interface BookingPaymentDialogProps {
   open: boolean;
@@ -178,7 +179,7 @@ export function BookingPaymentDialog({
         {paymentExpiresAtEpoch && serverNowEpoch && secondsRemaining !== null && (
           <div className={`rounded-md border p-3 text-xs ${secondsRemaining === 0 ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/40 bg-warning/10 text-foreground"}`}>
             <p className="font-semibold">
-              Payment deadline: {new Date(paymentExpiresAtEpoch * 1000).toLocaleString()}
+              Payment deadline: {formatPhilippineDateTime(paymentExpiresAtEpoch * 1000)}
             </p>
             <p>
               {secondsRemaining === 0

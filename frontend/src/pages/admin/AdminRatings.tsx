@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { RatingStars } from "@/components/RatingStars";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   deleteAdminRating,
   getAdminRatingCategorySummary,
@@ -184,7 +185,7 @@ const AdminRatings = () => {
                 <p className="text-xs text-muted-foreground mt-1">{r.category}</p>
                 <p className="text-sm text-muted-foreground mt-1">{r.comment}</p>
                 {r.admin_reply && <p className="text-xs mt-2"><span className="font-medium">Admin reply:</span> {r.admin_reply}</p>}
-                <p className="text-xs text-muted-foreground mt-1">{new Date(r.created_at).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatPhilippineDateTime(r.created_at)}</p>
               </div>
               <Button size="sm" variant="ghost" className="h-8 gap-2" onClick={() => moderate(r, r.moderation_status === "Revealed" ? "Hidden" : "Revealed")}>
                 {r.moderation_status === "Revealed" ? <><EyeOff size={14} /> Hide</> : <><Eye size={14} /> Reveal</>}

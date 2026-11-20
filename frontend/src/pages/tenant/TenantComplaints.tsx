@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, MessageSquareWarning, X, Loader2, AlertTriangle } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { sessionStore } from "@/lib/api";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import {
@@ -115,7 +116,7 @@ const TenantComplaints = () => {
                   <MessageSquareWarning size={16} className="text-primary mt-1" />
                   <div>
                     <p className="font-medium text-sm">{c.title}</p>
-                    <p className="text-xs text-muted-foreground">{c.category} · {new Date(c.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{c.category} · {formatPhilippineDateTime(c.created_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -137,7 +138,7 @@ const TenantComplaints = () => {
                   {c.status_history.map((entry, index) => (
                     <div key={`${entry.status}-${entry.changed_at}-${index}`} className="text-xs">
                       <span className="font-medium">{entry.status}</span>
-                      <span className="text-muted-foreground"> · {new Date(entry.changed_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground"> · {formatPhilippineDateTime(entry.changed_at)}</span>
                     </div>
                   ))}
                 </div>

@@ -4,6 +4,7 @@ import { Users, BedDouble, CreditCard, Wrench, MessageSquareWarning, AlertCircle
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 
 interface DashData {
   totalRooms: number;
@@ -165,7 +166,7 @@ const AdminDashboard = () => {
                   <AlertCircle size={16} className={`mt-0.5 ${a.type === "complaint" ? "text-destructive" : "text-primary"}`} />
                   <div className="flex-1">
                     <p className="text-sm">{a.message}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatPhilippineDateTime(a.timestamp)}</p>
                   </div>
                   <Badge variant="secondary" className="text-xs capitalize">{a.type}</Badge>
                 </div>

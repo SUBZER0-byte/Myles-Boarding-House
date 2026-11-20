@@ -11,6 +11,7 @@ import { useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { compareRoomNumbers } from "@/lib/publicRooms";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { formatPhilippineDate, formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   deleteComplaint,
   listAdminComplaints,
@@ -143,7 +144,7 @@ const AdminComplaints = () => {
               {recurringIssues.map(issue => (
                 <div key={`${issue.room_number}-${issue.category}`} className="border border-border rounded-md p-3">
                   <p className="font-medium text-sm">Room {issue.room_number} · {issue.category}</p>
-                  <p className="text-xs text-muted-foreground">{issue.complaint_count} reports · Latest {new Date(issue.latest_report).toLocaleDateString()}</p>
+                  <p className="text-xs text-muted-foreground">{issue.complaint_count} reports · Latest {formatPhilippineDate(issue.latest_report)}</p>
                 </div>
               ))}
             </div>
@@ -159,7 +160,7 @@ const AdminComplaints = () => {
                   <MessageSquareWarning size={16} className="text-primary mt-1" />
                   <div>
                     <p className="font-medium text-sm">{c.title}</p>
-                    <p className="text-xs text-muted-foreground">{c.full_name} · Room {c.room_number ?? "—"} · {c.category || "Other"} · {new Date(c.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{c.full_name} · Room {c.room_number ?? "—"} · {c.category || "Other"} · {formatPhilippineDateTime(c.created_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -178,7 +179,7 @@ const AdminComplaints = () => {
                   {c.status_history.map((entry, index) => (
                     <p key={`${entry.status}-${entry.changed_at}-${index}`} className="text-xs">
                       <span className="font-medium">{entry.status}</span>
-                      <span className="text-muted-foreground"> · {new Date(entry.changed_at).toLocaleString()}{entry.changed_by_name ? ` · ${entry.changed_by_name}` : ""}</span>
+                      <span className="text-muted-foreground"> · {formatPhilippineDateTime(entry.changed_at)}{entry.changed_by_name ? ` · ${entry.changed_by_name}` : ""}</span>
                     </p>
                   ))}
                 </div>

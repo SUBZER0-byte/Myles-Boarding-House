@@ -7,6 +7,7 @@ import { Wrench, Trash2, Loader2 } from "lucide-react";
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   deleteMaintenanceRequest,
   listAdminMaintenanceRequests,
@@ -71,7 +72,7 @@ const AdminMaintenance = () => {
                   <div>
                     <p className="font-medium text-sm">{r.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {r.full_name} · Room {r.room_number ?? "—"} · {r.category} · {new Date(r.created_at).toLocaleString()}
+                      {r.full_name} · Room {r.room_number ?? "—"} · {r.category} · {formatPhilippineDateTime(r.created_at)}
                     </p>
                   </div>
                 </div>
@@ -91,7 +92,7 @@ const AdminMaintenance = () => {
                   {r.status_history.map((entry, index) => (
                     <p key={`${entry.status}-${entry.changed_at}-${index}`} className="text-xs">
                       <span className="font-medium">{displayStatus(entry.status)}</span>
-                      <span className="text-muted-foreground"> · {new Date(entry.changed_at).toLocaleString()}{entry.changed_by_name ? ` · ${entry.changed_by_name}` : ""}</span>
+                      <span className="text-muted-foreground"> · {formatPhilippineDateTime(entry.changed_at)}{entry.changed_by_name ? ` · ${entry.changed_by_name}` : ""}</span>
                     </p>
                   ))}
                 </div>

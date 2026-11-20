@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, Megaphone, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { useAdminAnnouncements } from "@/hooks/useAdminAnnouncements";
 import {
   deleteAdminAnnouncement,
@@ -118,7 +119,7 @@ const AdminAnnouncements = () => {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">{a.body}</p>
-              <p className="text-xs text-muted-foreground mt-2">{new Date(a.created_at).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-2">{formatPhilippineDateTime(a.created_at)}</p>
             </div>
           ))}
         </div>

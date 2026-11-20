@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { sessionStore } from "@/lib/api";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import {
   getMyCancellationPreview,
   getMyCancellationStatus,
@@ -267,7 +268,7 @@ const TenantCancellation = () => {
                     <InfoRow
                       icon={<Clock size={14} />}
                       label="Calculated at"
-                      value={new Date(preview.calculated_at).toLocaleString()}
+                      value={formatPhilippineDateTime(preview.calculated_at)}
                     />
                   </div>
                 </div>

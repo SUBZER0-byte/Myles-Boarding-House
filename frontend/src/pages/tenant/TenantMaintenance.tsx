@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Wrench, X, Loader2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhilippineDateTime } from "@/lib/philippineTime";
 import { sessionStore } from "@/lib/api";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import {
@@ -111,7 +112,7 @@ const TenantMaintenance = () => {
                   <Wrench size={16} className="text-primary mt-1" />
                   <div>
                     <p className="font-medium text-sm">{r.title}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{formatPhilippineDateTime(r.created_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -134,7 +135,7 @@ const TenantMaintenance = () => {
                   {r.status_history.map((entry, index) => (
                     <div key={`${entry.status}-${entry.changed_at}-${index}`} className="text-xs">
                       <span className="font-medium">{displayStatus(entry.status)}</span>
-                      <span className="text-muted-foreground"> · {new Date(entry.changed_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground"> · {formatPhilippineDateTime(entry.changed_at)}</span>
                     </div>
                   ))}
                 </div>
