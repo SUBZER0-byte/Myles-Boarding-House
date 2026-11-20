@@ -57,9 +57,12 @@ describe("Admin guest account creation audit", () => {
     fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "New Guest" } });
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "newguest" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "guest@example.test" } });
+    fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.click(screen.getByRole("button", { name: "Create Guest" }));
 
-    await waitFor(() => expect(createAdminGuest).toHaveBeenCalled());
+    await waitFor(() => expect(createAdminGuest).toHaveBeenCalledWith(expect.objectContaining({
+      gender: "Female",
+    })));
     await waitFor(() => expect(tryRecordAdminManagementLog).toHaveBeenCalledWith({
       entity: "guest",
       operation: "create",

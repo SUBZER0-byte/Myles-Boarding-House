@@ -245,12 +245,15 @@ async function handleAction(action: string, input: GuestInput, request: Request)
       if (cleanupError) console.error("Could not remove the unlinked guest Auth account:", cleanupError);
       return { body: { type: "error", message: "Guest Auth was created, but the profile could not be verified." }, status: 500 };
     }
-    const { error: genderError } = await admin.from("users")
+    const { data: updatedProfile, error: genderError } = await admin.from("users")
       .update({ gender: guest.gender })
       .eq("user_id", profile.user_id)
-      .eq("user_type", "Guest");
-    if (genderError) {
+      .eq("user_type", "Guest")
+      .select("user_id,gender")
+      .maybeSingle();
+    if (genderError || !updatedProfile || updatedProfile.gender !== guest.gender) {
       console.error("Could not save the new guest gender:", genderError);
+      if (!genderError) console.error("Guest profile update did not return the saved gender.");
       const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
       if (cleanupError) console.error("Could not remove the guest Auth account after profile update failed:", cleanupError);
       return { body: { type: "error", message: "Guest Auth was created, but the profile could not be saved." }, status: 500 };
@@ -296,7 +299,7 @@ async function handleAction(action: string, input: GuestInput, request: Request)
       authEmailChanged = true;
     }
 
-    const { error: updateError } = await admin.from("users").update({
+    const { data: updatedProfile, error: updateError } = await admin.from("users").update({
       full_name: guest.full_name,
       email: guest.email,
       phone: guest.phone,
@@ -306,8 +309,13 @@ async function handleAction(action: string, input: GuestInput, request: Request)
       age: guest.age,
       emergency_contact_name: guest.emergency_contact_name,
       emergency_contact_phone: guest.emergency_contact_phone,
-    }).eq("user_id", id).eq("user_type", "Guest");
-    if (updateError) {
+    }).eq("user_id", id).eq("user_type", "Guest")
+      .select("user_id,gender")
+      .maybeSingle();
+    if (updateError || !updatedProfile || updatedProfile.gender !== guest.gender) {
+      if (updateError) console.error("Could not update the guest profile:", updateError);
+      else if (!updatedProfile) console.error("Guest profile update matched no Guest account.");
+      else console.error("Guest profile update did not return the saved gender.");
       if (authEmailChanged && existing.auth_user_id) {
         const { error: rollbackError } = await admin.auth.admin.updateUserById(existing.auth_user_id, {
           email: oldAuthEmail,
@@ -315,7 +323,8 @@ async function handleAction(action: string, input: GuestInput, request: Request)
         });
         if (rollbackError) console.error("Could not restore the guest Auth email after profile update failed:", rollbackError);
       }
-      throw updateError;
+      if (updateError) throw updateError;
+      throw new Error(!updatedProfile ? "Guest account not found." : "Guest gender was not saved.");
     }
 
     if (guest.password && existing.auth_user_id) {
