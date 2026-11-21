@@ -35,6 +35,42 @@ describe("tenant room reads", () => {
     await expect(getMyTenantRoom()).rejects.toThrow("No active room assignment found.");
   });
 
+  it("loads active roommates from the tenant-room RPC", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        room_id: 3,
+        tenant_id: 8,
+        room_number: "204",
+        floor_number: 2,
+        capacity: 2,
+        monthly_rent: 6500,
+        status: "Available",
+        roommates: [
+          {
+            tenant_id: 9,
+            full_name: "Jane Tenant",
+            gender: "Female",
+            move_in_date: "2026-11-21",
+            move_out_date: "2026-12-21",
+          },
+        ],
+      },
+      error: null,
+    });
+
+    await expect(getMyTenantRoom()).resolves.toMatchObject({
+      roommates: [
+        {
+          tenant_id: 9,
+          full_name: "Jane Tenant",
+          gender: "Female",
+          move_in_date: "2026-11-21",
+          move_out_date: "2026-12-21",
+        },
+      ],
+    });
+  });
+
   it("only exposes available rooms in the Tenant room list", async () => {
     getPublicRooms.mockResolvedValue([
       { room_id: 1, status: "Available" },
