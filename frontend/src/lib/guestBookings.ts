@@ -202,7 +202,47 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
   if (!Array.isArray(dates) || dates.some(date => typeof date !== "string")) {
     throw new Error("The booking service returned invalid unavailable dates.");
   }
-  return { room_id: roomId, dates: [...new Set(dates as string[])].sort() };
+  const unavailableDates = new Set(dates as string[]);
+
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const currentEmail = authData.user?.email?.trim().toLowerCase();
+    const [{ data: tenants }, { data: bookings }] = await Promise.all([
+      supabase
+        .from("tenants")
+        .select("move_in_date,email,is_active")
+        .eq("room_id", roomId)
+        .eq("is_active", true),
+      supabase
+        .from("bookings")
+        .select("move_in_date,email,status")
+        .eq("room_id", roomId)
+        .in("status", ["Pending", "Pending Verification"]),
+    ]);
+
+    for (const tenant of tenants ?? []) {
+      const tenantEmail = typeof tenant.email === "string" ? tenant.email.trim().toLowerCase() : "";
+      if (
+        typeof tenant.move_in_date === "string"
+        && tenantEmail !== currentEmail
+      ) {
+        unavailableDates.add(tenant.move_in_date);
+      }
+    }
+    for (const booking of bookings ?? []) {
+      const bookingEmail = typeof booking.email === "string" ? booking.email.trim().toLowerCase() : "";
+      if (
+        typeof booking.move_in_date === "string"
+        && bookingEmail !== currentEmail
+      ) {
+        unavailableDates.add(booking.move_in_date);
+      }
+    }
+  } catch (fallbackError) {
+    console.warn("Unavailable-date table fallback could not be loaded.", fallbackError);
+  }
+
+  return { room_id: roomId, dates: [...unavailableDates].sort() };
 }
 
 export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {

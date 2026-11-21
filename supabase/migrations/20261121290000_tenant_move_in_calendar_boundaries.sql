@@ -40,7 +40,7 @@ BEGIN
         SELECT b."move_in_date" AS day
           FROM public."bookings" AS b
          WHERE b."room_id" = p_room_id
-           AND b."status" IN ('Pending', 'Pending Verification', 'Confirmed', 'Checked In', 'Active')
+           AND b."status" IN ('Pending', 'Pending Verification')
            AND b."move_in_date" BETWEEN p_from AND p_until
            AND lower(btrim(COALESCE(b."email", ''))) <> caller_email
         UNION
