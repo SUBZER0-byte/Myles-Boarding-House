@@ -71,12 +71,12 @@ export function UserNotificationsPanel({ role }: UserNotificationsPanelProps) {
           {notifications?.map((notification) => (
             <div
               key={notification.notification_id}
-              className={`flex items-start gap-3 p-4 rounded-lg border ${
+              className={`flex min-w-0 flex-wrap items-start gap-3 p-4 rounded-lg border sm:flex-nowrap ${
                 notification.is_read ? "bg-card border-border" : "bg-primary/5 border-primary/20"
               }`}
             >
-              <Bell size={16} className="text-primary mt-1" />
-              <div className="flex-1">
+              <Bell size={16} className="text-primary mt-1 shrink-0" />
+              <div className="min-w-0 flex-1 basis-[calc(100%-2.75rem)] sm:basis-auto">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-medium text-sm">{notification.title}</p>
                   {notification.type && <Badge variant="secondary" className="text-xs">{notification.type}</Badge>}
@@ -84,7 +84,7 @@ export function UserNotificationsPanel({ role }: UserNotificationsPanelProps) {
                     {notification.is_read ? "Read" : "Unread"}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                <p className="break-words text-sm text-muted-foreground mt-1">{notification.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatPhilippineDateTime(notification.created_at)}
                 </p>

@@ -106,8 +106,8 @@ const TenantDashboard = () => {
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Announcements */}
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-4 sm:p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-muted-foreground">Noticeboard</p>
                 <h2 className="mt-1 font-display text-[1.75rem] font-semibold leading-none text-slate-800 dark:text-foreground">Announcements</h2>
@@ -141,8 +141,8 @@ const TenantDashboard = () => {
           </div>
 
           {/* Payments */}
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-4 sm:p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-muted-foreground">Finance</p>
                 <h2 className="mt-1 font-display text-[1.75rem] font-semibold leading-none text-slate-800 dark:text-foreground">Payments</h2>
@@ -180,7 +180,7 @@ const TenantDashboard = () => {
         </div>
 
         {/* Complaints */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-4 sm:p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-muted-foreground">Service</p>

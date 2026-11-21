@@ -71,18 +71,18 @@ const TenantRatings = () => {
           <Button onClick={submit} disabled={saving || !comment.trim()}>{saving ? "Sending…" : "Submit Rating"}</Button>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
           <h2 className="font-semibold mb-3">My Past Ratings</h2>
           {loading && <Loader2 size={14} className="animate-spin" />}
           {!loading && !error && ratings?.length === 0 && <p className="text-sm text-muted-foreground">No ratings yet.</p>}
           <div className="space-y-3">
             {ratings?.map(r => (
-              <div key={r.rating_id} className="p-3 rounded-md bg-muted/50 flex items-start gap-3">
+              <div key={r.rating_id} className="p-3 rounded-md bg-muted/50 flex min-w-0 items-start gap-3">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
                   <UserRound size={16} className="text-muted-foreground" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                   <RatingStars value={Number(r.stars)} size={12} />
                   <span className="text-xs text-muted-foreground">{Number(r.stars).toFixed(1)}</span>
                   <span className="text-xs text-muted-foreground">{formatPhilippineDateTime(r.created_at)}</span>

@@ -461,9 +461,9 @@ const TenantPayments = () => {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-1">
                   <p className="font-semibold text-sm">{peso(Number(p.amount))}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={isRefunded(p) ? "secondary" : variant(paymentStatusLabel(p))} className="text-xs">
                       {isPaid(p.status) && !isRefunded(p) && <CheckCircle2 size={10} className="mr-1" />}
                       {paymentStatusLabel(p)}

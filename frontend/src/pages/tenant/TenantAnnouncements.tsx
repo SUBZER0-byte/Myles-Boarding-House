@@ -18,13 +18,13 @@ const TenantAnnouncements = () => {
         {!loading && !error && data.length === 0 && <p className="text-sm text-muted-foreground">No announcements yet.</p>}
         <div className="space-y-3">
           {data.map((a) => (
-            <div key={a.announcement_id} className="bg-card border border-border rounded-lg p-5">
+            <div key={a.announcement_id} className="bg-card border border-border rounded-lg p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-1">
                 <Megaphone size={14} className="text-primary" />
                 <span className="text-xs text-muted-foreground">{formatPhilippineDateTime(a.created_at)}</span>
               </div>
-              <p className="font-medium">{a.title}</p>
-              <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{a.body}</p>
+              <p className="break-words font-medium">{a.title}</p>
+              <p className="break-words text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{a.body}</p>
             </div>
           ))}
         </div>

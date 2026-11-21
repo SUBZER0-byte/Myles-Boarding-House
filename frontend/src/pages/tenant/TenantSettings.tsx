@@ -129,7 +129,7 @@ const TenantSettings = () => {
 
         <ProfilePictureCard currentPath={profile.profile_picture} onUploaded={fetchProfile} />
 
-        <div className="bg-card border border-border rounded-lg p-5 space-y-3">
+        <div className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">
           <h2 className="font-semibold">Profile</h2>
           <div className="grid gap-1.5"><Label>Username</Label>
             <Input value={profile.username} readOnly /></div>

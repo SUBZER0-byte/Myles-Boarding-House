@@ -155,7 +155,7 @@ const TenantCancellation = () => {
 
         {/* ── OUTCOME: Approved ── */}
         {status?.status === "Approved" && (
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-green-500/15 flex items-center justify-center">
                 <CheckCircle2 size={24} className="text-green-500" />
@@ -175,7 +175,7 @@ const TenantCancellation = () => {
 
         {/* ── OUTCOME: Rejected ── */}
         {status?.status === "Rejected" && (
-          <div className="bg-card border border-destructive/40 rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-destructive/40 rounded-xl p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
                 <XCircle size={24} className="text-destructive" />
@@ -195,7 +195,7 @@ const TenantCancellation = () => {
 
         {/* ── OUTCOME: Expired ── */}
         {status?.status === "Expired" && (
-          <div className="bg-card border border-warning/40 rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-warning/40 rounded-xl p-4 sm:p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
                 <Clock size={24} className="text-warning" />
@@ -213,7 +213,7 @@ const TenantCancellation = () => {
 
         {/* ── ACTIVE: Pending countdown ── */}
         {status?.status === "Pending" && (
-          <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+          <div className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-5">
             <div className="flex items-start justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full bg-orange-500/15 flex items-center justify-center">
