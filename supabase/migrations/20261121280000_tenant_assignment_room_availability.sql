@@ -130,25 +130,22 @@ BEGIN
            r."capacity",
            r."monthly_rent",
            r."description",
-           r."status",
+           CASE
+             WHEN r."status" = 'Maintenance' THEN 'Maintenance'
+             WHEN COALESCE(tenant_load.tenant_beds, 0) >= r."capacity" THEN 'Occupied'
+             WHEN r."status" = 'Reserved' THEN 'Reserved'
+             ELSE 'Available'
+           END AS "status",
            r."image",
            COALESCE(tenant_load.occupants, 0)::bigint,
            GREATEST(
-             r."capacity" - (
-               COALESCE(tenant_load.tenant_beds, 0)
-               + COALESCE(booking_load.booking_beds, 0)
-               + COALESCE(hold_load.hold_beds, 0)
-             ),
+             r."capacity" - COALESCE(tenant_load.tenant_beds, 0),
              0
            )::bigint,
            CASE
              WHEN r."status" = 'Maintenance' THEN false
              ELSE (
-               r."capacity" - (
-                 COALESCE(tenant_load.tenant_beds, 0)
-                 + COALESCE(booking_load.booking_beds, 0)
-                 + COALESCE(hold_load.hold_beds, 0)
-               )
+               r."capacity" - COALESCE(tenant_load.tenant_beds, 0)
              ) > 0
            END,
            public.get_room_occupant_genders(r."room_id"),

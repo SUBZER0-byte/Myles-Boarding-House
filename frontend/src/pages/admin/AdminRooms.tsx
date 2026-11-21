@@ -240,7 +240,12 @@ const AdminRooms = () => {
                 <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem
+                      value="Available"
+                      disabled={r.status === "Occupied" || r.status === "Reserved"}
+                    >
+                      Available
+                    </SelectItem>
                     <SelectItem value="Occupied">Occupied</SelectItem>
                     <SelectItem value="Reserved">Reserved</SelectItem>
                     <SelectItem value="Maintenance">Maintenance</SelectItem>
