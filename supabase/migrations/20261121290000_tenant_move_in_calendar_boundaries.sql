@@ -68,3 +68,43 @@ ON public."bookings"
 FOR SELECT
 TO authenticated
 USING (lower(btrim(COALESCE("status", ''))) IN ('pending', 'pending verification'));
+
+CREATE OR REPLACE FUNCTION public.prevent_duplicate_room_move_out()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW."room_id" IS NOT NULL AND NEW."check_out_date" IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1
+        FROM public."tenants" AS t
+       WHERE t."room_id" = NEW."room_id"
+         AND t."is_active" = 1
+         AND t."move_out_date" = NEW."check_out_date"
+    ) THEN
+      RAISE EXCEPTION 'This check-out date is already taken by another tenant for this room';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+        FROM public."bookings" AS b
+       WHERE b."booking_id" IS DISTINCT FROM NEW."booking_id"
+         AND b."room_id" = NEW."room_id"
+         AND b."check_out_date" = NEW."check_out_date"
+         AND lower(btrim(COALESCE(b."status", ''))) IN ('pending', 'pending verification')
+    ) THEN
+      RAISE EXCEPTION 'This check-out date is already taken by another pending booking for this room';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS bookings_prevent_duplicate_move_out ON public."bookings";
+CREATE TRIGGER bookings_prevent_duplicate_move_out
+BEFORE INSERT OR UPDATE OF "check_out_date", "room_id"
+ON public."bookings"
+FOR EACH ROW
+EXECUTE FUNCTION public.prevent_duplicate_room_move_out();
