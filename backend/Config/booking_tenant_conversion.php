@@ -46,8 +46,8 @@ function promote_guest_booking_to_tenant(mysqli $connect, int $bookingId): void
     }
 
     $roomId = (int)($booking['room_id'] ?? 0);
-    $reservationType = (string)($booking['reservation_type'] ?? 'capacity_based');
-    $occupantCount = max(1, (int)($booking['occupant_count'] ?? 1));
+    $reservationType = 'capacity_based';
+    $occupantCount = 1;
     $fullName = trim((string)($booking['full_name'] ?? ''));
     $phone = trim((string)($booking['phone'] ?? ''));
     $moveInDate = trim((string)($booking['move_in_date'] ?? ''));
