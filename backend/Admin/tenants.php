@@ -727,10 +727,11 @@ function deleteTenant() {
 
     $roomId = intval($tenant['room_id'] ?? 0);
     if ($roomId > 0) {
-        $roomReset = $connect->prepare("UPDATE rooms SET status = 'Available' WHERE room_id = ?");
-        $roomReset->bind_param("i", $roomId);
-        $roomReset->execute();
-        $roomReset->close();
+        if (!sync_booking_room_status($connect, $roomId)) {
+            http_response_code(500);
+            echo json_encode(['type'=>'error','message'=>'Room occupancy status could not be refreshed']);
+            return;
+        }
     }
 
     $stmt = $connect->prepare("DELETE FROM tenants WHERE tenant_id = ?");

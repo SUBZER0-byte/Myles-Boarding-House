@@ -372,6 +372,9 @@ function setStatus() {
     $stmt->bind_param("si", $status, $id);
     $ok = $stmt->execute();
     $stmt->close();
+    if ($ok && $status !== 'Maintenance') {
+        $ok = sync_booking_room_status($connect, $id);
+    }
     rt_publish('/Admin/rooms.php');
     echo json_encode(['type'=>$ok?'success':'error','message'=>$ok?'Status updated':'Failed']);
 }

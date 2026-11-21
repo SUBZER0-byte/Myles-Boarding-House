@@ -1010,7 +1010,8 @@ function submitInitialGcashPayment(): void {
                     if (!$connect->commit()) {
                         throw new RuntimeException('Unable to save the GCash payment submission');
                     }
-                    echo json_encode(['type'=>'success','message'=>'GCash payment is already submitted for admin review']);
+                    $smsStatus = sms_notify_admins_booking_payment($connect, $bookingId, 'GCash', $amount, $reference);
+                    echo json_encode(['type'=>'success','message'=>'GCash payment is already submitted for admin review','sms'=>$smsStatus]);
                     return;
                 }
                 throw new RuntimeException('An initial GCash payment is already submitted for this booking');
@@ -1026,7 +1027,8 @@ function submitInitialGcashPayment(): void {
                 if ($uploadedScreenshotPath !== null) {
                     @unlink(__DIR__ . '/../uploads/' . $uploadedScreenshotPath);
                 }
-                echo json_encode(['type'=>'success','message'=>'GCash payment is already submitted for admin review']);
+                $smsStatus = sms_notify_admins_booking_payment($connect, $bookingId, 'GCash', $amount, $reference);
+                echo json_encode(['type'=>'success','message'=>'GCash payment is already submitted for admin review','sms'=>$smsStatus]);
                 return;
             }
             if (!in_array((string)$existing['status'], ['Checkout','Rejected'], true)) {
@@ -1085,7 +1087,7 @@ function submitInitialGcashPayment(): void {
             throw new RuntimeException('Unable to save the GCash payment submission');
         }
 
-        sms_notify_admins_booking_payment($connect, $bookingId, 'GCash', $amount, $reference);
+        $smsStatus = sms_notify_admins_booking_payment($connect, $bookingId, 'GCash', $amount, $reference);
         system_notify_booking_contact(
             $connect,
             (string)$booking['email'],
@@ -1107,6 +1109,7 @@ function submitInitialGcashPayment(): void {
         echo json_encode([
             'type'=>'success',
             'message'=>'Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed.',
+            'sms'=>$smsStatus,
         ]);
     } catch (Throwable $error) {
         $connect->rollback();

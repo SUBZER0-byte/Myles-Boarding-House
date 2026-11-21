@@ -72,21 +72,21 @@ function sms_notify_admins_booking_payment(
     string $method,
     float $amount,
     string $reference
-): void {
+): array {
     $bookingStmt = $connect->prepare("SELECT full_name FROM bookings WHERE booking_id = ? LIMIT 1");
     if (!$bookingStmt) {
         error_log('Unable to load booking for payment SMS: ' . $connect->error);
-        return;
+        return ['sent' => 0, 'failed' => 1, 'duplicate' => 0];
     }
     $bookingStmt->bind_param('i', $bookingId);
     if (!$bookingStmt->execute()) {
         error_log('Unable to load booking for payment SMS: ' . $bookingStmt->error);
         $bookingStmt->close();
-        return;
+        return ['sent' => 0, 'failed' => 1, 'duplicate' => 0];
     }
     $booking = $bookingStmt->get_result()->fetch_assoc();
     $bookingStmt->close();
-    if (!$booking) return;
+    if (!$booking) return ['sent' => 0, 'failed' => 1, 'duplicate' => 0];
 
     $admins = $connect->query("
         SELECT user_id, phone FROM users
@@ -94,16 +94,27 @@ function sms_notify_admins_booking_payment(
     ");
     if (!$admins) {
         error_log('Unable to load Admin phone numbers for payment SMS: ' . $connect->error);
-        return;
+        return ['sent' => 0, 'failed' => 1, 'duplicate' => 0];
     }
 
     $message = "Booking payment submitted for review: {$booking['full_name']}, PHP "
         . number_format($amount, 2) . " via {$method}. Booking #{$bookingId}.";
     $eventKey = 'booking-payment-submitted:' . $bookingId . ':' . strtolower($method) . ':' . hash('sha256', $reference);
+    $sent = 0;
+    $failed = 0;
+    $duplicate = 0;
     while ($admin = $admins->fetch_assoc()) {
-        sms_send_once($connect, $eventKey, (string)$admin['phone'], $message);
+        $result = sms_send_once($connect, $eventKey, (string)$admin['phone'], $message);
+        if (!empty($result['duplicate'])) {
+            $duplicate++;
+        } elseif (!empty($result['ok'])) {
+            $sent++;
+        } else {
+            $failed++;
+        }
     }
     $admins->free();
+    return ['sent' => $sent, 'failed' => $failed, 'duplicate' => $duplicate];
 }
 
 function sms_notify_admins_rent_payment(

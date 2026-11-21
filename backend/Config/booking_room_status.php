@@ -588,22 +588,12 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
             }
             $hasActiveRoomHold = (bool)$activeHold->get_result()->fetch_assoc();
         }
-        if ($hasConfirmedBooking
-            || (int)$snapshot['tenant_beds'] > 0
-            || (int)$snapshot['active_booking_beds'] > 0) {
+        $capacity = max(0, (int)$snapshot['capacity']);
+        $occupiedBeds = max(0, (int)$snapshot['occupied_beds']);
+        if ($capacity > 0 && $occupiedBeds >= $capacity) {
             $status = 'Occupied';
-        } elseif ((int)$snapshot['reserved_beds'] > 0) {
-            $status = 'Reserved';
-        } elseif ((int)$snapshot['temporary_beds'] > 0
-            || (int)$snapshot['active_hold_beds'] > 0
-            || $hasActiveRoomHold) {
-            $status = 'Reserving';
-        } elseif ((int)$snapshot['occupied_beds'] >= (int)$snapshot['capacity']) {
-            $status = 'Reserved';
-        } elseif (in_array((string)$snapshot['status'], ['Reserved', 'Occupied', 'Reserving'], true)) {
-            $status = 'Available';
         } else {
-            $status = (string)$snapshot['status'];
+            $status = 'Available';
         }
 
         $roomIdToUpdate = (int)$room['room_id'];

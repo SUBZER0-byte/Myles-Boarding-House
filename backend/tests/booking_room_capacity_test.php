@@ -283,7 +283,7 @@ try {
     }
     assertBookingCapacity(sync_booking_room_status($connect, 1), 'A future room hold status could not be synchronized');
     $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
-    assertBookingCapacity($roomStatus === 'Reserving', 'A future active room hold did not set the room to Reserving');
+    assertBookingCapacity($roomStatus === 'Available', 'A partially consumed room with a future active hold did not remain Available');
 
     $reset();
     if (!$connect->query("UPDATE rooms SET status = 'Available' WHERE room_id = 1")) {
@@ -306,7 +306,7 @@ try {
     $bookingStatus = (string)($connect->query('SELECT status FROM bookings WHERE booking_id = 1')->fetch_assoc()['status'] ?? '');
     $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
     assertBookingCapacity($bookingStatus === 'Pending Verification', 'A submitted initial payment did not enter admin review');
-    assertBookingCapacity($roomStatus === 'Reserved', 'A submitted initial payment did not set the room to Reserved');
+    assertBookingCapacity($roomStatus === 'Available', 'A submitted initial payment that did not consume full capacity did not remain Available');
 
     if (!$connect->query("UPDATE booking_initial_payment_requests SET status = 'Confirmed' WHERE booking_id = 1")
         || !$connect->query("UPDATE bookings SET status = 'Confirmed' WHERE booking_id = 1")) {
@@ -314,7 +314,7 @@ try {
     }
     assertBookingCapacity(sync_booking_room_status($connect, 1), 'A confirmed booking room status could not be synchronized');
     $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
-    assertBookingCapacity($roomStatus === 'Occupied', 'An admin-confirmed booking did not set the room to Occupied');
+    assertBookingCapacity($roomStatus === 'Available', 'A confirmed partial booking did not remain Available');
 
     $reset();
     if (!$connect->query("
@@ -326,6 +326,9 @@ try {
     }
     assertBookingCapacity(!$canReserve(), 'An active whole-room tenant did not block overlapping capacity');
     assertBookingCapacity($canReserve('entire_room', 1, '2099-02-01', '2099-03-01'), 'A non-overlapping tenant stay blocked room capacity');
+    assertBookingCapacity(sync_booking_room_status($connect, 1), 'A whole-room tenant status could not be synchronized');
+    $roomStatus = (string)($connect->query('SELECT status FROM rooms WHERE room_id = 1')->fetch_assoc()['status'] ?? '');
+    assertBookingCapacity($roomStatus === 'Occupied', 'A room at full tenant capacity did not become Occupied');
 } catch (Throwable $error) {
     fwrite(STDERR, $error->getMessage() . PHP_EOL);
     exit(1);

@@ -11,6 +11,7 @@ include '../Config/db.php';
 include '../Config/header.php';
 include '../Config/realtime.php';
 include_once __DIR__ . '/../Config/log_helper.php';
+require_once __DIR__ . '/../Config/booking_room_status.php';
 
 sec_require_admin();
 
@@ -142,12 +143,16 @@ function approveRequest(): void {
     $roleReset->bind_param("i", $req['tenant_user_id']);
     $roleReset->execute(); $roleReset->close();
 
-    // 4. Mark the room as Available
-    $roomUpd = $connect->prepare("UPDATE rooms SET status = 'Available' WHERE room_id = ?");
-    $roomUpd->bind_param("i", $req['room_id']);
-    $roomUpd->execute(); $roomUpd->close();
-
-    $connect->commit();
+    // 4. Refresh room status from actual remaining capacity
+    if (!sync_booking_room_status($connect, (int)$req['room_id'])) {
+        $connect->rollback();
+        echo json_encode(['type'=>'error','message'=>'Room occupancy status could not be refreshed']);
+        return;
+    }
+    if (!$connect->commit()) {
+        echo json_encode(['type'=>'error','message'=>'Unable to save cancellation approval']);
+        return;
+    }
 
     // 5. Notify the tenant
     $tenantUserId = intval($req['tenant_user_id']);
