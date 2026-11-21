@@ -195,28 +195,7 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
       .select("move_in_date,status")
       .eq("room_id", roomId),
   ]);
-  if (tenantResult.error) throw new Error(tenantResult.error.message || "Could not load tenant check-in dates.");
-  if (bookingResult.error) throw new Error(bookingResult.error.message || "Could not load booking check-in dates.");
 
-  const { data, error } = await supabase.rpc("get_guest_booking_boundary_dates", {
-    p_room_id: roomId,
-    p_from: formatDate(from),
-    p_until: formatDate(until),
-  });
-  if (error) throw new Error(error.message || "Could not load unavailable dates.");
-  let dates: unknown = data;
-  if (typeof data === "string") {
-    try {
-      dates = JSON.parse(data);
-    } catch {
-      throw new Error("The booking service returned invalid unavailable dates.");
-    }
-  } else if (data && typeof data === "object" && !Array.isArray(data) && "dates" in data) {
-    dates = (data as { dates: unknown }).dates;
-  }
-  if (!Array.isArray(dates) || dates.some(date => typeof date !== "string")) {
-    throw new Error("The booking service returned invalid unavailable dates.");
-  }
   const directDates = [
     ...(tenantResult.data ?? []).map(row => row.move_in_date),
     ...(bookingResult.data ?? [])
@@ -226,7 +205,7 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
 
   return {
     room_id: roomId,
-    dates: [...new Set([...(dates as string[]), ...directDates])]
+    dates: [...new Set(directDates)]
       .filter(date => date >= formatDate(from) && date <= formatDate(until))
       .sort(),
   };

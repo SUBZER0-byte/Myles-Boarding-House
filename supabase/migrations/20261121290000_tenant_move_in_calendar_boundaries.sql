@@ -42,3 +42,17 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_guest_booking_boundary_dates(integer, date, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_guest_booking_boundary_dates(integer, date, date) TO authenticated;
+
+DROP POLICY IF EXISTS "authenticated_can_read_active_tenant_move_in_dates" ON public."tenants";
+CREATE POLICY "authenticated_can_read_active_tenant_move_in_dates"
+ON public."tenants"
+FOR SELECT
+TO authenticated
+USING ("is_active" = 1);
+
+DROP POLICY IF EXISTS "authenticated_can_read_pending_booking_move_in_dates" ON public."bookings";
+CREATE POLICY "authenticated_can_read_pending_booking_move_in_dates"
+ON public."bookings"
+FOR SELECT
+TO authenticated
+USING (lower(btrim(COALESCE("status", ''))) IN ('pending', 'pending verification'));

@@ -49,14 +49,22 @@ describe("Supabase guest booking service", () => {
   });
 
   it("normalizes tenant move-in boundary dates and removes duplicates", async () => {
-    rpc.mockResolvedValueOnce({
-      data: ["2026-11-23", "2026-11-23", "2026-11-28"],
-      error: null,
+    fromTable.mockImplementation((table: string) => {
+      const builder: Record<string, unknown> = {};
+      builder.select = vi.fn(() => builder);
+      builder.eq = vi.fn(() => builder);
+      builder.then = (resolve: (value: unknown) => unknown) => resolve({
+        data: table === "tenants"
+          ? [{ move_in_date: "2026-11-23" }, { move_in_date: "2026-11-28" }, { move_in_date: "2026-11-23" }]
+          : [{ move_in_date: "2026-11-25", status: "Pending" }],
+        error: null,
+      });
+      return builder;
     });
 
     await expect(getGuestBookingBoundaryDates(34)).resolves.toEqual({
       room_id: 34,
-      dates: ["2026-11-23", "2026-11-28"],
+      dates: ["2026-11-23", "2026-11-25", "2026-11-28"],
     });
   });
 
