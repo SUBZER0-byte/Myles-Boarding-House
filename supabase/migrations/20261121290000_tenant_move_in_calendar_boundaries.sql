@@ -20,17 +20,25 @@ BEGIN
     END IF;
 
     WITH exact_dates AS (
-        SELECT t."move_in_date" AS day
+        SELECT day
           FROM public."tenants" AS t
+         CROSS JOIN LATERAL generate_series(
+            GREATEST(t."move_in_date"::date, p_from)::date,
+            LEAST(COALESCE(t."move_out_date", t."move_in_date")::date, p_until)::date,
+            '1 day'::interval
+         ) AS day
          WHERE t."room_id" = p_room_id
-           AND t."is_active" = 1
-           AND t."move_in_date" BETWEEN p_from AND p_until
+            AND t."is_active" = 1
         UNION
-        SELECT b."move_in_date" AS day
+        SELECT day
           FROM public."bookings" AS b
+         CROSS JOIN LATERAL generate_series(
+            GREATEST(b."move_in_date"::date, p_from)::date,
+            LEAST(COALESCE(b."check_out_date", b."move_in_date")::date, p_until)::date,
+            '1 day'::interval
+         ) AS day
          WHERE b."room_id" = p_room_id
             AND lower(btrim(COALESCE(b."status", ''))) IN ('pending', 'pending verification')
-           AND b."move_in_date" BETWEEN p_from AND p_until
     )
     SELECT COALESCE(jsonb_agg(day::text ORDER BY day), '[]'::jsonb)
       INTO unavailable

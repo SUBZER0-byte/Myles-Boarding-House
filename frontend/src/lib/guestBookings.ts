@@ -187,27 +187,50 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
   const [tenantResult, bookingResult] = await Promise.all([
     supabase
       .from("tenants")
-      .select("move_in_date")
+      .select("move_in_date,move_out_date")
       .eq("room_id", roomId)
       .eq("is_active", true),
     supabase
       .from("bookings")
-      .select("move_in_date,status")
+      .select("move_in_date,check_out_date,status")
       .eq("room_id", roomId),
   ]);
 
-  const directDates = [
-    ...(tenantResult.data ?? []).map(row => row.move_in_date),
-    ...(bookingResult.data ?? [])
-      .filter(row => ["pending", "pending verification"].includes(String(row.status ?? "").toLowerCase().trim()))
-      .map(row => row.move_in_date),
-  ].filter((date): date is string => typeof date === "string");
+  const occupiedDates = new Set<string>();
+  const addRange = (startValue: unknown, endValue: unknown) => {
+    if (typeof startValue !== "string") return;
+    const start = new Date(`${startValue}T00:00:00`);
+    if (Number.isNaN(start.getTime())) return;
+    const end = typeof endValue === "string"
+      ? new Date(`${endValue}T00:00:00`)
+      : new Date(start);
+    if (Number.isNaN(end.getTime())) return;
+
+    const rangeStart = start < from ? from : start;
+    const rangeEnd = end > until ? until : end;
+    const cursor = new Date(rangeStart);
+    cursor.setHours(0, 0, 0, 0);
+    while (cursor <= rangeEnd) {
+      const yyyy = cursor.getFullYear();
+      const mm = String(cursor.getMonth() + 1).padStart(2, "0");
+      const dd = String(cursor.getDate()).padStart(2, "0");
+      occupiedDates.add(`${yyyy}-${mm}-${dd}`);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  };
+
+  for (const tenant of tenantResult.data ?? []) {
+    addRange(tenant.move_in_date, tenant.move_out_date);
+  }
+  for (const booking of bookingResult.data ?? []) {
+    if (["pending", "pending verification"].includes(String(booking.status ?? "").toLowerCase().trim())) {
+      addRange(booking.move_in_date, booking.check_out_date);
+    }
+  }
 
   return {
     room_id: roomId,
-    dates: [...new Set(directDates)]
-      .filter(date => date >= formatDate(from) && date <= formatDate(until))
-      .sort(),
+    dates: [...occupiedDates].sort(),
   };
 }
 
