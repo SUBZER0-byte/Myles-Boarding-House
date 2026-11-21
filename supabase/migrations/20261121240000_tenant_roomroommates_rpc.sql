@@ -55,7 +55,6 @@ AS $$
          AND roommate."tenant_id" <> current_row."tenant_id"
          AND roommate."is_active" = 1
          AND roommate."deleted_at" IS NULL
-         AND roommate."move_in_date" <= CURRENT_DATE
          AND COALESCE(roommate."move_out_date", '9999-12-31'::date) > CURRENT_DATE
         LEFT JOIN public."users" AS roommate_user
           ON roommate_user."user_id" = roommate."user_id"
