@@ -396,6 +396,9 @@ function createTenant() {
         return;
     }
     $connect->commit();
+    if ($room_id !== null) {
+        consume_confirmed_room_capacity($connect, (int)$room_id);
+    }
     if ($room_id !== null && !sync_booking_room_status($connect, (int)$room_id)) {
         http_response_code(500);
         echo json_encode(['type'=>'error','message'=>'Tenant created, but room occupancy status could not be refreshed']);
@@ -671,10 +674,16 @@ function updateTenant() {
     $oldRoomId = (int)($tenantRow['room_id'] ?? 0);
     $connect->commit();
     if ($oldRoomId > 0 && $oldRoomId !== (int)($roomId ?? 0)) {
+        restore_deleted_tenant_room_capacity($connect, $oldRoomId);
         if (!sync_booking_room_status($connect, $oldRoomId)) {
             http_response_code(500);
             echo json_encode(['type'=>'error','message'=>'Tenant updated, but the previous room occupancy status could not be refreshed']);
             return;
+        }
+    }
+    if ($roomId !== null) {
+        if ($oldRoomId !== (int)$roomId) {
+            consume_confirmed_room_capacity($connect, (int)$roomId);
         }
     }
     if ($roomId !== null && !sync_booking_room_status($connect, (int)$roomId)) {
@@ -719,6 +728,9 @@ function deactivateTenant() {
 
     if ($ok) {
         $roomId = (int)($tenant['room_id'] ?? 0);
+        if ($roomId > 0) {
+            restore_deleted_tenant_room_capacity($connect, $roomId);
+        }
         if ($roomId > 0 && !sync_booking_room_status($connect, $roomId)) {
             http_response_code(500);
             echo json_encode(['type'=>'error','message'=>'Tenant deactivated, but room occupancy status could not be refreshed']);
@@ -763,6 +775,9 @@ function deleteTenant() {
 
     if ($ok) {
         $roomId = intval($tenant['room_id'] ?? 0);
+        if ($roomId > 0) {
+            restore_deleted_tenant_room_capacity($connect, $roomId);
+        }
         if ($roomId > 0 && !sync_booking_room_status($connect, $roomId)) {
             http_response_code(500);
             echo json_encode(['type'=>'error','message'=>'Tenant deleted, but room occupancy status could not be refreshed']);
