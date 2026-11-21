@@ -60,12 +60,8 @@ function room_capacity_snapshot(
 ): ?array
 {
     $roomLock = $lockRoom ? ' FOR UPDATE' : '';
-    $hasTotalCapacity = booking_room_schema_has($connect, 'rooms', 'total_capacity');
-    $capacitySelect = $hasTotalCapacity
-        ? 'COALESCE(total_capacity, capacity)'
-        : 'capacity';
     $roomStmt = $connect->prepare(
-        'SELECT ' . $capacitySelect . ' AS capacity, capacity AS available_capacity, status
+        'SELECT capacity, status
            FROM rooms WHERE room_id = ?' . $roomLock
     );
     if (!$roomStmt) {
@@ -477,51 +473,6 @@ function expire_pending_bookings(mysqli $connect, ?int $roomId = null): bool
     }
     $markVerification->close();
     return $marked;
-}
-
-function consume_confirmed_room_capacity(mysqli $connect, int $roomId): bool
-{
-    if ($roomId <= 0) {
-        return false;
-    }
-
-    $stmt = $connect->prepare("
-        UPDATE rooms
-        SET capacity = GREATEST(COALESCE(capacity, 0) - 1, 0)
-        WHERE room_id = ?
-          AND status <> 'Maintenance'
-          AND COALESCE(capacity, 0) > 0
-    ");
-    if (!$stmt) {
-        error_log('Confirmed room capacity decrement prepare failed: ' . $connect->error);
-        return false;
-    }
-    $stmt->bind_param('i', $roomId);
-    $ok = $stmt->execute();
-    $stmt->close();
-    return $ok;
-}
-
-function restore_deleted_tenant_room_capacity(mysqli $connect, int $roomId): bool
-{
-    if ($roomId <= 0) {
-        return false;
-    }
-
-    $stmt = $connect->prepare("
-        UPDATE rooms
-        SET capacity = GREATEST(COALESCE(capacity, 0) + 1, 0)
-        WHERE room_id = ?
-          AND status <> 'Maintenance'
-    ");
-    if (!$stmt) {
-        error_log('Deleted tenant room capacity restore prepare failed: ' . $connect->error);
-        return false;
-    }
-    $stmt->bind_param('i', $roomId);
-    $ok = $stmt->execute();
-    $stmt->close();
-    return $ok;
 }
 
 function sync_booking_room_status(mysqli $connect, ?int $roomId): bool

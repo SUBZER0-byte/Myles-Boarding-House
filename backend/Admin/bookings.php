@@ -193,9 +193,6 @@ function confirmInitialGcashPayment(): void {
             }
             $confirmBooking->close();
             promote_guest_booking_to_tenant($connect, $bookingId);
-            if (!consume_confirmed_room_capacity($connect, (int)$booking['room_id'])) {
-                throw new RuntimeException('Unable to deduct the confirmed booking room capacity');
-            }
             if (!sync_booking_room_status($connect, (int)$booking['room_id'])) {
                 throw new RuntimeException('Unable to accept the paid booking');
             }
@@ -263,9 +260,6 @@ function confirmInitialGcashPayment(): void {
         }
         $confirmBooking->close();
         promote_guest_booking_to_tenant($connect, $bookingId);
-        if (!consume_confirmed_room_capacity($connect, (int)$booking['room_id'])) {
-            throw new RuntimeException('Unable to deduct the confirmed booking room capacity');
-        }
         if (!sync_booking_room_status($connect, (int)$booking['room_id'])) {
             throw new RuntimeException('Unable to accept the paid booking');
         }
@@ -817,9 +811,6 @@ function updateStatus() {
             try {
                 if ($shouldPromoteTenant) {
                     promote_guest_booking_to_tenant($connect, $id);
-                    if (!consume_confirmed_room_capacity($connect, (int)$booking['room_id'])) {
-                        throw new RuntimeException('Unable to deduct the confirmed booking room capacity');
-                    }
                 }
                 $ok = sync_booking_room_status($connect, (int)$booking['room_id']);
             } catch (Throwable $error) {
@@ -988,9 +979,6 @@ function recordPayment() {
         }
         promote_guest_booking_to_tenant($connect, $id);
         $roomId = (int)$booking['room_id'];
-        if (!consume_confirmed_room_capacity($connect, $roomId)) {
-            throw new RuntimeException('Unable to deduct the confirmed booking room capacity');
-        }
         if ($roomId <= 0 || !sync_booking_room_status($connect, $roomId)) {
             throw new RuntimeException('Unable to refresh booking room status');
         }
