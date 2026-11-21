@@ -416,11 +416,10 @@ const GuestRooms = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{formatRoomFloor(r.floor_number)}</p>
                 <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
-                {Number(r.capacity) >= 2 && (
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0)))} bedspace(s) available
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mb-2">
+                  {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0)))} bedspace
+                  {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0))) === 1 ? "" : "s"} available
+                </p>
                 {r.description && (
                   <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{r.description}</p>
                 )}
@@ -516,12 +515,10 @@ const GuestRooms = () => {
                   </span>
                 </div>
                 <RoomOccupantGender genders={quickViewRoom.occupant_genders} className="mt-3" />
-                {Number(quickViewRoom.capacity) >= 2 && (
-                  <p className="text-sm text-muted-foreground">
-                    {Number(quickViewRoom.available_beds ?? Math.max(0, Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)))} bedspace
-                    {Number(quickViewRoom.available_beds ?? Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)) === 1 ? "" : "s"} available
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  {Number(quickViewRoom.available_beds ?? Math.max(0, Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)))} bedspace
+                  {Number(quickViewRoom.available_beds ?? Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)) === 1 ? "" : "s"} available
+                </p>
                 {quickViewRoom.description && (
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                     {quickViewRoom.description}

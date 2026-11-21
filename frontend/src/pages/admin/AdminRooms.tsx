@@ -233,7 +233,7 @@ const AdminRooms = () => {
                 <span className="font-semibold text-sm break-words">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
                 <span className="text-xs text-muted-foreground sm:text-right">
                   {r.occupants} occupant(s)
-                  {Number(r.capacity) >= 2 && ` · ${Math.max(0, Number(r.capacity) - Number(r.occupants))} bedspace${Number(r.capacity) - Number(r.occupants) === 1 ? "" : "s"} available`}
+                  {` · ${Math.max(0, Number(r.capacity) - Number(r.occupants))} bedspace${Number(r.capacity) - Number(r.occupants) === 1 ? "" : "s"} available`}
                 </span>
               </div>
               <div className="flex gap-2 pt-1">

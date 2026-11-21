@@ -66,11 +66,9 @@ export function RoomCard({ room, onView }: RoomCardProps) {
       </div>
       <p className="mb-2 text-xs text-muted-foreground">{formatRoomFloor(room.floor_number)}</p>
       <RoomOccupantGender genders={room.occupant_genders} className="mb-2" />
-      {room.capacity >= 2 && (
-        <p className="mb-2 text-xs text-muted-foreground">
-          {room.available_beds} bedspace(s) available
-        </p>
-      )}
+      <p className="mb-2 text-xs text-muted-foreground">
+        {room.available_beds} bedspace{room.available_beds === 1 ? "" : "s"} available
+      </p>
       {room.description && (
         <p className="mb-3 line-clamp-3 text-xs text-muted-foreground">{room.description}</p>
       )}

@@ -56,11 +56,9 @@ export function RoomDetailsDialog({ room, open, onOpenChange }: RoomDetailsDialo
             </span>
           </div>
           <RoomOccupantGender genders={room.occupant_genders} className="mt-3" />
-          {room.capacity >= 2 && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {room.available_beds} bedspace(s) available
-            </p>
-          )}
+          <p className="mt-3 text-sm text-muted-foreground">
+            {room.available_beds} bedspace{room.available_beds === 1 ? "" : "s"} available
+          </p>
           {room.description && (
             <div className="mt-4">
               <h4 className="font-display text-sm font-semibold">Description</h4>
