@@ -165,7 +165,7 @@ const AdminGuestBookingPayments = () => {
                   <p><span className="text-muted-foreground">Rent per person:</span> ₱{Number(request.monthly_rent || 0).toLocaleString()}/month</p>
                 </div>
                 {request.status === "Pending" && (
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
                     <Button size="sm" variant="secondary" onClick={() => decideExtension(request, "Rejected")}>Reject</Button>
                     <Button size="sm" onClick={() => decideExtension(request, "Approved")}>Approve Extension</Button>
                   </div>
@@ -262,7 +262,7 @@ const AdminGuestBookingPayments = () => {
                     )}
                   </div>
                   {["Pending", "Pending Verification"].includes(b.status) && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="destructive" onClick={() => rejectInitialGcashPayment(b)}>
                         Reject Payment
                       </Button>

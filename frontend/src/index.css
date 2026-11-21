@@ -119,10 +119,23 @@
 }
 
 @media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+  }
+
   input,
   select,
   textarea {
     font-size: 16px !important;
+  }
+
+  main,
+  main > div {
+    min-width: 0;
+    max-width: 100%;
   }
 
   button,
@@ -133,6 +146,15 @@
 
   table {
     min-width: 720px;
+  }
+
+  [role="dialog"],
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  [role="dialog"] {
+    max-height: calc(100dvh - 1.5rem);
   }
 
   .overflow-x-auto {

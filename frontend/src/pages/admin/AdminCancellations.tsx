@@ -138,7 +138,7 @@ const AdminCancellations = () => {
         </div>
 
         {/* Main Tab Toggle */}
-        <div className="flex gap-2 border-b border-border pb-4">
+        <div className="grid grid-cols-1 gap-2 border-b border-border pb-4 sm:grid-cols-2">
           <Button
             variant={mainTab === "tenancy" ? "default" : "outline"}
             onClick={() => setMainTab("tenancy")}
@@ -234,7 +234,7 @@ const AdminCancellations = () => {
 
                   {/* Refund breakdown */}
                   <div className="border border-border rounded-lg overflow-hidden text-sm">
-                    <div className="grid grid-cols-3 divide-x divide-border">
+                    <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                       <div className="p-3 text-center">
                         <p className="text-xs text-muted-foreground mb-1">Monthly Rent per Person</p>
                         <p className="font-semibold">{peso(r.monthly_rent)}</p>

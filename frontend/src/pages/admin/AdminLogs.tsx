@@ -93,8 +93,8 @@ const AdminLogs = () => {
           </Select>
         </div>
 
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="min-w-0 max-w-full bg-card border border-border rounded-lg overflow-hidden">
+          <div className="max-w-full overflow-x-auto overscroll-x-contain">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>

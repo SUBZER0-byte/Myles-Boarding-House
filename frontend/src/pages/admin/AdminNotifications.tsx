@@ -102,11 +102,11 @@ const AdminNotifications = () => {
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-start justify-between gap-3 flex-wrap sm:items-center">
           <div>
             <h1 className="font-display text-2xl font-bold">Notifications</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button
               variant="secondary"
               onClick={() => void runUserNotificationAction(markAllUserNotificationsRead)}
@@ -131,7 +131,7 @@ const AdminNotifications = () => {
             return (
               <div
                 key={n.notification_id}
-                className={`bg-card border rounded-lg p-4 flex items-start gap-3 ${
+                className={`bg-card border rounded-lg p-4 flex min-w-0 items-start gap-3 ${
                   isCancellation
                     ? "border-orange-400/60 bg-orange-500/5"
                     : !n.is_read
@@ -146,7 +146,7 @@ const AdminNotifications = () => {
                 ) : (
                   <Bell size={16} className="text-primary mt-1 shrink-0" />
                 )}
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className={`font-medium text-sm ${isCancellation ? "text-orange-600 dark:text-orange-400" : ""}`}>
                       {n.title}
@@ -165,7 +165,7 @@ const AdminNotifications = () => {
                       {n.is_read ? "Read" : "Unread"}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                  <p className="break-words text-sm text-muted-foreground mt-1">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     to {n.username ?? `#${n.user_id}`} · {formatPhilippineDateTime(n.created_at)}
                   </p>

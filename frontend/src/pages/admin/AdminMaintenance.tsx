@@ -65,11 +65,11 @@ const AdminMaintenance = () => {
 
         <div className="space-y-3">
           {items?.map((r) => (
-            <div key={r.request_id} className="bg-card border border-border rounded-lg p-5">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex items-start gap-3">
+            <div key={r.request_id} className="bg-card border border-border rounded-lg p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
                   <Wrench size={16} className="text-primary mt-1" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{r.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {r.full_name} · Room {r.room_number ?? "—"} · {r.category} · {formatPhilippineDateTime(r.created_at)}
