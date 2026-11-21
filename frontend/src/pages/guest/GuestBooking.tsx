@@ -175,7 +175,7 @@ const GuestBooking = () => {
               return (
                 <div
                   key={b.booking_id}
-                  className="bg-card border border-border rounded-xl p-5 space-y-4"
+                  className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4"
                 >
                   {/* Header */}
                   <div className="flex items-start justify-between flex-wrap gap-3">

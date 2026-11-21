@@ -136,7 +136,7 @@ const GuestSettings = () => {
 
         <ProfilePictureCard currentPath={profile.profile_picture} onUploaded={fetchProfile} />
 
-        <div className="bg-card border border-border rounded-lg p-5 space-y-3">
+        <div className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">
           <h2 className="font-semibold">Profile</h2>
 
           <div className="grid gap-1.5">
@@ -201,7 +201,7 @@ const GuestSettings = () => {
           <Button onClick={saveProfile} disabled={saving}>{saving ? "Saving…" : "Save Profile"}</Button>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-5 space-y-3">
+        <div className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">
           <h2 className="font-semibold">Change Password</h2>
           <form
             className="space-y-3"

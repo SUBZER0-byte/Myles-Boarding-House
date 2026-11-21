@@ -405,8 +405,8 @@ const GuestRooms = () => {
                   roomNumber={r.room_number}
                   coverImage={r.image}
                 />
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+                  <div className="flex min-w-0 items-center gap-2">
                     <BedDouble size={18} className="text-primary" />
                     <span className="font-display font-semibold">Room {r.room_number}</span>
                   </div>
@@ -425,7 +425,7 @@ const GuestRooms = () => {
                   <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{r.description}</p>
                 )}
                 <div className="mt-auto pt-3 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-semibold text-sm">{peso(Number(r.monthly_rent))}<span className="text-xs text-muted-foreground">/person/mo</span></span>
                     <button
                       type="button"
@@ -506,7 +506,7 @@ const GuestRooms = () => {
                   coverImage={quickViewRoom.image}
                   expanded
                 />
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadge[statusKey] || statusBadge.maintenance}`}>
                     {statusLabel}
                   </span>
@@ -598,7 +598,7 @@ const GuestRooms = () => {
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="09XXXXXXXXX" />
             </div>
             {!boundaryDatesReady && (
-              <div className="flex items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
                 <span role={scheduledRoomDatesError ? "alert" : "status"}>
                   {scheduledRoomDatesError
                     ? "Scheduled room dates could not be loaded. Please retry before choosing dates."

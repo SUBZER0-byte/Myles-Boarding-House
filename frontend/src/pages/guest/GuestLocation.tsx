@@ -37,7 +37,7 @@ const GuestLocation = () => {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
           <div className="grid lg:grid-cols-[1fr_1.6fr] gap-6">
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-muted p-4">
@@ -84,7 +84,7 @@ const GuestLocation = () => {
 
             </div>
 
-            <div className="rounded-lg border border-border bg-muted p-5">
+            <div className="min-w-0 rounded-lg border border-border bg-muted p-3 sm:p-5">
               <LocationDirectionsMap
                 destination={{ latitude: POSITION.lat, longitude: POSITION.lng }}
                 destinationAddress={`${houseInfo.house_address_line_1} ${houseInfo.house_address_line_2}`}

@@ -71,7 +71,7 @@ const GuestSaved = () => {
               const imageUrl = r.image ? roomImageUrl(r.image) : "";
 
               return (
-                <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 flex flex-col">
+                <div key={r.room_id} className="bg-card border border-border rounded-lg p-4 flex min-w-0 flex-col sm:p-5">
                   {imageUrl && (
                     <ImagePreview
                       src={imageUrl}
@@ -97,7 +97,7 @@ const GuestSaved = () => {
                   )}
 
                   <div className="mt-auto pt-3 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-sm">
                         {peso(r.monthly_rent)}
                         <span className="text-xs text-muted-foreground">/person/mo</span>

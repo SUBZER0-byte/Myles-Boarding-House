@@ -73,8 +73,8 @@ const GuestDashboard = () => {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-4 sm:p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-muted-foreground">Listings</p>
                 <h2 className="mt-1 font-display text-[1.75rem] font-semibold leading-none text-slate-800 dark:text-foreground">Available Rooms</h2>
@@ -91,7 +91,7 @@ const GuestDashboard = () => {
                 <p className="text-xs text-slate-500 dark:text-muted-foreground">No rooms available at the moment.</p>
               )}
               {available.slice(0, 4).map((r) => (
-                <div key={r.room_id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border dark:bg-muted/60 dark:hover:bg-muted">
+                <div key={r.room_id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border dark:bg-muted/60 dark:hover:bg-muted">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300">
                       <BedDouble size={16} />
@@ -110,8 +110,8 @@ const GuestDashboard = () => {
         </div>
 
         {/* My Booking status widget */}
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-white p-4 sm:p-5 shadow-[0_18px_35px_rgba(15,23,42,0.04)] dark:border-border dark:from-card dark:via-card dark:to-card dark:shadow-black/10">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-muted-foreground">Bookings</p>
               <h2 className="mt-1 font-display text-[1.75rem] font-semibold leading-none text-slate-800 dark:text-foreground">My Bookings</h2>
