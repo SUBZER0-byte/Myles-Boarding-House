@@ -200,3 +200,59 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_public_rooms_for_guest_browse_with_booking_state(date, date) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_rooms_for_guest_browse_with_booking_state(date, date) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_public_rooms_with_floor()
+RETURNS TABLE (
+    "room_id" integer,
+    "room_number" varchar(40),
+    "floor_number" smallint,
+    "capacity" integer,
+    "monthly_rent" numeric(10,2),
+    "description" text,
+    "status" text,
+    "image" varchar(255),
+    "occupant_genders" text[],
+    "occupants" bigint,
+    "available_beds" bigint
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+    SELECT r."room_id",
+           r."room_number",
+           r."floor_number",
+           r."capacity",
+           r."monthly_rent",
+           r."description",
+           CASE
+             WHEN r."status" = 'Maintenance' THEN 'Maintenance'
+             WHEN COALESCE(tenant_load."tenant_beds", 0) >= r."capacity" THEN 'Occupied'
+             WHEN r."status" = 'Reserved' THEN 'Reserved'
+             ELSE 'Available'
+           END,
+           r."image",
+           public.get_room_occupant_genders(r."room_id"),
+           COALESCE(tenant_load."occupants", 0)::bigint,
+           GREATEST(
+             r."capacity" - COALESCE(tenant_load."tenant_beds", 0),
+             0
+           )::bigint
+      FROM public."rooms" AS r
+      LEFT JOIN LATERAL (
+        SELECT count(*)::bigint AS occupants,
+               COALESCE(SUM(
+                 CASE WHEN t."reservation_type" = 'entire_room' THEN r."capacity"
+                      ELSE LEAST(GREATEST(t."occupant_count", 1), r."capacity") END
+               ), 0)::bigint AS tenant_beds
+          FROM public."tenants" AS t
+         WHERE t."room_id" = r."room_id"
+           AND t."is_active" = 1
+           AND COALESCE(t."move_out_date", '9999-12-31'::date) > CURRENT_DATE
+      ) AS tenant_load ON true
+     ORDER BY r."room_number" ASC;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_public_rooms_with_floor() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_public_rooms_with_floor() TO anon, authenticated;

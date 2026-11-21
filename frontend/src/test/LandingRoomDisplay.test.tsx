@@ -32,7 +32,7 @@ describe("Landing page room display", () => {
     render(<RoomCard room={room} onView={vi.fn()} />);
 
     expect(screen.getByText("Occupied")).toBeTruthy();
-    expect(screen.getByText("1 bedspace(s) available")).toBeTruthy();
+    expect(screen.getByText("1 bedspace available")).toBeTruthy();
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
     expect(screen.getByText("Registered occupant gender(s): Female")).toBeTruthy();
     expect(screen.getByRole("button", { name: "View Details" })).toBeTruthy();

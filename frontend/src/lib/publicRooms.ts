@@ -57,7 +57,19 @@ export function getPublicRoomImageUrl(image: string | null | undefined): string 
 }
 
 export async function getPublicRooms(): Promise<PublicRoom[]> {
-  const { data, error } = await supabase.rpc("get_public_rooms_with_floor");
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const checkInDate = `${yyyy}-${mm}-${dd}`;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const checkOutDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
+  const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse_with_booking_state", {
+    p_check_in_date: checkInDate,
+    p_check_out_date: checkOutDate,
+  });
   if (error) throw error;
   if (!Array.isArray(data)) throw new Error("The room service returned an invalid list.");
   return [...data as PublicRoom[]]

@@ -37,7 +37,11 @@ describe("public room reads", () => {
     rpc.mockResolvedValue({ data: rooms, error: null });
 
     await expect(getPublicRooms()).resolves.toEqual([rooms[2], rooms[1], rooms[0], rooms[3]]);
-    expect(rpc).toHaveBeenCalledWith("get_public_rooms_with_floor");
+    expect(rpc.mock.calls[0][0]).toBe("get_public_rooms_for_guest_browse_with_booking_state");
+    expect(rpc.mock.calls[0][1]).toEqual(expect.objectContaining({
+      p_check_in_date: expect.any(String),
+      p_check_out_date: expect.any(String),
+    }));
   });
 
   it("passes the selected room to the public photo RPC", async () => {
