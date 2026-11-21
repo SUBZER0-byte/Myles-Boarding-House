@@ -56,7 +56,10 @@ describe("Supabase guest booking service", () => {
       builder.then = (resolve: (value: unknown) => unknown) => resolve({
         data: table === "tenants"
           ? [{ move_in_date: "2026-11-23", move_out_date: "2026-11-24" }, { move_in_date: "2026-11-28", move_out_date: "2026-11-28" }]
-          : [{ move_in_date: "2026-11-25", check_out_date: "2026-11-27", status: "Pending" }],
+          : [
+              { move_in_date: "2026-11-25", check_out_date: "2026-11-27", status: "Pending" },
+              { move_in_date: "2026-12-01", check_out_date: "2026-12-02", status: "Pending Verification" },
+            ],
         error: null,
       });
       return builder;
@@ -64,7 +67,15 @@ describe("Supabase guest booking service", () => {
 
     await expect(getGuestBookingBoundaryDates(34)).resolves.toEqual({
       room_id: 34,
-      dates: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-28"],
+      dates: [
+        "2026-11-23",
+        "2026-11-24",
+        "2026-11-25",
+        "2026-11-27",
+        "2026-11-28",
+        "2026-12-01",
+        "2026-12-02",
+      ],
     });
   });
 
