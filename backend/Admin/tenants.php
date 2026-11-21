@@ -396,6 +396,11 @@ function createTenant() {
         return;
     }
     $connect->commit();
+    if ($room_id !== null && !sync_booking_room_status($connect, (int)$room_id)) {
+        http_response_code(500);
+        echo json_encode(['type'=>'error','message'=>'Tenant created, but room occupancy status could not be refreshed']);
+        return;
+    }
     rt_publish('/Admin/tenants.php');
     rt_publish('/Tenant/tenantdashboard.php');
 
@@ -663,7 +668,20 @@ function updateTenant() {
         return;
     }
 
+    $oldRoomId = (int)($tenantRow['room_id'] ?? 0);
     $connect->commit();
+    if ($oldRoomId > 0 && $oldRoomId !== (int)($roomId ?? 0)) {
+        if (!sync_booking_room_status($connect, $oldRoomId)) {
+            http_response_code(500);
+            echo json_encode(['type'=>'error','message'=>'Tenant updated, but the previous room occupancy status could not be refreshed']);
+            return;
+        }
+    }
+    if ($roomId !== null && !sync_booking_room_status($connect, (int)$roomId)) {
+        http_response_code(500);
+        echo json_encode(['type'=>'error','message'=>'Tenant updated, but room occupancy status could not be refreshed']);
+        return;
+    }
     rt_publish('/Admin/tenants.php');
     rt_publish('/Tenant/tenantdashboard.php');
     echo json_encode(['type'=>'success','message'=>'Updated','user_id'=>$userId]);
@@ -681,7 +699,7 @@ function deactivateTenant() {
 
     $id = intval($_GET['tenant_id'] ?? 0);
 
-    $tenantLookup = $connect->prepare("SELECT user_id FROM tenants WHERE tenant_id = ? LIMIT 1");
+    $tenantLookup = $connect->prepare("SELECT user_id, room_id FROM tenants WHERE tenant_id = ? LIMIT 1");
     $tenantLookup->bind_param("i", $id);
     $tenantLookup->execute();
     $tenant = $tenantLookup->get_result()->fetch_assoc();
@@ -700,6 +718,12 @@ function deactivateTenant() {
     }
 
     if ($ok) {
+        $roomId = (int)($tenant['room_id'] ?? 0);
+        if ($roomId > 0 && !sync_booking_room_status($connect, $roomId)) {
+            http_response_code(500);
+            echo json_encode(['type'=>'error','message'=>'Tenant deactivated, but room occupancy status could not be refreshed']);
+            return;
+        }
         rt_publish('/Admin/tenants.php');
         rt_publish('/Tenant/tenantdashboard.php');
     }
@@ -725,15 +749,6 @@ function deleteTenant() {
     $tenant = $tenantLookup->get_result()->fetch_assoc();
     $tenantLookup->close();
 
-    $roomId = intval($tenant['room_id'] ?? 0);
-    if ($roomId > 0) {
-        if (!sync_booking_room_status($connect, $roomId)) {
-            http_response_code(500);
-            echo json_encode(['type'=>'error','message'=>'Room occupancy status could not be refreshed']);
-            return;
-        }
-    }
-
     $stmt = $connect->prepare("DELETE FROM tenants WHERE tenant_id = ?");
     $stmt->bind_param("i", $id);
     $ok = $stmt->execute();
@@ -747,6 +762,12 @@ function deleteTenant() {
     }
 
     if ($ok) {
+        $roomId = intval($tenant['room_id'] ?? 0);
+        if ($roomId > 0 && !sync_booking_room_status($connect, $roomId)) {
+            http_response_code(500);
+            echo json_encode(['type'=>'error','message'=>'Tenant deleted, but room occupancy status could not be refreshed']);
+            return;
+        }
         rt_publish('/Admin/tenants.php');
         rt_publish('/Tenant/tenantdashboard.php');
         rt_publish('/Admin/rooms.php');
