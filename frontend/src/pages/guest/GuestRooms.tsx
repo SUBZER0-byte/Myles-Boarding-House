@@ -112,7 +112,7 @@ const GuestRooms = () => {
     loading: loadingScheduledRoomDates,
     error: scheduledRoomDatesError,
     refetch: refetchScheduledRoomDates,
-  } = useSupabasePolling<RoomBoundaryDates>(loadBoundaryDates, 60000, Boolean(boundaryRoomId));
+  } = useSupabasePolling<RoomBoundaryDates>(loadBoundaryDates, 5000, Boolean(boundaryRoomId));
   const boundaryDatesReady = Boolean(
     bookingRoom
     && scheduledRoomDates?.room_id === bookingRoom.room_id
@@ -636,6 +636,14 @@ const GuestRooms = () => {
                     ]}
                     onSelect={(date) => {
                       const moveInDate = date ? format(date, "yyyy-MM-dd") : "";
+                      if (moveInDate && unavailableDateSet.has(moveInDate)) {
+                        toast({
+                          title: "Check-in date unavailable",
+                          description: "Another tenant or pending booking already selected this date.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       setForm({
                         ...form,
                         move_in_date: moveInDate,

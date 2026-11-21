@@ -183,6 +183,21 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+
+  const [tenantResult, bookingResult] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select("move_in_date")
+      .eq("room_id", roomId)
+      .eq("is_active", true),
+    supabase
+      .from("bookings")
+      .select("move_in_date,status")
+      .eq("room_id", roomId),
+  ]);
+  if (tenantResult.error) throw new Error(tenantResult.error.message || "Could not load tenant check-in dates.");
+  if (bookingResult.error) throw new Error(bookingResult.error.message || "Could not load booking check-in dates.");
+
   const { data, error } = await supabase.rpc("get_guest_booking_boundary_dates", {
     p_room_id: roomId,
     p_from: formatDate(from),
@@ -202,47 +217,19 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
   if (!Array.isArray(dates) || dates.some(date => typeof date !== "string")) {
     throw new Error("The booking service returned invalid unavailable dates.");
   }
-  const unavailableDates = new Set(dates as string[]);
+  const directDates = [
+    ...(tenantResult.data ?? []).map(row => row.move_in_date),
+    ...(bookingResult.data ?? [])
+      .filter(row => ["pending", "pending verification"].includes(String(row.status ?? "").toLowerCase().trim()))
+      .map(row => row.move_in_date),
+  ].filter((date): date is string => typeof date === "string");
 
-  try {
-    const { data: authData } = await supabase.auth.getUser();
-    const currentEmail = authData.user?.email?.trim().toLowerCase();
-    const [{ data: tenants }, { data: bookings }] = await Promise.all([
-      supabase
-        .from("tenants")
-        .select("move_in_date,email,is_active")
-        .eq("room_id", roomId)
-        .eq("is_active", true),
-      supabase
-        .from("bookings")
-        .select("move_in_date,email,status")
-        .eq("room_id", roomId)
-        .in("status", ["Pending", "Pending Verification"]),
-    ]);
-
-    for (const tenant of tenants ?? []) {
-      const tenantEmail = typeof tenant.email === "string" ? tenant.email.trim().toLowerCase() : "";
-      if (
-        typeof tenant.move_in_date === "string"
-        && tenantEmail !== currentEmail
-      ) {
-        unavailableDates.add(tenant.move_in_date);
-      }
-    }
-    for (const booking of bookings ?? []) {
-      const bookingEmail = typeof booking.email === "string" ? booking.email.trim().toLowerCase() : "";
-      if (
-        typeof booking.move_in_date === "string"
-        && bookingEmail !== currentEmail
-      ) {
-        unavailableDates.add(booking.move_in_date);
-      }
-    }
-  } catch (fallbackError) {
-    console.warn("Unavailable-date table fallback could not be loaded.", fallbackError);
-  }
-
-  return { room_id: roomId, dates: [...unavailableDates].sort() };
+  return {
+    room_id: roomId,
+    dates: [...new Set([...(dates as string[]), ...directDates])]
+      .filter(date => date >= formatDate(from) && date <= formatDate(until))
+      .sort(),
+  };
 }
 
 export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {

@@ -10,18 +10,8 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-    caller_email text;
     unavailable jsonb;
 BEGIN
-    SELECT lower(btrim(u."email"))
-      INTO caller_email
-      FROM public."users" AS u
-     WHERE u."auth_user_id" = auth.uid()
-       AND u."is_active" = 1
-     LIMIT 1;
-    IF caller_email IS NULL THEN
-        RAISE EXCEPTION 'Guest access is required';
-    END IF;
     IF p_room_id IS NULL
        OR p_from IS NULL
        OR p_until <= p_from
@@ -35,21 +25,12 @@ BEGIN
          WHERE t."room_id" = p_room_id
            AND t."is_active" = 1
            AND t."move_in_date" BETWEEN p_from AND p_until
-           AND lower(btrim(COALESCE(t."email", ''))) <> caller_email
         UNION
         SELECT b."move_in_date" AS day
           FROM public."bookings" AS b
          WHERE b."room_id" = p_room_id
-           AND b."status" IN ('Pending', 'Pending Verification')
+            AND lower(btrim(COALESCE(b."status", ''))) IN ('pending', 'pending verification')
            AND b."move_in_date" BETWEEN p_from AND p_until
-           AND lower(btrim(COALESCE(b."email", ''))) <> caller_email
-        UNION
-        SELECT h."move_in_date" AS day
-          FROM public."booking_room_holds" AS h
-         WHERE h."room_id" = p_room_id
-           AND h."move_in_date" BETWEEN p_from AND p_until
-           AND h."expires_at" > CURRENT_TIMESTAMP
-           AND lower(btrim(COALESCE(h."email", ''))) <> caller_email
     )
     SELECT COALESCE(jsonb_agg(day::text ORDER BY day), '[]'::jsonb)
       INTO unavailable

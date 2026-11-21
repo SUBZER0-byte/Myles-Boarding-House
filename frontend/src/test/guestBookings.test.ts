@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc, getUser, upload, createSignedUrl } = vi.hoisted(() => ({
+const { rpc, getUser, upload, createSignedUrl, fromTable } = vi.hoisted(() => ({
   rpc: vi.fn(),
   getUser: vi.fn(),
   upload: vi.fn(),
   createSignedUrl: vi.fn(),
+  fromTable: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     rpc,
+    from: fromTable,
     auth: { getUser },
     storage: {
       from: () => ({ upload, createSignedUrl }),
@@ -33,6 +35,14 @@ describe("Supabase guest booking service", () => {
     getUser.mockReset();
     upload.mockReset();
     createSignedUrl.mockReset();
+    fromTable.mockReset();
+    fromTable.mockImplementation(() => {
+      const builder: Record<string, unknown> = {};
+      builder.select = vi.fn(() => builder);
+      builder.eq = vi.fn(() => builder);
+      builder.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
+      return builder;
+    });
     rpc.mockImplementation((name: string) => Promise.resolve(name === "get_public_rooms_for_guest_browse_with_booking_state"
       ? { data: [], error: null }
       : { data: { type: "success", data: [] }, error: null }));
