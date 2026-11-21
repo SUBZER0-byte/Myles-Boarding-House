@@ -65,31 +65,6 @@ export function ChatbotWidget() {
   const streamTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const visualViewport = window.visualViewport;
-
-    const updateViewport = () => {
-      const height = visualViewport?.height ?? window.innerHeight;
-      const offsetTop = visualViewport?.offsetTop ?? 0;
-      const bottomInset = Math.max(0, window.innerHeight - offsetTop - height);
-      document.documentElement.style.setProperty("--chatbot-vv-height", `${height}px`);
-      document.documentElement.style.setProperty("--chatbot-vv-bottom", `${bottomInset}px`);
-    };
-
-    updateViewport();
-    visualViewport?.addEventListener("resize", updateViewport);
-    visualViewport?.addEventListener("scroll", updateViewport);
-    window.addEventListener("resize", updateViewport);
-
-    return () => {
-      visualViewport?.removeEventListener("resize", updateViewport);
-      visualViewport?.removeEventListener("scroll", updateViewport);
-      window.removeEventListener("resize", updateViewport);
-      document.documentElement.style.removeProperty("--chatbot-vv-height");
-      document.documentElement.style.removeProperty("--chatbot-vv-bottom");
-    };
-  }, []);
-
-  useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
@@ -364,7 +339,7 @@ export function ChatbotWidget() {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="h-11 w-11 shrink-0 rounded-full border border-white/10 bg-white/10 p-0 text-white transition hover:bg-white/20"
+                  className="rounded-full border border-white/10 bg-white/10 p-2 text-white transition hover:bg-white/20"
                   aria-label="Close chat"
                 >
                   <X size={18} />
@@ -421,7 +396,7 @@ export function ChatbotWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="chatbot-panel-footer min-h-0 shrink-0 overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950 sm:px-4 sm:py-3">
+            <div className="chatbot-panel-footer min-h-0 shrink overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
               <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-full ${aiStatus === "online" ? "bg-emerald-500" : aiStatus === "busy" ? "bg-amber-500" : "bg-rose-500"}`} />
@@ -453,7 +428,7 @@ export function ChatbotWidget() {
                 </button>
 
                 {showSuggestions && (
-                  <div className="chatbot-panel-suggestions mt-2 max-h-28 space-y-2 overflow-y-auto overscroll-contain pr-1 sm:max-h-40 sm:pr-2">
+                  <div className="chatbot-panel-suggestions mt-3 max-h-40 space-y-2 overflow-y-auto overscroll-contain pr-2">
                     {suggestionsError && (
                       <p className="text-xs text-rose-600 dark:text-rose-300">Unable to load suggested questions. Please try again later.</p>
                     )}
@@ -471,7 +446,7 @@ export function ChatbotWidget() {
                 )}
               </div>
 
-              <div className="chatbot-panel-composer sticky bottom-0 -mx-3 shrink-0 bg-white px-3 pt-2 pb-[env(safe-area-inset-bottom)] dark:bg-slate-950 sm:-mx-4 sm:px-4">
+              <div className="chatbot-panel-composer sticky bottom-0 -mx-4 bg-white px-4 pt-2 dark:bg-slate-950">
                 <div className="flex items-end gap-2">
                   <div className="flex w-16 min-w-16 flex-col items-start sm:w-[88px] sm:min-w-[88px]">
                     <label className="mb-1 hidden text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 sm:block">
@@ -523,7 +498,7 @@ export function ChatbotWidget() {
           if (!isOpen) setShowSuggestions(true);
           setIsOpen(!isOpen);
         }}
-        className={`chatbot-toggle-position fixed z-[1000] h-12 w-12 items-center justify-center rounded-full bg-orange-600 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)] transition hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-300 sm:flex xl:h-16 xl:w-16 ${isOpen ? "hidden sm:flex" : "flex"}`}
+        className="chatbot-toggle-position fixed z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-orange-600 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)] transition hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-300 xl:h-16 xl:w-16"
         aria-label="Open chatbot"
       >
         {isOpen ? <X size={26} /> : <MessageCircle size={26} />}
