@@ -854,11 +854,11 @@ const AdminSettings = () => {
           {profile && <>
             <div className="grid gap-1.5"><Label>Username</Label>
               <Input value={profile.username} readOnly /></div>
-            <div className="grid gap-1.5"><Label>Full name</Label>
-              <Input value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} /></div>
+            <div className="grid gap-1.5"><Label htmlFor="admin-full-name">Full name</Label>
+              <Input id="admin-full-name" autoComplete="name" value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })} /></div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <div className="grid gap-1.5"><Label>Email</Label>
-                <Input value={profile.email} onChange={e => setProfile({ ...profile, email: e.target.value })} /></div>
+              <div className="grid gap-1.5"><Label htmlFor="admin-email">Email</Label>
+                <Input id="admin-email" type="email" autoComplete="email" value={profile.email} onChange={e => setProfile({ ...profile, email: e.target.value })} /></div>
               <div className="grid gap-1.5"><Label>Phone</Label>
                 <Input
                   type="tel"

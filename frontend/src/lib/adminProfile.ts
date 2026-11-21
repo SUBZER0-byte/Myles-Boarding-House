@@ -42,7 +42,8 @@ export async function getMyAdminSettingsProfile(): Promise<AdminSettingsProfile>
 }
 
 export async function saveMyAdminSettingsProfile(profile: AdminSettingsProfile): Promise<void> {
-  if (!profile.full_name.trim() || profile.full_name.trim().length > 150) {
+  const fullName = profile.full_name.trim();
+  if (!fullName || fullName.length > 150) {
     throw new Error("Enter a valid name.");
   }
   if (profile.gender !== null && !isGender(profile.gender)) {
@@ -54,6 +55,15 @@ export async function saveMyAdminSettingsProfile(profile: AdminSettingsProfile):
     p_gender: profile.gender,
   });
   if (error) throw new Error(error.message || "Could not save administrator profile.");
+
+  const { error: authError } = await supabase.auth.updateUser({
+    data: {
+      full_name: fullName,
+      display_name: fullName,
+      name: fullName,
+    },
+  });
+  if (authError) throw new Error(authError.message || "Could not update the administrator display name.");
 }
 
 export async function requestAdminEmailChange(nextEmail: string): Promise<boolean> {
@@ -74,5 +84,10 @@ export async function requestAdminEmailChange(nextEmail: string): Promise<boolea
 
   const { error } = await supabase.auth.updateUser({ email });
   if (error) throw new Error(error.message || "Could not request the email change.");
+
+  const { error: syncError } = await supabase.rpc("sync_my_admin_profile_email", {
+    p_email: email,
+  });
+  if (syncError) throw new Error(syncError.message || "Could not sync the administrator email.");
   return true;
 }
