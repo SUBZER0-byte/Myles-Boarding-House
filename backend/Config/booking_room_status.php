@@ -592,6 +592,8 @@ function sync_booking_room_status(mysqli $connect, ?int $roomId): bool
         $occupiedBeds = max(0, (int)$snapshot['occupied_beds']);
         if ($capacity > 0 && $occupiedBeds >= $capacity) {
             $status = 'Occupied';
+        } elseif ((string)$snapshot['status'] === 'Reserved') {
+            $status = 'Reserved';
         } else {
             $status = 'Available';
         }

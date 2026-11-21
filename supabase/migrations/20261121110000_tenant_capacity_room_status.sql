@@ -58,6 +58,7 @@ BEGIN
       UPDATE public."rooms"
          SET "status" = CASE
            WHEN room_capacity > 0 AND COALESCE(occupied_beds, 0) >= room_capacity THEN 'Occupied'
+           WHEN room_status = 'Reserved' THEN 'Reserved'
            ELSE 'Available'
          END
        WHERE "room_id" = room_id_value;
@@ -93,6 +94,7 @@ BEGIN
       UPDATE public."rooms"
          SET "status" = CASE
            WHEN room_capacity > 0 AND COALESCE(occupied_beds, 0) >= room_capacity THEN 'Occupied'
+           WHEN room_status = 'Reserved' THEN 'Reserved'
            ELSE 'Available'
          END
        WHERE "room_id" = room_id_value;
@@ -214,6 +216,7 @@ BEGIN
            CASE
                WHEN r."status" = 'Maintenance' THEN 'Maintenance'
                WHEN o.occupied >= r."capacity" AND r."capacity" > 0 THEN 'Occupied'
+               WHEN r."status" = 'Reserved' THEN 'Reserved'
                ELSE 'Available'
            END,
            r."image",

@@ -44,10 +44,6 @@ function roomImageUrl(image: string | null | undefined): string {
   return getAdminRoomCoverUrl(image);
 }
 
-function roomHasAllocation(status: string): boolean {
-  return ["Occupied", "Reserved", "Reserving"].includes(status);
-}
-
 const AdminRooms = () => {
   const { toast } = useToast();
   const loadRooms = useCallback(() => getMyAdminRooms(), []);
@@ -244,7 +240,7 @@ const AdminRooms = () => {
                 <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Available" disabled={roomHasAllocation(r.status)}>Available</SelectItem>
+                    <SelectItem value="Available">Available</SelectItem>
                     <SelectItem value="Occupied">Occupied</SelectItem>
                     <SelectItem value="Reserved">Reserved</SelectItem>
                     <SelectItem value="Maintenance">Maintenance</SelectItem>
@@ -288,17 +284,12 @@ const AdminRooms = () => {
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Available" disabled={Boolean(selected && roomHasAllocation(selected.status))}>Available</SelectItem>
+                  <SelectItem value="Available">Available</SelectItem>
                   <SelectItem value="Occupied">Occupied</SelectItem>
                   <SelectItem value="Reserved">Reserved</SelectItem>
                   <SelectItem value="Maintenance">Maintenance</SelectItem>
                 </SelectContent>
               </Select></div>
-            {selected && roomHasAllocation(selected.status) && (
-              <p className="text-xs text-muted-foreground">
-                Available is disabled while this room has active tenants, bookings, or holds.
-              </p>
-            )}
             <div className="grid gap-1.5"><Label>Image</Label>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => {
                 const f = e.target.files?.[0] || null;
