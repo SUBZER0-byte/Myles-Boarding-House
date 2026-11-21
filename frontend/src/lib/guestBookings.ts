@@ -189,10 +189,20 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
     p_until: formatDate(until),
   });
   if (error) throw new Error(error.message || "Could not load unavailable dates.");
-  if (!Array.isArray(data) || data.some(date => typeof date !== "string")) {
+  let dates: unknown = data;
+  if (typeof data === "string") {
+    try {
+      dates = JSON.parse(data);
+    } catch {
+      throw new Error("The booking service returned invalid unavailable dates.");
+    }
+  } else if (data && typeof data === "object" && !Array.isArray(data) && "dates" in data) {
+    dates = (data as { dates: unknown }).dates;
+  }
+  if (!Array.isArray(dates) || dates.some(date => typeof date !== "string")) {
     throw new Error("The booking service returned invalid unavailable dates.");
   }
-  return { room_id: roomId, dates: data as string[] };
+  return { room_id: roomId, dates: [...new Set(dates as string[])].sort() };
 }
 
 export async function listAdminGuestBookings(): Promise<AdminGuestBooking[]> {

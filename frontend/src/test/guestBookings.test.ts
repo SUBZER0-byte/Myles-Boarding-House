@@ -21,6 +21,7 @@ import {
   acquireMyGuestRoomHold,
   cancelMyGuestBooking,
   createMyGuestBooking,
+  getGuestBookingBoundaryDates,
   listAdminGuestBookings,
   listMyGuestBookings,
   submitMyBookingInitialPayment,
@@ -32,9 +33,21 @@ describe("Supabase guest booking service", () => {
     getUser.mockReset();
     upload.mockReset();
     createSignedUrl.mockReset();
-    rpc.mockImplementation((name: string) => Promise.resolve(name === "get_public_rooms_with_floor"
+    rpc.mockImplementation((name: string) => Promise.resolve(name === "get_public_rooms_for_guest_browse_with_booking_state"
       ? { data: [], error: null }
       : { data: { type: "success", data: [] }, error: null }));
+  });
+
+  it("normalizes tenant move-in boundary dates and removes duplicates", async () => {
+    rpc.mockResolvedValueOnce({
+      data: ["2026-11-23", "2026-11-23", "2026-11-28"],
+      error: null,
+    });
+
+    await expect(getGuestBookingBoundaryDates(34)).resolves.toEqual({
+      room_id: 34,
+      dates: ["2026-11-23", "2026-11-28"],
+    });
   });
 
   it("uses identity-scoped RPCs instead of caller-supplied email or user IDs", async () => {
@@ -45,7 +58,7 @@ describe("Supabase guest booking service", () => {
       p_action: "guest_list",
       p_data: {},
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "get_public_rooms_with_floor");
+    expect(rpc.mock.calls[1][0]).toBe("get_public_rooms_for_guest_browse_with_booking_state");
     expect(rpc).toHaveBeenNthCalledWith(3, "manage_guest_booking", {
       p_action: "guest_cancel",
       p_data: { booking_id: 15 },
@@ -56,7 +69,7 @@ describe("Supabase guest booking service", () => {
 
   it("adds the current floor for a guest booking", async () => {
     rpc.mockImplementation((name: string, args: { p_action?: string }) => Promise.resolve(
-      name === "get_public_rooms_with_floor"
+      name === "get_public_rooms_for_guest_browse_with_booking_state"
         ? { data: [{ room_id: 9, floor_number: 2 }], error: null }
         : {
           data: {
