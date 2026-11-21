@@ -200,19 +200,19 @@ const AdminRooms = () => {
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-start justify-between gap-3 flex-wrap sm:items-center">
           <div>
             <h1 className="font-display text-2xl font-bold">Rooms Management</h1>
             <p className="text-muted-foreground text-sm mt-1">Manage room details, rates, availability, and occupancy.</p>
           </div>
-          <Button onClick={openAdd} className="gap-2"><Plus size={16} /> Add Room</Button>
+          <Button onClick={openAdd} className="gap-2 shrink-0"><Plus size={16} /> Add Room</Button>
         </div>
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
         {!rooms && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms?.map((r) => (
-            <div key={r.room_id} className="bg-card border border-border rounded-lg p-5 space-y-3">
+            <div key={r.room_id} className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">
               {roomImageUrl(r.image) && (
                 <ImagePreview
                   src={roomImageUrl(r.image)}
@@ -221,21 +221,21 @@ const AdminRooms = () => {
                   imageClassName="h-36 w-full object-cover"
                 />
               )}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center text-primary"><BedDouble size={20} /></div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">Room {r.room_number}</p>
                     <p className="text-xs text-muted-foreground">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
                   </div>
                 </div>
-                <Badge variant={variant(r.status)} className="text-xs">{r.status}</Badge>
+                <Badge variant={variant(r.status)} className="text-xs shrink-0">{r.status}</Badge>
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
               <RoomOccupantGender genders={r.occupant_genders} />
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <span className="font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
-                <span className="text-xs text-muted-foreground">
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-border sm:flex-row sm:items-center sm:justify-between">
+                <span className="font-semibold text-sm break-words">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
+                <span className="text-xs text-muted-foreground sm:text-right">
                   {r.occupants} occupant(s)
                   {Number(r.capacity) >= 2 && ` · ${Math.max(0, Number(r.capacity) - Number(r.occupants))} bedspace${Number(r.capacity) - Number(r.occupants) === 1 ? "" : "s"} available`}
                 </span>

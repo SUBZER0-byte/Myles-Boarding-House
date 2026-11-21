@@ -41,7 +41,7 @@ export function DashboardLayout({ role, children }: { role: "admin" | "tenant" |
       </div>
 
       <main className={`${collapsed ? "md:ml-16" : "md:ml-60"} transition-all duration-300 min-h-screen pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0`}>
-        <div className="w-full min-w-0 p-4 pb-32 md:p-6">{children}</div>
+        <div className="w-full min-w-0 p-3 pb-32 sm:p-4 md:p-6">{children}</div>
       </main>
       <ChatbotWidget />
     </div>

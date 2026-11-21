@@ -399,7 +399,7 @@ const GuestRooms = () => {
             const statusLabel = r.status || "Unknown";
             const key = roomStatus;
             return (
-              <div key={r.room_id} className="flex flex-col rounded-lg border border-border bg-card p-5 shadow-sm">
+              <div key={r.room_id} className="flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
                 <GuestRoomPhotoSlideshow
                   roomId={r.room_id}
                   roomNumber={r.room_number}

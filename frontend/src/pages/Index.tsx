@@ -173,10 +173,10 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Navbar */}
       <nav className="fixed top-0 w-full z-40 glass">
-        <div className="w-full px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="font-display font-bold text-xl text-primary flex items-center gap-2">
-            <img src={logo} alt="Myle's Boarding House" className="h-8 w-8" />
-            Myle's Boarding House
+        <div className="w-full px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+          <Link to="/" className="min-w-0 font-display font-bold text-base sm:text-xl text-primary flex items-center gap-2">
+            <img src={logo} alt="Myle's Boarding House" className="h-8 w-8 shrink-0" />
+            <span className="truncate">Myle's Boarding House</span>
           </Link>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium">
             {navItems.map((item) => (

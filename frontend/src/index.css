@@ -102,6 +102,7 @@
     @apply bg-background text-foreground;
     font-family: var(--font-body);
     min-width: 320px;
+    overflow-x: hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
@@ -122,6 +123,69 @@
   select,
   textarea {
     font-size: 16px !important;
+  }
+
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  table {
+    min-width: 720px;
+  }
+
+  .overflow-x-auto {
+    max-width: 100%;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  td,
+  th,
+  label {
+    overflow-wrap: anywhere;
+  }
+
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  [class*="DialogFooter"] button,
+  dialog button,
+  [role="dialog"] button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 479px) {
+  .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [role="dialog"] {
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  [role="dialog"] [class*="DialogFooter"],
+  [role="dialog"] footer {
+    gap: 0.5rem;
+  }
+
+  .chatbot-panel-position {
+    left: 0.75rem;
+    right: 0.75rem;
   }
 }
 

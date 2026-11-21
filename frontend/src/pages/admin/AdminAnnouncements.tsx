@@ -89,29 +89,29 @@ const AdminAnnouncements = () => {
   return (
     <DashboardLayout role="admin">
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-start justify-between gap-3 flex-wrap sm:items-center">
           <div>
             <h1 className="font-display text-2xl font-bold">Announcements</h1>
             <p className="text-muted-foreground text-sm mt-1">Create and publish updates for tenants and guests.</p>
           </div>
-          <Button onClick={openAdd} className="gap-2"><Plus size={16} /> New</Button>
+          <Button onClick={openAdd} className="gap-2 shrink-0"><Plus size={16} /> New</Button>
         </div>
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error.message}</div>}
         {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         <div className="space-y-3">
           {items?.map((a) => (
-            <div key={a.announcement_id} className="bg-card border border-border rounded-lg p-5">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2">
+            <div key={a.announcement_id} className="bg-card border border-border rounded-lg p-4 sm:p-5">
+              <div className="flex flex-col gap-3 mb-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <Megaphone size={16} className="text-primary" />
-                  <h3 className="font-medium">{a.title}</h3>
-                  <Badge variant={a.is_published ? "default" : "secondary"} className="text-xs">
+                  <h3 className="min-w-0 break-words font-medium">{a.title}</h3>
+                  <Badge variant={a.is_published ? "default" : "secondary"} className="text-xs shrink-0">
                     {a.is_published ? "Published" : "Draft"}
                   </Badge>
                 </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" onClick={() => togglePublish(a)}>
+                <div className="flex shrink-0 flex-wrap gap-1 sm:justify-end">
+                  <Button size="sm" variant="ghost" className="px-2" onClick={() => togglePublish(a)}>
                     {a.is_published ? "Unpublish" : "Publish"}
                   </Button>
                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(a)}><Pencil size={14} /></Button>
