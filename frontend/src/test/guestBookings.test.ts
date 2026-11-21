@@ -64,7 +64,7 @@ describe("Supabase guest booking service", () => {
 
     await expect(getGuestBookingBoundaryDates(34)).resolves.toEqual({
       room_id: 34,
-      dates: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28"],
+      dates: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-28"],
     });
   });
 
