@@ -17,6 +17,13 @@ export interface TenantRoom {
   requested_move_out_date: string | null;
   extension_request_status: string | null;
   tenant_name: string;
+  roommates: Array<{
+    tenant_id: number;
+    full_name: string;
+    gender: "Male" | "Female" | "Not provided" | null;
+    move_in_date: string | null;
+    move_out_date: string | null;
+  }>;
 }
 
 export async function getMyTenantRoom(): Promise<TenantRoom> {
@@ -54,6 +61,14 @@ export async function getMyTenantRoom(): Promise<TenantRoom> {
     requested_move_out_date: typeof row.requested_move_out_date === "string" ? row.requested_move_out_date : null,
     extension_request_status: typeof row.extension_request_status === "string" ? row.extension_request_status : null,
     tenant_name: typeof row.tenant_name === "string" ? row.tenant_name : "",
+    roommates: Array.isArray(row.roommates)
+      ? row.roommates.filter((roommate): roommate is { tenant_id: number; full_name: string; gender: "Male" | "Female" | "Not provided" | null; move_in_date: string | null; move_out_date: string | null } => {
+          if (!roommate || typeof roommate !== "object") return false;
+          const value = roommate as Record<string, unknown>;
+          return typeof value.tenant_id === "number"
+            && typeof value.full_name === "string";
+        })
+      : [],
   };
 }
 

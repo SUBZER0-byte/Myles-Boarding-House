@@ -124,6 +124,31 @@ const TenantRoom = () => {
                   <p className="mt-1 break-words font-semibold">{currentMoveOutDate ?? "—"}</p>
                 </div>
               </div>
+              {myRoom.roommates.length > 0 ? (
+                <div className="rounded-lg border border-border p-4">
+                  <div className="mb-3">
+                    <h2 className="font-display text-lg font-semibold">My Roommates</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {myRoom.roommates.length} other tenant{myRoom.roommates.length === 1 ? "" : "s"} assigned to this room.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {myRoom.roommates.map((roommate) => (
+                      <div key={roommate.tenant_id} className="min-w-0 rounded-md border border-border bg-muted/30 p-3">
+                        <p className="break-words font-medium text-sm">{roommate.full_name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {roommate.gender || "Not provided"} · {roommate.move_in_date ?? "—"} to {roommate.move_out_date ?? "No move-out date"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border p-4">
+                  <h2 className="font-display text-lg font-semibold">My Roommates</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">No other active tenants are assigned to this room.</p>
+                </div>
+              )}
             {myRoom.requested_move_out_date && (
               <div className="flex flex-col gap-1 rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-medium">Extension request pending approval</p>
