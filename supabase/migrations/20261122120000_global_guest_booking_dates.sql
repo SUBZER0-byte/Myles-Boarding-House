@@ -15,6 +15,7 @@ DECLARE
 BEGIN
     IF p_room_id IS NULL
        OR p_from IS NULL
+       OR p_until IS NULL
        OR p_until <= p_from
        OR p_until > p_from + 366 THEN
         RAISE EXCEPTION 'Choose a valid room date range';
