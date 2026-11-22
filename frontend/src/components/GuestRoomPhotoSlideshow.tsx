@@ -132,7 +132,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                 size="icon"
                 variant="secondary"
                 aria-label="Previous room photo"
-                className="absolute left-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
+                className="absolute left-2 top-1/2 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
                 onClick={() => moveSlide(-1)}
               >
                 <ChevronLeft size={16} />
@@ -142,15 +142,15 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                 size="icon"
                 variant="secondary"
                 aria-label="Next room photo"
-                className="absolute right-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
+                className="absolute right-2 top-1/2 z-20 h-7 w-7 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
                 onClick={() => moveSlide(1)}
               >
                 <ChevronRight size={16} />
               </Button>
-              <span className="absolute right-2 top-2 rounded bg-background/85 px-2 py-0.5 text-[10px] text-foreground">
+              <span className="absolute right-2 top-2 rounded bg-background/85 px-1.5 py-0.5 text-[9px] text-foreground sm:px-2 sm:text-[10px]">
                 {activeSlide + 1}/{slideCount}
               </span>
-              <div className="absolute bottom-1.5 left-1/2 z-10 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-2 sm:bottom-2 sm:h-auto sm:gap-1.5 sm:py-1">
+              <div className="absolute bottom-1 left-1/2 z-10 flex h-5 -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-1.5 sm:bottom-2 sm:h-auto sm:gap-1.5 sm:py-1">
                 {slides.map((slide, index) => (
                   <button
                     key={slide.src}
@@ -158,8 +158,8 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                     aria-label={`Show photo ${index + 1} of ${slideCount}`}
                     aria-current={index === activeSlide ? "true" : undefined}
                     onClick={() => goToSlide(index)}
-                    className={`h-1 rounded-full transition-all sm:h-1.5 ${
-                      index === activeSlide ? "w-3 bg-white sm:w-4" : "w-1 bg-white/60 hover:bg-white sm:w-1.5"
+                    className={`h-1.5 rounded-full transition-all sm:h-1.5 ${
+                      index === activeSlide ? "w-3.5 bg-white sm:w-4" : "w-1.5 bg-white/60 hover:bg-white sm:w-1.5"
                     }`}
                   />
                 ))}

@@ -213,7 +213,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-3 px-3 py-1.5 sm:py-2">
+          <div className="flex h-10 items-center justify-between gap-3 px-3 py-1 sm:py-2">
             <span className="text-sm text-sidebar-foreground">Appearance</span>
             <div className="flex items-center gap-2">
               <Sun size={14} className={`sm:h-4 sm:w-4 ${!isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"}`} aria-hidden="true" />
