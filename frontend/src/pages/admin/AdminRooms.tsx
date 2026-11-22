@@ -220,59 +220,74 @@ const AdminRooms = () => {
         {!rooms && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms?.map((r) => (
-            <div key={r.room_id} className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">
-              {roomImageUrl(r.image) && (
-                <ImagePreview
-                  src={roomImageUrl(r.image)}
-                  alt={`Room ${r.room_number}`}
-                  triggerClassName="mb-2 w-full overflow-hidden rounded-md"
-                  imageClassName="h-36 w-full object-cover"
-                />
-              )}
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center text-primary"><BedDouble size={20} /></div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm">Room {r.room_number}</p>
-                    <p className="text-xs text-muted-foreground">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
+          {rooms?.map((r) => {
+            const imageUrl = roomImageUrl(r.image);
+            return (
+              <div key={r.room_id} className="flex h-full flex-col rounded-lg border border-border bg-card p-4 sm:p-5">
+                {imageUrl ? (
+                  <ImagePreview
+                    src={imageUrl}
+                    alt={`Room ${r.room_number}`}
+                    triggerClassName="h-36 w-full overflow-hidden rounded-md"
+                    imageClassName="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-36 w-full items-center justify-center rounded-md bg-muted/40 text-muted-foreground" aria-hidden="true">
+                    <BedDouble size={28} />
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col gap-3 pt-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary"><BedDouble size={20} /></div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">Room {r.room_number}</p>
+                        <p className="text-xs text-muted-foreground">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
+                      </div>
+                    </div>
+                    <Badge variant={variant(r.status)} className="shrink-0 text-xs">{r.status}</Badge>
+                  </div>
+                  <p className="min-h-8 text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
+                  <div className="min-h-4">
+                    <RoomOccupantGender genders={r.occupant_genders} />
+                  </div>
+                  <div className="min-h-[52px]">
+                    <RoomReservationSummary
+                      deadlines={r.reservation_deadlines_epoch}
+                      serverNowEpoch={r.reservation_server_now_epoch}
+                    />
+                  </div>
+                  <div className="mt-auto flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5 border-t border-border pt-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="break-words font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
+                      <span className="text-xs text-muted-foreground sm:text-right">
+                        {r.occupants} occupant(s)
+                        {` · ${r.available_beds} bedspace${r.available_beds === 1 ? "" : "s"} available`}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            value="Available"
+                            disabled={r.status === "Occupied" || r.status === "Reserved"}
+                          >
+                            Available
+                          </SelectItem>
+                          <SelectItem value="Occupied">Occupied</SelectItem>
+                          <SelectItem value="Reserved">Reserved</SelectItem>
+                          <SelectItem value="Maintenance">Maintenance</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil size={14} /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelected(r); setDelOpen(true); }}><Trash2 size={14} /></Button>
+                    </div>
                   </div>
                 </div>
-                <Badge variant={variant(r.status)} className="text-xs shrink-0">{r.status}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
-              <RoomOccupantGender genders={r.occupant_genders} />
-              <RoomReservationSummary
-                deadlines={r.reservation_deadlines_epoch}
-                serverNowEpoch={r.reservation_server_now_epoch}
-              />
-              <div className="flex flex-col gap-1.5 pt-2 border-t border-border sm:flex-row sm:items-center sm:justify-between">
-                <span className="font-semibold text-sm break-words">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
-                <span className="text-xs text-muted-foreground sm:text-right">
-                  {r.occupants} occupant(s)
-                  {` · ${r.available_beds} bedspace${r.available_beds === 1 ? "" : "s"} available`}
-                </span>
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      value="Available"
-                      disabled={r.status === "Occupied" || r.status === "Reserved"}
-                    >
-                      Available
-                    </SelectItem>
-                    <SelectItem value="Occupied">Occupied</SelectItem>
-                    <SelectItem value="Reserved">Reserved</SelectItem>
-                    <SelectItem value="Maintenance">Maintenance</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}><Pencil size={14} /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setSelected(r); setDelOpen(true); }}><Trash2 size={14} /></Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
