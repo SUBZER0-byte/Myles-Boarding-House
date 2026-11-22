@@ -189,12 +189,19 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
       .from("tenants")
       .select("move_in_date,move_out_date")
       .eq("room_id", roomId)
-      .eq("is_active", true),
+      .eq("is_active", 1),
     supabase
       .from("bookings")
-      .select("move_in_date,check_out_date,status")
-      .eq("room_id", roomId),
+      .select("move_in_date,check_out_date")
+      .eq("room_id", roomId)
+      .in("status", ["Pending", "Pending Verification"]),
   ]);
+  if (tenantResult.error) {
+    throw new Error(tenantResult.error.message || "Could not load tenant move-in dates.");
+  }
+  if (bookingResult.error) {
+    throw new Error(bookingResult.error.message || "Could not load pending booking dates.");
+  }
 
   const occupiedDates = new Set<string>();
   for (const tenant of tenantResult.data ?? []) {
@@ -202,10 +209,8 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
     if (typeof tenant.move_out_date === "string") occupiedDates.add(tenant.move_out_date);
   }
   for (const booking of bookingResult.data ?? []) {
-    if (["pending", "pending verification"].includes(String(booking.status ?? "").toLowerCase().trim())) {
-      if (typeof booking.move_in_date === "string") occupiedDates.add(booking.move_in_date);
-      if (typeof booking.check_out_date === "string") occupiedDates.add(booking.check_out_date);
-    }
+    if (typeof booking.move_in_date === "string") occupiedDates.add(booking.move_in_date);
+    if (typeof booking.check_out_date === "string") occupiedDates.add(booking.check_out_date);
   }
 
   return {

@@ -9,11 +9,13 @@ const {
   getGuestBookingBoundaryDates,
   refetchRooms,
   room,
+  boundaryDates,
 } = vi.hoisted(() => ({
   acquireMyGuestRoomHold: vi.fn(),
   releaseMyGuestRoomHold: vi.fn(),
   getGuestBookingBoundaryDates: vi.fn(),
   refetchRooms: vi.fn(),
+  boundaryDates: { room_id: 1, dates: [] as string[] },
   room: {
     room_id: 1,
     room_number: "11",
@@ -43,7 +45,7 @@ vi.mock("@/components/BookingPaymentDialog", () => ({
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/hooks/useSupabasePolling", () => ({
   useSupabasePolling: (_load: unknown, interval: number) => ({
-    data: interval === 10000 ? [room] : { room_id: room.room_id, dates: [] },
+    data: interval === 10000 ? [room] : boundaryDates,
     error: null,
     loading: false,
     refetch: refetchRooms,
@@ -90,6 +92,8 @@ describe("GuestRooms temporary hold cancellation", () => {
     acquireMyGuestRoomHold.mockReset().mockResolvedValue({ expires_at: "2026-11-14T22:17:00Z" });
     releaseMyGuestRoomHold.mockReset().mockResolvedValue(null);
     getGuestBookingBoundaryDates.mockReset().mockResolvedValue({ room_id: room.room_id, dates: [] });
+    boundaryDates.room_id = room.room_id;
+    boundaryDates.dates = [];
     refetchRooms.mockReset();
   });
 
@@ -172,6 +176,26 @@ describe("GuestRooms temporary hold cancellation", () => {
       "value",
       format(moveOutDate, "PPP"),
     );
+  });
+
+  it("disables a move-in date already scheduled in the database", async () => {
+    const occupiedDate = new Date();
+    occupiedDate.setHours(0, 0, 0, 0);
+    occupiedDate.setDate(occupiedDate.getDate() + 5);
+    boundaryDates.dates = [format(occupiedDate, "yyyy-MM-dd")];
+    render(<GuestRooms />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
+    await screen.findByRole("heading", { name: "Terms & Agreement" });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Agree & Continue" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+    fireEvent.click(screen.getByRole("button", { name: "Select move-in date" }));
+
+    const occupiedDay = screen.getByRole("gridcell", { name: String(occupiedDate.getDate()) });
+    expect(occupiedDay).toBeDisabled();
+    fireEvent.click(occupiedDay);
+    expect(screen.getByRole("button", { name: "Select move-in date" })).toBeTruthy();
   });
 
   it("calculates booking rent from the per-person rate, not room capacity", async () => {

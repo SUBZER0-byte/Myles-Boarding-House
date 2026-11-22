@@ -53,6 +53,7 @@ describe("Supabase guest booking service", () => {
       const builder: Record<string, unknown> = {};
       builder.select = vi.fn(() => builder);
       builder.eq = vi.fn(() => builder);
+      builder.in = vi.fn(() => builder);
       builder.then = (resolve: (value: unknown) => unknown) => resolve({
         data: table === "tenants"
           ? [{ move_in_date: "2026-11-23", move_out_date: "2026-11-24" }, { move_in_date: "2026-11-28", move_out_date: "2026-11-28" }]
@@ -77,6 +78,32 @@ describe("Supabase guest booking service", () => {
         "2026-12-02",
       ],
     });
+    expect(fromTable).toHaveBeenNthCalledWith(1, "tenants");
+    expect(fromTable).toHaveBeenNthCalledWith(2, "bookings");
+  });
+
+  it("queries only active tenants and pending bookings, and surfaces table read errors", async () => {
+    const tenantBuilder: Record<string, unknown> = {};
+    tenantBuilder.select = vi.fn(() => tenantBuilder);
+    tenantBuilder.eq = vi.fn(() => tenantBuilder);
+    tenantBuilder.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
+    const bookingBuilder: Record<string, unknown> = {};
+    bookingBuilder.select = vi.fn(() => bookingBuilder);
+    bookingBuilder.eq = vi.fn(() => bookingBuilder);
+    bookingBuilder.in = vi.fn(() => bookingBuilder);
+    bookingBuilder.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
+    fromTable.mockImplementation((table: string) => table === "tenants" ? tenantBuilder : bookingBuilder);
+
+    await getGuestBookingBoundaryDates(34);
+
+    expect(tenantBuilder.eq).toHaveBeenCalledWith("is_active", 1);
+    expect(bookingBuilder.in).toHaveBeenCalledWith("status", ["Pending", "Pending Verification"]);
+
+    tenantBuilder.then = (resolve: (value: unknown) => unknown) => resolve({
+      data: null,
+      error: new Error("permission denied"),
+    });
+    await expect(getGuestBookingBoundaryDates(34)).rejects.toThrow("permission denied");
   });
 
   it("uses identity-scoped RPCs instead of caller-supplied email or user IDs", async () => {
