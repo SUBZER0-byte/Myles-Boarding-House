@@ -324,7 +324,7 @@ export function ChatbotWidget() {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="chatbot-panel-position fixed z-[35] rounded-3xl overflow-hidden shadow-[0_40px_120px_rgba(15,23,42,0.18)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950 flex min-h-0 flex-col"
+            className="chatbot-panel-position fixed z-[1000] rounded-3xl overflow-hidden shadow-[0_40px_120px_rgba(15,23,42,0.18)] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950 flex min-h-0 flex-col"
           >
             <div className="chatbot-panel-header shrink-0 bg-gradient-to-r from-orange-500 via-orange-600 to-orange-700 px-4 py-4 text-white">
               <div className="flex items-center justify-between gap-3">
@@ -498,7 +498,7 @@ export function ChatbotWidget() {
           if (!isOpen) setShowSuggestions(true);
           setIsOpen(!isOpen);
         }}
-        className="chatbot-toggle-position fixed z-[35] flex h-12 w-12 items-center justify-center rounded-full bg-orange-600 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)] transition hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-300 xl:h-16 xl:w-16"
+        className="chatbot-toggle-position fixed z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-orange-600 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)] transition hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-300 xl:h-16 xl:w-16"
         aria-label="Open chatbot"
       >
         {isOpen ? <X size={26} /> : <MessageCircle size={26} />}

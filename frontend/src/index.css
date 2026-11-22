@@ -226,17 +226,6 @@
   bottom: calc(1.5rem + env(safe-area-inset-bottom));
 }
 
-@media (max-width: 639px) {
-  .chatbot-toggle-position {
-    right: max(1rem, env(safe-area-inset-right));
-    bottom: calc(0.75rem + env(safe-area-inset-bottom));
-  }
-
-  .chatbot-panel-position {
-    bottom: calc(4.75rem + env(safe-area-inset-bottom));
-  }
-}
-
 @media (min-width: 640px) {
   .chatbot-panel-position {
     left: auto;
