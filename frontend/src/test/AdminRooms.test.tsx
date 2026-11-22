@@ -25,6 +25,11 @@ const { rooms, setMyAdminRoomStatus } = vi.hoisted(() => ({
 vi.mock("@/components/DashboardLayout", () => ({
   DashboardLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
+vi.mock("@/components/GuestRoomPhotoSlideshow", () => ({
+  GuestRoomPhotoSlideshow: ({ roomNumber }: { roomNumber: string }) => (
+    <div data-testid={`room-photos-${roomNumber}`} />
+  ),
+}));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/hooks/useSupabasePolling", () => ({
   useSupabasePolling: () => ({ data: rooms, refetch: vi.fn(), error: null }),
@@ -41,6 +46,12 @@ vi.mock("@/lib/adminRooms", () => ({
 import AdminRooms from "@/pages/admin/AdminRooms";
 
 describe("AdminRooms", () => {
+  it("uses the guest room photo slideshow for room images", () => {
+    render(<AdminRooms />);
+
+    expect(screen.getByTestId("room-photos-4")).toBeInTheDocument();
+  });
+
   it("shows the gender of the registered occupant for each occupied room", () => {
     render(<AdminRooms />);
 

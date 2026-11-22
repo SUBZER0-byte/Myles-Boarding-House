@@ -3,6 +3,7 @@ import { RoomPhotosManager, type RoomPhotosManagerHandle } from "@/components/Ro
 import { ImagePreview } from "@/components/ImagePreview";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import { RoomReservationSummary } from "@/components/RoomReservationSummary";
+import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
 import type { OccupantGender } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import { Badge } from "@/components/ui/badge";
@@ -221,22 +222,14 @@ const AdminRooms = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rooms?.map((r) => {
-            const imageUrl = roomImageUrl(r.image);
             return (
               <div key={r.room_id} className="flex h-full flex-col rounded-lg border border-border bg-card p-4 sm:p-5">
-                {imageUrl ? (
-                  <ImagePreview
-                    src={imageUrl}
-                    alt={`Room ${r.room_number}`}
-                    triggerClassName="h-36 w-full overflow-hidden rounded-md"
-                    imageClassName="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-36 w-full items-center justify-center rounded-md bg-muted/40 text-muted-foreground" aria-hidden="true">
-                    <BedDouble size={28} />
-                  </div>
-                )}
-                <div className="flex flex-1 flex-col gap-3 pt-3">
+                <GuestRoomPhotoSlideshow
+                  roomId={r.room_id}
+                  roomNumber={r.room_number}
+                  coverImage={r.image ?? undefined}
+                />
+                <div className="flex flex-1 flex-col gap-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary"><BedDouble size={20} /></div>
