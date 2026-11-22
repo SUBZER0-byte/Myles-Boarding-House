@@ -261,7 +261,7 @@ const Index = () => {
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/55 to-black/35" />
         {/* Slide indicators */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+        <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-2 rounded-full bg-black/25 px-2 py-1 md:bottom-6">
           {heroSlides.map((_, i) => (
             <button
               key={i}
