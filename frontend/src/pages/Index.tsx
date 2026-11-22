@@ -220,8 +220,8 @@ const Index = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="fixed top-16 left-0 w-full bg-background/95 backdrop-blur-md border-t border-border z-50 md:hidden">
-          <div className="flex flex-col px-6 py-4 gap-3">
+        <div className="fixed inset-x-0 top-16 z-50 h-[calc(100dvh-4rem)] overflow-y-auto border-t border-border bg-background md:hidden">
+          <div className="flex min-h-full flex-col px-6 py-4 gap-3">
             {navItems.map((item) => (
               <button
                 key={item.id}
