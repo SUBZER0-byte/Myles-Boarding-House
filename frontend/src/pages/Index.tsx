@@ -129,11 +129,18 @@ const Index = () => {
   useEffect(() => {
     if (!mobileMenuOpen) return;
 
+    const scrollY = window.scrollY;
+    const previousPosition = document.body.style.position;
+    const previousTop = document.body.style.top;
+    const previousWidth = document.body.style.width;
     const previousOverflow = document.body.style.overflow;
     const previousRootOverflow = document.documentElement.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
@@ -146,10 +153,14 @@ const Index = () => {
     document.addEventListener("keydown", closeOnEscape);
 
     return () => {
+      document.body.style.position = previousPosition;
+      document.body.style.top = previousTop;
+      document.body.style.width = previousWidth;
       document.body.style.overflow = previousOverflow;
       document.documentElement.style.overflow = previousRootOverflow;
       document.body.style.paddingRight = previousPaddingRight;
       document.removeEventListener("keydown", closeOnEscape);
+      window.scrollTo(0, scrollY);
     };
   }, [mobileMenuOpen]);
 
