@@ -258,7 +258,7 @@ const Index = () => {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 top-16 z-50 h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-background md:hidden">
+        <div className="fixed inset-x-0 bottom-0 top-16 z-[2000] h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-background md:hidden">
           <div className="flex min-h-full flex-col px-6 py-4 gap-3">
             {navItems.map((item) => (
               <button

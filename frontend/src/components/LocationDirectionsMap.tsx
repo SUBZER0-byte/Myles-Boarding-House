@@ -359,7 +359,7 @@ const LocationDirectionsMap = ({
             ? usesNativeFullscreen
               ? "h-[100dvh] w-screen"
               : "fixed inset-0 z-[1000] h-[100dvh] w-screen rounded-none"
-            : "h-[360px] w-full rounded-lg sm:h-[440px]"
+            : "relative z-0 h-[360px] w-full rounded-lg sm:h-[440px]"
         }`}
       >
         <div
