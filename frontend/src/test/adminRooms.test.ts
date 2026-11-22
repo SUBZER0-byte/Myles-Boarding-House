@@ -48,6 +48,10 @@ describe("Admin rooms", () => {
           image: null,
           occupants: 0,
           occupant_genders: ["Female"],
+          available_beds: 1,
+          reservation_count: 1,
+          reservation_deadlines_epoch: [1795651200],
+          reservation_server_now_epoch: 1795647600,
         },
         {
           room_id: 2,
@@ -59,13 +63,25 @@ describe("Admin rooms", () => {
           description: null,
           image: null,
           occupants: 0,
+          available_beds: 1,
+          reservation_count: 0,
+          reservation_deadlines_epoch: [],
+          reservation_server_now_epoch: 1795651200,
         },
       ],
       error: null,
     });
     await expect(getMyAdminRooms()).resolves.toMatchObject([
-      { room_id: 2, room_number: "2", floor_number: 2, monthly_rent: 9000, occupant_genders: [] },
-      { room_id: 10, room_number: "10", floor_number: 1, monthly_rent: 9000, occupant_genders: ["Female"] },
+      {
+        room_id: 2, room_number: "2", floor_number: 2, monthly_rent: 9000,
+        occupant_genders: [], available_beds: 1, reservation_count: 0,
+        reservation_deadlines_epoch: [],
+      },
+      {
+        room_id: 10, room_number: "10", floor_number: 1, monthly_rent: 9000,
+        occupant_genders: ["Female"], available_beds: 1, reservation_count: 1,
+        reservation_deadlines_epoch: [1795651200],
+      },
     ]);
   });
 

@@ -109,7 +109,7 @@ export function releaseMyGuestRoomHold() {
   return call<null>("release_hold");
 }
 
-export function createMyGuestBooking(input: {
+export async function createMyGuestBooking(input: {
   room_id: number;
   full_name: string;
   phone: string;
@@ -120,12 +120,39 @@ export function createMyGuestBooking(input: {
   idempotency_key: string;
 }) {
   requireId(input.room_id, "room");
-  return call<{
+  const booking = await call<{
     booking_id: number;
     initial_payment_amount: number;
     payment_expires_at_epoch: number;
     server_now_epoch: number;
   }>("create", input);
+  if (!booking || !Number.isSafeInteger(booking.booking_id) || booking.booking_id <= 0) {
+    throw new Error("The booking service returned an invalid booking identifier.");
+  }
+
+  const { data, error } = await supabase.rpc("get_guest_booking_reservation_deadline", {
+    p_booking_id: booking.booking_id,
+  });
+  if (error) throw new Error(error.message || "Could not load the reservation deadline.");
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("The booking service returned an invalid reservation deadline.");
+  }
+  const deadline = data as Record<string, unknown>;
+  if (
+    typeof deadline.payment_expires_at_epoch !== "number"
+    || !Number.isSafeInteger(deadline.payment_expires_at_epoch)
+    || deadline.payment_expires_at_epoch <= 0
+    || typeof deadline.server_now_epoch !== "number"
+    || !Number.isSafeInteger(deadline.server_now_epoch)
+    || deadline.server_now_epoch <= 0
+  ) {
+    throw new Error("The booking service returned an invalid reservation deadline.");
+  }
+  return {
+    ...booking,
+    payment_expires_at_epoch: deadline.payment_expires_at_epoch,
+    server_now_epoch: deadline.server_now_epoch,
+  };
 }
 
 export async function submitMyBookingInitialPayment(

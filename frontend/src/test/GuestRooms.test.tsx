@@ -30,6 +30,9 @@ const {
     available_beds: 1,
     available_for_dates: true,
     has_active_booking: false,
+    reservation_count: 0,
+    reservation_deadlines_epoch: [] as number[],
+    reservation_server_now_epoch: Math.floor(Date.now() / 1000),
   },
 }));
 
@@ -69,6 +72,7 @@ vi.mock("@/lib/guestBookings", () => ({
   submitMyBookingInitialPayment: vi.fn(),
 }));
 vi.mock("@/lib/publicRooms", () => ({
+  getCurrentPhilippineDate: () => new Date().toISOString().slice(0, 10),
   getPublicRoomsForDates: vi.fn(),
 }));
 vi.mock("@/lib/savedRooms", () => ({
@@ -88,6 +92,9 @@ describe("GuestRooms temporary hold cancellation", () => {
       available_beds: 1,
       available_for_dates: true,
       has_active_booking: false,
+      reservation_count: 0,
+      reservation_deadlines_epoch: [],
+      reservation_server_now_epoch: Math.floor(Date.now() / 1000),
     });
     acquireMyGuestRoomHold.mockReset().mockResolvedValue({ expires_at: "2026-11-14T22:17:00Z" });
     releaseMyGuestRoomHold.mockReset().mockResolvedValue(null);
@@ -106,6 +113,16 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText("Occupied")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
     expect(within(screen.getByRole("dialog")).getByText("Occupied")).toBeTruthy();
+  });
+
+  it("shows active room reservations and their countdown in Browse Rooms", async () => {
+    room.reservation_count = 1;
+    room.reservation_deadlines_epoch = [Math.floor(Date.now() / 1000) + 3600];
+    room.reservation_server_now_epoch = Math.floor(Date.now() / 1000);
+    render(<GuestRooms />);
+
+    expect(await screen.findByText("Reserved by 1 guest")).toBeTruthy();
+    expect(screen.getByText(/Next expires in 1h/)).toBeTruthy();
   });
 
   it("shows the current occupant gender in Browse Rooms and its quick view", async () => {

@@ -2,6 +2,7 @@ import { BedDouble, Image as ImageIcon } from "lucide-react";
 import { ImagePreview } from "@/components/ImagePreview";
 import { getPublicRoomImageUrl } from "@/lib/publicRooms";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
+import { RoomReservationSummary } from "@/components/RoomReservationSummary";
 import type { OccupantGender } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 
@@ -16,6 +17,8 @@ export interface RoomDisplayData {
   available_beds: number;
   description: string | null;
   occupant_genders?: OccupantGender[];
+  reservation_deadlines_epoch?: number[];
+  reservation_server_now_epoch?: number;
 }
 
 interface RoomCardProps {
@@ -69,6 +72,11 @@ export function RoomCard({ room, onView }: RoomCardProps) {
       <p className="mb-2 text-xs text-muted-foreground">
         {room.available_beds} bedspace{room.available_beds === 1 ? "" : "s"} available
       </p>
+      <RoomReservationSummary
+        deadlines={room.reservation_deadlines_epoch}
+        serverNowEpoch={room.reservation_server_now_epoch}
+        className="mb-3"
+      />
       {room.description && (
         <p className="mb-3 line-clamp-3 text-xs text-muted-foreground">{room.description}</p>
       )}

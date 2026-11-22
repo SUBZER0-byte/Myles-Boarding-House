@@ -17,6 +17,9 @@ export interface PublicRoom {
   occupants?: number;
   available_beds?: number;
   available_for_dates?: boolean;
+  reservation_count?: number;
+  reservation_deadlines_epoch?: number[];
+  reservation_server_now_epoch?: number;
 }
 
 export function parseOccupantGenders(value: unknown): OccupantGender[] {
@@ -34,6 +37,56 @@ export function parseFloorNumber(value: unknown): number {
     throw new Error("The room service returned an invalid floor number.");
   }
   return value;
+}
+
+function parseReservationData(
+  count: unknown,
+  deadlines: unknown,
+  serverNow: unknown,
+): Pick<PublicRoom, "reservation_count" | "reservation_deadlines_epoch" | "reservation_server_now_epoch"> {
+  if (
+    typeof count !== "number"
+    || !Number.isSafeInteger(count)
+    || count < 0
+    || !Array.isArray(deadlines)
+    || deadlines.some((deadline) => typeof deadline !== "number" || !Number.isSafeInteger(deadline) || deadline <= 0)
+    || deadlines.length !== count
+    || typeof serverNow !== "number"
+    || !Number.isSafeInteger(serverNow)
+    || serverNow <= 0
+  ) {
+    throw new Error("The room service returned invalid reservation data.");
+  }
+  return {
+    reservation_count: count,
+    reservation_deadlines_epoch: deadlines,
+    reservation_server_now_epoch: serverNow,
+  };
+}
+
+export function getCurrentPhilippineDate(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((value) => value.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  if (!year || !month || !day) throw new Error("Could not determine the current Philippine date.");
+  return `${year}-${month}-${day}`;
+}
+
+function nextPhilippineDate(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1));
+  return [
+    tomorrow.getUTCFullYear(),
+    String(tomorrow.getUTCMonth() + 1).padStart(2, "0"),
+    String(tomorrow.getUTCDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 export interface PublicRoomPhoto {
@@ -57,14 +110,8 @@ export function getPublicRoomImageUrl(image: string | null | undefined): string 
 }
 
 export async function getPublicRooms(): Promise<PublicRoom[]> {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
-  const checkInDate = `${yyyy}-${mm}-${dd}`;
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const checkOutDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+  const checkInDate = getCurrentPhilippineDate();
+  const checkOutDate = nextPhilippineDate(checkInDate);
 
   const { data, error } = await supabase.rpc("get_public_rooms_for_guest_browse_with_booking_state", {
     p_check_in_date: checkInDate,
@@ -77,6 +124,11 @@ export async function getPublicRooms(): Promise<PublicRoom[]> {
       ...room,
       floor_number: parseFloorNumber(room.floor_number),
       occupant_genders: parseOccupantGenders(room.occupant_genders),
+      ...parseReservationData(
+        room.reservation_count,
+        room.reservation_deadlines_epoch,
+        room.reservation_server_now_epoch,
+      ),
     }))
     .sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }
@@ -99,6 +151,11 @@ export async function getPublicRoomsForDates(checkInDate: string, checkOutDate: 
         floor_number: parseFloorNumber(room.floor_number),
         occupant_genders: parseOccupantGenders(room.occupant_genders),
         has_active_booking: room.has_active_booking,
+        ...parseReservationData(
+          room.reservation_count,
+          room.reservation_deadlines_epoch,
+          room.reservation_server_now_epoch,
+        ),
       };
     })
     .sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));

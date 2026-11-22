@@ -99,7 +99,16 @@ describe("Supabase guest booking service", () => {
   it("adds the current floor for a guest booking", async () => {
     rpc.mockImplementation((name: string, args: { p_action?: string }) => Promise.resolve(
       name === "get_public_rooms_for_guest_browse_with_booking_state"
-        ? { data: [{ room_id: 9, floor_number: 2 }], error: null }
+        ? {
+          data: [{
+            room_id: 9,
+            floor_number: 2,
+            reservation_count: 0,
+            reservation_deadlines_epoch: [],
+            reservation_server_now_epoch: 1795651200,
+          }],
+          error: null,
+        }
         : {
           data: {
             type: "success",
@@ -146,12 +155,39 @@ describe("Supabase guest booking service", () => {
       notes: "",
       idempotency_key: "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4",
     };
-    await createMyGuestBooking(input);
+    rpc
+      .mockResolvedValueOnce({
+        data: {
+          type: "success",
+          data: {
+            booking_id: 15,
+            initial_payment_amount: 1000,
+            payment_expires_at_epoch: 1795653000,
+            server_now_epoch: 1795651200,
+          },
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          payment_expires_at_epoch: 1795737600,
+          server_now_epoch: 1795651200,
+        },
+        error: null,
+      });
+    await expect(createMyGuestBooking(input)).resolves.toMatchObject({
+      booking_id: 15,
+      payment_expires_at_epoch: 1795737600,
+      server_now_epoch: 1795651200,
+    });
     expect(rpc).toHaveBeenCalledWith("manage_guest_booking", {
       p_action: "create",
       p_data: input,
     });
     expect(rpc.mock.calls[0][1].p_data).not.toHaveProperty("email");
+    expect(rpc).toHaveBeenNthCalledWith(2, "get_guest_booking_reservation_deadline", {
+      p_booking_id: 15,
+    });
   });
 
   it("stores proof in the caller's private Storage folder and links only the path through the RPC", async () => {

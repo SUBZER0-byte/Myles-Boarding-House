@@ -2,13 +2,7 @@
   "generatedAt": "2026-11-19T00:20:00Z",
   "generatedOnPlatform": "win32",
   "projectType": "webapp",
-  "setup": [
-    {
-      "command": "npm.cmd",
-      "args": ["ci"],
-      "timeoutSeconds": 600
-    }
-  ],
+  "setup": [],
   "assertions": [
     {
       "name": "production-build",

@@ -37,6 +37,13 @@ type Method = "gcash";
 type GcashQr = { path: string; amount: number | null };
 
 const methodLabel: Record<Method, string> = { gcash: "GCash" };
+function formatRemainingTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  return `${hours}h ${minutes}m ${remainingSeconds}s`;
+}
+
 export function BookingPaymentDialog({
   open, onOpenChange, roomName, amount, amountPHP = 1000,
   paymentExpiresAtEpoch,
@@ -126,7 +133,7 @@ export function BookingPaymentDialog({
 
   const submitPayment = async () => {
     if (secondsRemaining === 0) {
-      setErrorMsg("The payment deadline has passed. This temporary reservation has expired.");
+      setErrorMsg("The 24-hour reservation deadline has passed.");
       return;
     }
     const reference = paymentRef.trim();
@@ -179,12 +186,12 @@ export function BookingPaymentDialog({
         {paymentExpiresAtEpoch && serverNowEpoch && secondsRemaining !== null && (
           <div className={`rounded-md border p-3 text-xs ${secondsRemaining === 0 ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/40 bg-warning/10 text-foreground"}`}>
             <p className="font-semibold">
-              Payment deadline: {formatPhilippineDateTime(paymentExpiresAtEpoch * 1000)}
+              Reservation expires (Philippine Time): {formatPhilippineDateTime(paymentExpiresAtEpoch * 1000)}
             </p>
             <p>
               {secondsRemaining === 0
-                ? "The payment deadline has passed. This temporary reservation has expired."
-                : `Time remaining: ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, "0")}`}
+                ? "The 24-hour reservation deadline has passed."
+                : `Time remaining: ${formatRemainingTime(secondsRemaining)}`}
             </p>
           </div>
         )}

@@ -95,6 +95,8 @@ const Index = () => {
     available_beds: Number(room.available_beds ?? Math.max(0, Number(room.capacity) - Number(room.occupants ?? 0))),
     description: room.description,
     occupant_genders: room.occupant_genders,
+    reservation_deadlines_epoch: room.reservation_deadlines_epoch,
+    reservation_server_now_epoch: room.reservation_server_now_epoch,
   }));
 
   const reviews = (publicReviews ?? []).map((r) => {

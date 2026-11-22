@@ -1,6 +1,7 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
+import { RoomReservationSummary } from "@/components/RoomReservationSummary";
 import { BedDouble, CalendarDays, Heart, Loader2, Maximize2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
 import { format } from "date-fns";
 import { calculateMoveOutDate } from "@/lib/stayDates";
-import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import { getCurrentPhilippineDate, getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import {
   acquireMyGuestRoomHold,
@@ -48,12 +49,7 @@ const statusBadge: Record<StatusKey, string> = {
 
 const GuestRooms = () => {
   const session = sessionStore.get();
-  const today = new Date();
-  const minimumCheckInDate = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
+  const minimumCheckInDate = getCurrentPhilippineDate();
   const [saved, setSaved] = useState<number[]>([]);
   const [quickViewRoom, setQuickViewRoom] = useState<PublicRoom | null>(null);
 
@@ -89,7 +85,7 @@ const GuestRooms = () => {
   const hasAnyDates = Boolean(form.move_in_date || stayMonthsInput !== "1");
   const hasDateRange = Boolean(form.move_in_date && calculatedCheckOutDate
     && calculatedCheckOutDate >= minimumCheckOutDate
-    && new Date(`${form.move_in_date}T00:00:00`) >= new Date(new Date().toDateString()));
+    && form.move_in_date >= minimumCheckInDate);
   const invalidDateRange = hasAnyDates && !hasDateRange;
   const roomCheckInDate = hasDateRange ? form.move_in_date : minimumCheckInDate;
   const defaultCheckOutDate = new Date(`${minimumCheckInDate}T00:00:00`);
@@ -310,7 +306,7 @@ const GuestRooms = () => {
       });
       toast({
         title: "Room temporarily reserved",
-        description: "Your booking is saved. Complete the initial payment before the deadline.",
+        description: "Your booking reserves one bed for 24 hours from submission. Complete the initial payment before the countdown ends.",
       });
       setDetailsOpen(false);
       setTermsOpen(false);
@@ -416,6 +412,11 @@ const GuestRooms = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{formatRoomFloor(r.floor_number)}</p>
                 <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
+                <RoomReservationSummary
+                  deadlines={r.reservation_deadlines_epoch}
+                  serverNowEpoch={r.reservation_server_now_epoch}
+                  className="mb-2"
+                />
                 <p className="text-xs text-muted-foreground mb-2">
                   {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0)))} bedspace
                   {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0))) === 1 ? "" : "s"} available
@@ -515,6 +516,11 @@ const GuestRooms = () => {
                   </span>
                 </div>
                 <RoomOccupantGender genders={quickViewRoom.occupant_genders} className="mt-3" />
+                <RoomReservationSummary
+                  deadlines={quickViewRoom.reservation_deadlines_epoch}
+                  serverNowEpoch={quickViewRoom.reservation_server_now_epoch}
+                  className="mt-3"
+                />
                 <p className="text-sm text-muted-foreground">
                   {Number(quickViewRoom.available_beds ?? Math.max(0, Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)))} bedspace
                   {Number(quickViewRoom.available_beds ?? Number(quickViewRoom.capacity) - Number(quickViewRoom.occupants ?? 0)) === 1 ? "" : "s"} available
@@ -755,9 +761,9 @@ const GuestRooms = () => {
         requireScreenshot
         allowedMethods={["gcash"]}
         title="Initial Booking Payment"
-        description="Your room is temporarily reserved. Closing this window does not cancel the saved booking. Return to My Booking to complete payment before the deadline; the reservation expires automatically if no payment is submitted."
+        description="Your room is reserved for 24 hours from booking submission. Closing this window does not cancel the saved booking. Complete payment before the countdown ends; the reservation expires automatically after 24 hours."
         successTitle="Booking Payment Submitted"
-        successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
+        successDescription="Your payment proof is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed."
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!submittedBookingId) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();

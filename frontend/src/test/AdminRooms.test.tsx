@@ -14,6 +14,10 @@ const { rooms, setMyAdminRoomStatus } = vi.hoisted(() => ({
     image: null,
     occupants: 1,
     occupant_genders: ["Male"],
+    available_beds: 1,
+    reservation_count: 1,
+    reservation_deadlines_epoch: [Math.floor(Date.now() / 1000) + 3600],
+    reservation_server_now_epoch: Math.floor(Date.now() / 1000),
   }],
   setMyAdminRoomStatus: vi.fn(),
 }));
@@ -42,6 +46,8 @@ describe("AdminRooms", () => {
 
     expect(screen.getByText("2nd Floor · cap 2")).toBeTruthy();
     expect(screen.getByText("Registered occupant gender(s): Male")).toBeTruthy();
+    expect(screen.getByText("Reserved by 1 guest")).toBeTruthy();
+    expect(screen.getByText(/Next expires in 1h/)).toBeTruthy();
   });
 
   it("disables Available when a room is occupied or reserved", () => {

@@ -13,6 +13,10 @@ export interface AdminRoom {
   image: string | null;
   occupants: number;
   occupant_genders: OccupantGender[];
+  available_beds: number;
+  reservation_count: number;
+  reservation_deadlines_epoch: number[];
+  reservation_server_now_epoch: number;
 }
 
 export interface AdminRoomInput {
@@ -147,6 +151,20 @@ function parseRooms(value: unknown): AdminRoom[] {
       || typeof row.capacity !== "number"
       || (typeof row.monthly_rent !== "number" && typeof row.monthly_rent !== "string")
       || typeof row.status !== "string"
+      || typeof row.available_beds !== "number"
+      || !Number.isSafeInteger(row.available_beds)
+      || row.available_beds < 0
+      || typeof row.reservation_count !== "number"
+      || !Number.isSafeInteger(row.reservation_count)
+      || row.reservation_count < 0
+      || !Array.isArray(row.reservation_deadlines_epoch)
+      || row.reservation_deadlines_epoch.some(
+        (deadline) => typeof deadline !== "number" || !Number.isSafeInteger(deadline) || deadline <= 0,
+      )
+      || row.reservation_deadlines_epoch.length !== row.reservation_count
+      || typeof row.reservation_server_now_epoch !== "number"
+      || !Number.isSafeInteger(row.reservation_server_now_epoch)
+      || row.reservation_server_now_epoch <= 0
     ) {
       throw new Error("The room service returned incomplete room data.");
     }
@@ -161,6 +179,10 @@ function parseRooms(value: unknown): AdminRoom[] {
       image: typeof row.image === "string" ? row.image : null,
       occupants: typeof row.occupants === "number" ? row.occupants : 0,
       occupant_genders: parseOccupantGenders(row.occupant_genders),
+      available_beds: row.available_beds,
+      reservation_count: row.reservation_count,
+      reservation_deadlines_epoch: row.reservation_deadlines_epoch,
+      reservation_server_now_epoch: row.reservation_server_now_epoch,
     };
   }).sort((a, b) => compareRoomNumbers(a.room_number, b.room_number));
 }

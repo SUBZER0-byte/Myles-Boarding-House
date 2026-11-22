@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { RoomPhotosManager, type RoomPhotosManagerHandle } from "@/components/RoomPhotosManager";
 import { ImagePreview } from "@/components/ImagePreview";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
+import { RoomReservationSummary } from "@/components/RoomReservationSummary";
 import type { OccupantGender } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,10 @@ interface Room {
   image?: string | null;
   occupants: number;
   occupant_genders?: OccupantGender[];
+  available_beds: number;
+  reservation_count: number;
+  reservation_deadlines_epoch: number[];
+  reservation_server_now_epoch: number;
 }
 
 const empty = { room_number: "", floor_number: 1, capacity: 1, monthly_rent: 0, status: "Available", description: "" };
@@ -103,6 +108,10 @@ const AdminRooms = () => {
           ...form,
           occupants: 0,
           image: null,
+          available_beds: form.capacity,
+          reservation_count: 0,
+          reservation_deadlines_epoch: [],
+          reservation_server_now_epoch: Math.floor(Date.now() / 1000),
         });
       }
       let savedImage = selected?.image;
@@ -119,6 +128,10 @@ const AdminRooms = () => {
           ...form,
           occupants: 0,
           image: savedImage ?? null,
+          available_beds: form.capacity,
+          reservation_count: 0,
+          reservation_deadlines_epoch: [],
+          reservation_server_now_epoch: Math.floor(Date.now() / 1000),
         });
         if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
         setImageFile(null);
@@ -229,11 +242,15 @@ const AdminRooms = () => {
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
               <RoomOccupantGender genders={r.occupant_genders} />
+              <RoomReservationSummary
+                deadlines={r.reservation_deadlines_epoch}
+                serverNowEpoch={r.reservation_server_now_epoch}
+              />
               <div className="flex flex-col gap-1.5 pt-2 border-t border-border sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-semibold text-sm break-words">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
                 <span className="text-xs text-muted-foreground sm:text-right">
                   {r.occupants} occupant(s)
-                  {` · ${Math.max(0, Number(r.capacity) - Number(r.occupants))} bedspace${Number(r.capacity) - Number(r.occupants) === 1 ? "" : "s"} available`}
+                  {` · ${r.available_beds} bedspace${r.available_beds === 1 ? "" : "s"} available`}
                 </span>
               </div>
               <div className="flex gap-2 pt-1">

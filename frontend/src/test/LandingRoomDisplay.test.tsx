@@ -25,6 +25,8 @@ const room: RoomDisplayData = {
   available_beds: 1,
   description: "Two-bed room near the common kitchen.",
   occupant_genders: ["Female"],
+  reservation_deadlines_epoch: [Math.floor(Date.now() / 1000) + 3600],
+  reservation_server_now_epoch: Math.floor(Date.now() / 1000),
 };
 
 describe("Landing page room display", () => {
@@ -35,6 +37,8 @@ describe("Landing page room display", () => {
     expect(screen.getByText("1 bedspace available")).toBeTruthy();
     expect(screen.getByText("Two-bed room near the common kitchen.")).toBeTruthy();
     expect(screen.getByText("Registered occupant gender(s): Female")).toBeTruthy();
+    expect(screen.getByText("Reserved by 1 guest")).toBeTruthy();
+    expect(screen.getByText(/Next expires in 1h/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "View Details" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /book/i })).toBeNull();
     expect(screen.getByRole("img", { name: "Room 17 overview" })).toHaveAttribute(

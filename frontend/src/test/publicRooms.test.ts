@@ -9,7 +9,13 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-import { getPublicRoomImageUrl, getPublicRoomPhotos, getPublicRooms, getPublicRoomsForDates } from "@/lib/publicRooms";
+import {
+  getCurrentPhilippineDate,
+  getPublicRoomImageUrl,
+  getPublicRoomPhotos,
+  getPublicRooms,
+  getPublicRoomsForDates,
+} from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 
 describe("public room reads", () => {
@@ -29,10 +35,10 @@ describe("public room reads", () => {
 
   it("uses the public room listing RPC with occupant gender data", async () => {
     const rooms = [
-      { room_id: 10, room_number: "10", floor_number: 1, occupant_genders: [] },
-      { room_id: 2, room_number: "2", floor_number: 2, occupant_genders: ["Male"] },
-      { room_id: 1, room_number: "1", floor_number: 3, occupant_genders: [] },
-      { room_id: 11, room_number: "11", floor_number: 4, occupant_genders: ["Female"] },
+      { room_id: 10, room_number: "10", floor_number: 1, occupant_genders: [], reservation_count: 0, reservation_deadlines_epoch: [], reservation_server_now_epoch: 1795651200 },
+      { room_id: 2, room_number: "2", floor_number: 2, occupant_genders: ["Male"], reservation_count: 0, reservation_deadlines_epoch: [], reservation_server_now_epoch: 1795651200 },
+      { room_id: 1, room_number: "1", floor_number: 3, occupant_genders: [], reservation_count: 0, reservation_deadlines_epoch: [], reservation_server_now_epoch: 1795651200 },
+      { room_id: 11, room_number: "11", floor_number: 4, occupant_genders: ["Female"], reservation_count: 0, reservation_deadlines_epoch: [], reservation_server_now_epoch: 1795651200 },
     ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
@@ -54,8 +60,18 @@ describe("public room reads", () => {
 
   it("loads database room status, date-specific capacity, and current occupant genders", async () => {
     const rooms = [
-      { room_id: 10, room_number: "10", floor_number: 1, status: "Occupied", occupant_genders: ["Male"], has_active_booking: true },
-      { room_id: 2, room_number: "2", floor_number: 2, status: "Occupied", occupant_genders: ["Female"], has_active_booking: false },
+      {
+        room_id: 10, room_number: "10", floor_number: 1, status: "Occupied",
+        occupant_genders: ["Male"], has_active_booking: true,
+        reservation_count: 1, reservation_deadlines_epoch: [1795651200],
+        reservation_server_now_epoch: 1795647600,
+      },
+      {
+        room_id: 2, room_number: "2", floor_number: 2, status: "Occupied",
+        occupant_genders: ["Female"], has_active_booking: false,
+        reservation_count: 0, reservation_deadlines_epoch: [],
+        reservation_server_now_epoch: 1795647600,
+      },
     ];
     rpc.mockResolvedValue({ data: rooms, error: null });
 
@@ -77,7 +93,11 @@ describe("public room reads", () => {
 
   it("rejects booking ownership data that is not a boolean", async () => {
     rpc.mockResolvedValue({
-      data: [{ room_id: 1, room_number: "1", floor_number: 1, occupant_genders: [], has_active_booking: "true" }],
+      data: [{
+        room_id: 1, room_number: "1", floor_number: 1, occupant_genders: [],
+        has_active_booking: "true", reservation_count: 0, reservation_deadlines_epoch: [],
+        reservation_server_now_epoch: 1795651200,
+      }],
       error: null,
     });
     await expect(getPublicRoomsForDates("2026-12-01", "2027-01-01"))
@@ -86,10 +106,26 @@ describe("public room reads", () => {
 
   it("rejects room reads with an invalid floor number", async () => {
     rpc.mockResolvedValue({
-      data: [{ room_id: 1, room_number: "1", floor_number: 0, occupant_genders: [] }],
+      data: [{
+        room_id: 1, room_number: "1", floor_number: 0, occupant_genders: [],
+        reservation_count: 0, reservation_deadlines_epoch: [],
+        reservation_server_now_epoch: 1795651200,
+      }],
       error: null,
     });
     await expect(getPublicRooms()).rejects.toThrow("invalid floor number");
+  });
+
+  it("rejects reservation counts that do not match the returned deadlines", async () => {
+    rpc.mockResolvedValue({
+      data: [{
+        room_id: 1, room_number: "1", floor_number: 1, occupant_genders: [],
+        reservation_count: 2, reservation_deadlines_epoch: [1795651200],
+        reservation_server_now_epoch: 1795651200,
+      }],
+      error: null,
+    });
+    await expect(getPublicRooms()).rejects.toThrow("invalid reservation data");
   });
 
   it("formats floor numbers with the correct ordinal suffix", () => {
@@ -97,5 +133,13 @@ describe("public room reads", () => {
       "1st Floor", "2nd Floor", "3rd Floor", "4th Floor",
       "11th Floor", "12th Floor", "13th Floor", "21st Floor",
     ]);
+  });
+
+  it("uses the current Philippine calendar date for default room availability", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-24T16:30:00.000Z"));
+
+    expect(getCurrentPhilippineDate()).toBe("2026-11-25");
+    vi.useRealTimers();
   });
 });

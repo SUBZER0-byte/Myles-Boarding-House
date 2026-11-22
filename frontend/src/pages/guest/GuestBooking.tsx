@@ -229,10 +229,10 @@ const GuestBooking = () => {
                       label="Booked On"
                       value={formatPhilippineDateTime(b.created_at)}
                     />
-                    {b.status === "Pending" && Number(b.payment_expires_at_epoch) > 0 && (
+                    {["Pending", "Pending Verification"].includes(b.status) && Number(b.payment_expires_at_epoch) > 0 && (
                       <InfoRow
                         icon={<Clock size={14} />}
-                        label="Payment Deadline"
+                        label="Reservation Expires"
                         value={formatPhilippineDateTime(Number(b.payment_expires_at_epoch) * 1000)}
                       />
                     )}
@@ -257,7 +257,7 @@ const GuestBooking = () => {
                   {b.status === "Pending Verification" && (
                     <div className="flex items-start gap-2 p-3 rounded-md bg-warning/10 border border-warning/30 text-warning text-xs">
                       <Clock size={14} className="mt-0.5 shrink-0" />
-                      Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed.
+                      Your payment is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed.
                     </div>
                   )}
                   {b.status === "Confirmed" && (
@@ -275,7 +275,7 @@ const GuestBooking = () => {
                   {b.status === "Expired" && (
                     <div className="flex items-start gap-2 p-3 rounded-md bg-muted border border-border text-muted-foreground text-xs">
                       <Clock size={14} className="mt-0.5 shrink-0" />
-                      The payment deadline passed before your payment was submitted. This temporary reservation has expired.
+                      The 24-hour reservation deadline passed. This booking no longer reserves room capacity.
                     </div>
                   )}
 
@@ -395,9 +395,9 @@ const GuestBooking = () => {
         paymentExpiresAtEpoch={paymentBooking?.payment_expires_at_epoch}
         serverNowEpoch={paymentBooking?.server_now_epoch}
         title="Complete Booking Payment"
-        description="Closing this window does not cancel your saved booking. Return to My Booking to complete payment before the deadline; the reservation expires automatically if no payment is submitted."
+        description="Your room is reserved for 24 hours from booking submission. Closing this window does not cancel the saved booking. Complete payment before the countdown ends; the reservation expires automatically after 24 hours."
         successTitle="Payment Submitted"
-        successDescription="Your payment has been successfully submitted! Your reservation is now awaiting administrator verification. Please allow 30–60 minutes for the administrator to verify your payment. You will receive an update once your payment has been reviewed. Your reservation is not yet confirmed."
+        successDescription="Your payment proof is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed."
         allowScreenshot
         requireReference
         requireScreenshot
