@@ -213,17 +213,16 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         ) : (
-          <div className="flex items-center justify-between gap-3 px-3 py-2">
+          <div className="flex items-center justify-between gap-3 px-3 py-1.5 sm:py-2">
             <span className="text-sm text-sidebar-foreground">Appearance</span>
             <div className="flex items-center gap-2">
-              <Sun size={16} className={!isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"} aria-hidden="true" />
+              <Sun size={14} className={`sm:h-4 sm:w-4 ${!isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"}`} aria-hidden="true" />
               <Switch
-                className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4 [&>span]:data-[state=unchecked]:translate-x-0"
                 checked={isDark}
                 onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
                 aria-label="Toggle dark mode"
               />
-              <Moon size={16} className={isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"} aria-hidden="true" />
+              <Moon size={14} className={`sm:h-4 sm:w-4 ${isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"}`} aria-hidden="true" />
             </div>
           </div>
         )}

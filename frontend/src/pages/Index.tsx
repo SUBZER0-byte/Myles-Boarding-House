@@ -51,16 +51,15 @@ function ThemeControl({ showLabel = false }: { showLabel?: boolean }) {
   const isDark = theme === "dark";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2">
       {showLabel && <span className="mr-auto text-sm font-medium">Appearance</span>}
-      <Sun size={16} className={!isDark ? "text-primary" : "text-muted-foreground"} aria-hidden="true" />
+      <Sun size={14} className={`sm:h-4 sm:w-4 ${!isDark ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
       <Switch
-        className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4 [&>span]:data-[state=unchecked]:translate-x-0"
         checked={isDark}
         onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
         aria-label="Toggle dark mode"
       />
-      <Moon size={16} className={isDark ? "text-primary" : "text-muted-foreground"} aria-hidden="true" />
+      <Moon size={14} className={`sm:h-4 sm:w-4 ${isDark ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
     </div>
   );
 }
@@ -233,7 +232,7 @@ const Index = () => {
               </button>
             ))}
             <div className="border-t border-border pt-3 flex flex-col gap-2">
-              <div className="flex min-h-10 items-center rounded-md bg-muted/50 px-3 py-1.5">
+              <div className="flex items-center rounded-md bg-muted/50 px-3 py-1.5">
                 <ThemeControl showLabel />
               </div>
               <Link to="/login" className="text-sm font-medium hover:text-primary transition-colors py-1" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
@@ -262,7 +261,7 @@ const Index = () => {
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/55 to-black/35" />
         {/* Slide indicators */}
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-1.5 sm:bottom-6 sm:gap-2">
+        <div className="absolute bottom-4 left-1/2 z-20 flex h-8 -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/25 px-3 sm:bottom-6 sm:h-auto sm:gap-2 sm:bg-transparent sm:px-0">
           {heroSlides.map((_, i) => (
             <button
               key={i}

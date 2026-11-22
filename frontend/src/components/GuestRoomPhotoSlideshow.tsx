@@ -150,7 +150,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
               <span className="absolute right-2 top-2 rounded bg-background/85 px-2 py-0.5 text-[10px] text-foreground">
                 {activeSlide + 1}/{slideCount}
               </span>
-              <div className="absolute bottom-2 left-1/2 z-10 flex h-5 -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-1.5 py-0.5 sm:h-6 sm:gap-1.5 sm:px-2">
+              <div className="absolute bottom-1.5 left-1/2 z-10 flex h-6 -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-2 sm:bottom-2 sm:h-auto sm:gap-1.5 sm:py-1">
                 {slides.map((slide, index) => (
                   <button
                     key={slide.src}
