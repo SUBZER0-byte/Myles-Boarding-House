@@ -120,7 +120,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
             variant="secondary"
             aria-label="Zoom room photo"
             title="Zoom room photo"
-            className="absolute right-2 bottom-2 h-8 w-8 rounded-full bg-background/85"
+            className="absolute right-2 bottom-2 h-7 w-7 rounded-full bg-background/85 sm:h-8 sm:w-8"
             onClick={() => setZoomOpen(true)}
           >
             <ZoomIn size={16} />
@@ -132,7 +132,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                 size="icon"
                 variant="secondary"
                 aria-label="Previous room photo"
-                className="absolute left-2 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90"
+                className="absolute left-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
                 onClick={() => moveSlide(-1)}
               >
                 <ChevronLeft size={16} />
@@ -142,7 +142,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                 size="icon"
                 variant="secondary"
                 aria-label="Next room photo"
-                className="absolute right-2 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90"
+                className="absolute right-2 top-1/2 z-20 h-8 w-8 -translate-y-1/2 rounded-full border border-black/10 bg-white text-black shadow-lg hover:bg-white/90 sm:h-10 sm:w-10"
                 onClick={() => moveSlide(1)}
               >
                 <ChevronRight size={16} />
@@ -150,7 +150,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
               <span className="absolute right-2 top-2 rounded bg-background/85 px-2 py-0.5 text-[10px] text-foreground">
                 {activeSlide + 1}/{slideCount}
               </span>
-              <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-1.5 py-0.5 sm:gap-1.5 sm:px-2 sm:py-1">
+              <div className="absolute bottom-2 left-1/2 z-10 flex h-5 -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-1.5 py-0.5 sm:h-6 sm:gap-1.5 sm:px-2">
                 {slides.map((slide, index) => (
                   <button
                     key={slide.src}
