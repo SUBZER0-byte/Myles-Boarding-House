@@ -184,38 +184,19 @@ export async function getGuestBookingBoundaryDates(roomId: number): Promise<{ ro
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
 
-  const [tenantResult, bookingResult] = await Promise.all([
-    supabase
-      .from("tenants")
-      .select("move_in_date,move_out_date")
-      .eq("room_id", roomId)
-      .eq("is_active", 1),
-    supabase
-      .from("bookings")
-      .select("move_in_date,check_out_date")
-      .eq("room_id", roomId)
-      .in("status", ["Pending", "Pending Verification"]),
-  ]);
-  if (tenantResult.error) {
-    throw new Error(tenantResult.error.message || "Could not load tenant move-in dates.");
-  }
-  if (bookingResult.error) {
-    throw new Error(bookingResult.error.message || "Could not load pending booking dates.");
-  }
-
-  const occupiedDates = new Set<string>();
-  for (const tenant of tenantResult.data ?? []) {
-    if (typeof tenant.move_in_date === "string") occupiedDates.add(tenant.move_in_date);
-    if (typeof tenant.move_out_date === "string") occupiedDates.add(tenant.move_out_date);
-  }
-  for (const booking of bookingResult.data ?? []) {
-    if (typeof booking.move_in_date === "string") occupiedDates.add(booking.move_in_date);
-    if (typeof booking.check_out_date === "string") occupiedDates.add(booking.check_out_date);
+  const { data, error } = await supabase.rpc("get_guest_booking_boundary_dates", {
+    p_room_id: roomId,
+    p_from: formatDate(from),
+    p_until: formatDate(until),
+  });
+  if (error) throw new Error(error.message || "Could not load scheduled room dates.");
+  if (!Array.isArray(data) || data.some((date) => typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    throw new Error("The booking service returned invalid scheduled dates.");
   }
 
   return {
     room_id: roomId,
-    dates: [...occupiedDates].sort(),
+    dates: [...new Set(data)].sort(),
   };
 }
 

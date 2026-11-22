@@ -48,22 +48,10 @@ describe("Supabase guest booking service", () => {
       : { data: { type: "success", data: [] }, error: null }));
   });
 
-  it("normalizes tenant move-in boundary dates and removes duplicates", async () => {
-    fromTable.mockImplementation((table: string) => {
-      const builder: Record<string, unknown> = {};
-      builder.select = vi.fn(() => builder);
-      builder.eq = vi.fn(() => builder);
-      builder.in = vi.fn(() => builder);
-      builder.then = (resolve: (value: unknown) => unknown) => resolve({
-        data: table === "tenants"
-          ? [{ move_in_date: "2026-11-23", move_out_date: "2026-11-24" }, { move_in_date: "2026-11-28", move_out_date: "2026-11-28" }]
-          : [
-              { move_in_date: "2026-11-25", check_out_date: "2026-11-27", status: "Pending" },
-              { move_in_date: "2026-12-01", check_out_date: "2026-12-02", status: "Pending Verification" },
-            ],
-        error: null,
-      });
-      return builder;
+  it("loads scheduled dates through the restricted database function and removes duplicates", async () => {
+    rpc.mockResolvedValueOnce({
+      data: ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-27", "2026-11-28", "2026-11-28"],
+      error: null,
     });
 
     await expect(getGuestBookingBoundaryDates(34)).resolves.toEqual({
@@ -74,36 +62,21 @@ describe("Supabase guest booking service", () => {
         "2026-11-25",
         "2026-11-27",
         "2026-11-28",
-        "2026-12-01",
-        "2026-12-02",
       ],
     });
-    expect(fromTable).toHaveBeenNthCalledWith(1, "tenants");
-    expect(fromTable).toHaveBeenNthCalledWith(2, "bookings");
+    const args = rpc.mock.calls[0][1];
+    expect(rpc.mock.calls[0][0]).toBe("get_guest_booking_boundary_dates");
+    expect(args.p_room_id).toBe(34);
+    expect(args.p_from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(args.p_until).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("queries only active tenants and pending bookings, and surfaces table read errors", async () => {
-    const tenantBuilder: Record<string, unknown> = {};
-    tenantBuilder.select = vi.fn(() => tenantBuilder);
-    tenantBuilder.eq = vi.fn(() => tenantBuilder);
-    tenantBuilder.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
-    const bookingBuilder: Record<string, unknown> = {};
-    bookingBuilder.select = vi.fn(() => bookingBuilder);
-    bookingBuilder.eq = vi.fn(() => bookingBuilder);
-    bookingBuilder.in = vi.fn(() => bookingBuilder);
-    bookingBuilder.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
-    fromTable.mockImplementation((table: string) => table === "tenants" ? tenantBuilder : bookingBuilder);
-
-    await getGuestBookingBoundaryDates(34);
-
-    expect(tenantBuilder.eq).toHaveBeenCalledWith("is_active", 1);
-    expect(bookingBuilder.in).toHaveBeenCalledWith("status", ["Pending", "Pending Verification"]);
-
-    tenantBuilder.then = (resolve: (value: unknown) => unknown) => resolve({
-      data: null,
-      error: new Error("permission denied"),
-    });
+  it("surfaces database function errors and rejects malformed date responses", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: new Error("permission denied") });
     await expect(getGuestBookingBoundaryDates(34)).rejects.toThrow("permission denied");
+
+    rpc.mockResolvedValueOnce({ data: ["not-a-date"], error: null });
+    await expect(getGuestBookingBoundaryDates(34)).rejects.toThrow("invalid scheduled dates");
   });
 
   it("uses identity-scoped RPCs instead of caller-supplied email or user IDs", async () => {
