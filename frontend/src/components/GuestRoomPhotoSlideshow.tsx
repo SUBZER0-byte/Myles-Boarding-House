@@ -150,7 +150,7 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
               <span className="absolute right-2 top-2 rounded bg-background/85 px-2 py-0.5 text-[10px] text-foreground">
                 {activeSlide + 1}/{slideCount}
               </span>
-              <div className="absolute left-2 top-12 z-10 flex items-center gap-1.5 rounded-full border border-white/20 bg-black/55 px-2 py-1.5 shadow-md">
+              <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-black/35 px-1.5 py-0.5 sm:gap-1.5 sm:px-2 sm:py-1">
                 {slides.map((slide, index) => (
                   <button
                     key={slide.src}
@@ -158,8 +158,8 @@ export function GuestRoomPhotoSlideshow({ roomId, roomNumber, coverImage, expand
                     aria-label={`Show photo ${index + 1} of ${slideCount}`}
                     aria-current={index === activeSlide ? "true" : undefined}
                     onClick={() => goToSlide(index)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      index === activeSlide ? "w-4 bg-white" : "w-1.5 bg-white/60 hover:bg-white"
+                    className={`h-1 rounded-full transition-all sm:h-1.5 ${
+                      index === activeSlide ? "w-3 bg-white sm:w-4" : "w-1 bg-white/60 hover:bg-white sm:w-1.5"
                     }`}
                   />
                 ))}

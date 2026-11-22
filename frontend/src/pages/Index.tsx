@@ -51,18 +51,15 @@ function ThemeControl({ showLabel = false }: { showLabel?: boolean }) {
   const isDark = theme === "dark";
 
   return (
-    <div className={`flex items-center ${showLabel ? "w-full justify-between" : "gap-2"}`}>
-      {showLabel && <span className="text-sm font-medium">Appearance</span>}
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
+      {showLabel && <span className="mr-auto text-sm font-medium">Appearance</span>}
       <Sun size={16} className={!isDark ? "text-primary" : "text-muted-foreground"} aria-hidden="true" />
       <Switch
-        size="sm"
         checked={isDark}
         onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
         aria-label="Toggle dark mode"
       />
       <Moon size={16} className={isDark ? "text-primary" : "text-muted-foreground"} aria-hidden="true" />
-      </div>
     </div>
   );
 }
@@ -264,14 +261,12 @@ const Index = () => {
         </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/55 to-black/35" />
         {/* Slide indicators */}
-        <div className="absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-black/35 px-3 py-2 shadow-lg backdrop-blur-sm md:bottom-6">
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-1 sm:bottom-6 sm:gap-2">
           {heroSlides.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentSlide(i)}
-              aria-label={`Show background image ${i + 1} of ${heroSlides.length}`}
-              aria-current={i === currentSlide ? "true" : undefined}
-              className={`h-2.5 rounded-full transition-all duration-300 ${i === currentSlide ? "w-6 bg-white" : "w-2.5 bg-white/55 hover:bg-white/80"}`}
+              className={`h-1.5 w-1.5 rounded-full transition-all duration-300 sm:h-2.5 sm:w-2.5 ${i === currentSlide ? "w-4 bg-white sm:w-6" : "bg-white/50"}`}
             />
           ))}
         </div>

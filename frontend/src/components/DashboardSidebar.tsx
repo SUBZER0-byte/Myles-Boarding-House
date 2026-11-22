@@ -218,7 +218,6 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
             <div className="flex items-center gap-2">
               <Sun size={16} className={!isDark ? "text-sidebar-primary" : "text-sidebar-foreground/60"} aria-hidden="true" />
               <Switch
-                size="sm"
                 checked={isDark}
                 onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
                 aria-label="Toggle dark mode"
