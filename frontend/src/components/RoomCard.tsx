@@ -61,15 +61,15 @@ export function RoomCard({ room, onView }: RoomCardProps) {
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <BedDouble size={18} className="text-primary" />
-          <span className="font-display font-semibold">Room {room.room_number}</span>
+          <span className="font-display text-lg font-bold">Room {room.room_number}</span>
         </div>
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusStyle(room.status)}`}>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${statusStyle(room.status)}`}>
           {room.status || "Unknown"}
         </span>
       </div>
-      <p className="mb-2 text-xs text-muted-foreground">{formatRoomFloor(room.floor_number)}</p>
+      <p className="mb-2 text-sm font-medium text-foreground/80">{formatRoomFloor(room.floor_number)}</p>
       <RoomOccupantGender genders={room.occupant_genders} className="mb-2" />
-      <p className="mb-2 text-xs text-muted-foreground">
+      <p className="mb-2 text-sm font-semibold text-foreground">
         {room.available_beds} bedspace{room.available_beds === 1 ? "" : "s"} available
       </p>
       <RoomReservationSummary
@@ -78,12 +78,12 @@ export function RoomCard({ room, onView }: RoomCardProps) {
         className="mb-3"
       />
       {room.description && (
-        <p className="mb-3 line-clamp-3 text-xs text-muted-foreground">{room.description}</p>
+        <p className="mb-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{room.description}</p>
       )}
       <div className="mt-auto space-y-2 pt-3">
-        <p className="text-sm font-semibold">
+        <p className="font-display text-base font-bold">
           ₱{room.monthly_rent.toLocaleString()}
-          <span className="text-xs font-normal text-muted-foreground">/person/mo</span>
+          <span className="ml-1 text-sm font-normal text-muted-foreground">/person/mo</span>
         </p>
         <button
           type="button"

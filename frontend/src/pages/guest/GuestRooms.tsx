@@ -404,29 +404,29 @@ const GuestRooms = () => {
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <BedDouble size={18} className="text-primary" />
-                    <span className="font-display font-semibold">Room {r.room_number}</span>
+                    <span className="font-display text-lg font-bold">Room {r.room_number}</span>
                   </div>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${statusBadge[key] || statusBadge.maintenance}`}>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${statusBadge[key] || statusBadge.maintenance}`}>
                     {statusLabel}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">{formatRoomFloor(r.floor_number)}</p>
+                <p className="mb-2 text-sm font-medium text-foreground/80">{formatRoomFloor(r.floor_number)}</p>
                 <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
                 <RoomReservationSummary
                   deadlines={r.reservation_deadlines_epoch}
                   serverNowEpoch={r.reservation_server_now_epoch}
                   className="mb-2"
                 />
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="mb-2 text-sm font-semibold text-foreground">
                   {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0)))} bedspace
                   {Number(r.available_beds ?? Math.max(0, Number(r.capacity) - Number(r.occupants ?? 0))) === 1 ? "" : "s"} available
                 </p>
                 {r.description && (
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{r.description}</p>
+                  <p className="mb-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{r.description}</p>
                 )}
                 <div className="mt-auto pt-3 space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-sm">{peso(Number(r.monthly_rent))}<span className="text-xs text-muted-foreground">/person/mo</span></span>
+                    <span className="font-display text-base font-bold">{peso(Number(r.monthly_rent))}<span className="ml-1 font-sans text-sm font-normal text-muted-foreground">/person/mo</span></span>
                     <button
                       type="button"
                       onClick={() => toggleSave(Number(r.room_id))}

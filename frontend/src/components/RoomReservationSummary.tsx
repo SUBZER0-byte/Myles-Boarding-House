@@ -46,11 +46,11 @@ export function RoomReservationSummary({
   const remainingSeconds = Math.ceil((nextDeadline * 1000 - currentTime) / 1000);
 
   return (
-    <div className={`rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-foreground ${className}`}>
-      <p className="font-medium">
+    <div className={`rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm text-foreground ${className}`}>
+      <p className="font-display font-semibold">
         Reserved by {activeCount} guest{activeCount === 1 ? "" : "s"}
       </p>
-      <p className="text-muted-foreground" aria-live="off">
+      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground sm:text-sm" aria-live="off">
         Next expires in {formatRemainingTime(remainingSeconds)} ·{" "}
         {formatPhilippineDateTime(nextDeadline * 1000)} PHT
       </p>

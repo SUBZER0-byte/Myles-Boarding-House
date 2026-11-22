@@ -234,13 +234,13 @@ const AdminRooms = () => {
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary"><BedDouble size={20} /></div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm">Room {r.room_number}</p>
-                        <p className="text-xs text-muted-foreground">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
+                        <p className="font-display text-lg font-bold">Room {r.room_number}</p>
+                        <p className="text-sm font-medium text-foreground/80">{formatRoomFloor(r.floor_number)} · cap {r.capacity}</p>
                       </div>
                     </div>
-                    <Badge variant={variant(r.status)} className="shrink-0 text-xs">{r.status}</Badge>
+                    <Badge variant={variant(r.status)} className="shrink-0 text-xs font-bold uppercase tracking-wide">{r.status}</Badge>
                   </div>
-                  <p className="min-h-8 text-xs text-muted-foreground line-clamp-2">{r.description || "—"}</p>
+                  <p className="min-h-10 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{r.description || "—"}</p>
                   <div className="min-h-4">
                     <RoomOccupantGender genders={r.occupant_genders} />
                   </div>
@@ -252,8 +252,8 @@ const AdminRooms = () => {
                   </div>
                   <div className="mt-auto flex flex-col gap-3">
                     <div className="flex flex-col gap-1.5 border-t border-border pt-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="break-words font-semibold text-sm">₱{Number(r.monthly_rent).toLocaleString()}/person/mo</span>
-                      <span className="text-xs text-muted-foreground sm:text-right">
+                      <span className="break-words font-display text-base font-bold">₱{Number(r.monthly_rent).toLocaleString()}<span className="ml-1 font-sans text-sm font-normal text-muted-foreground">/person/mo</span></span>
+                      <span className="text-sm font-semibold text-foreground sm:text-right">
                         {r.occupants} occupant(s)
                         {` · ${r.available_beds} bedspace${r.available_beds === 1 ? "" : "s"} available`}
                       </span>

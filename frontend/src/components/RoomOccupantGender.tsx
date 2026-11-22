@@ -9,7 +9,7 @@ export function RoomOccupantGender({ genders, className = "" }: RoomOccupantGend
   if (!genders?.length) return null;
 
   return (
-    <p className={`text-xs text-muted-foreground ${className}`.trim()}>
+    <p className={`text-sm leading-snug text-foreground/80 ${className}`.trim()}>
       Registered occupant gender(s): {genders.join(", ")}
     </p>
   );
