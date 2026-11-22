@@ -33,7 +33,12 @@ export function DashboardLayout({ role, children }: { role: "admin" | "tenant" |
           paddingTop: "env(safe-area-inset-top)",
         }}
       >
-        <button onClick={() => setMobileOpen(true)} className="p-2 rounded-md hover:bg-sidebar-accent transition-colors text-sidebar-foreground">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="flex h-9 w-12 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/30 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+          aria-label="Open sidebar"
+          title="Open sidebar"
+        >
           <Menu size={20} />
         </button>
         <img src={logo} alt="" aria-hidden="true" className="ml-3 h-8 w-8 object-contain" />
