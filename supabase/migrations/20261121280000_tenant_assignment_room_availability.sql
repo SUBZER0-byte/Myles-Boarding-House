@@ -201,6 +201,7 @@ $$;
 REVOKE ALL ON FUNCTION public.get_public_rooms_for_guest_browse_with_booking_state(date, date) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_public_rooms_for_guest_browse_with_booking_state(date, date) TO anon, authenticated;
 
+DROP FUNCTION IF EXISTS public.get_public_rooms_with_floor();
 CREATE OR REPLACE FUNCTION public.get_public_rooms_with_floor()
 RETURNS TABLE (
     "room_id" integer,
