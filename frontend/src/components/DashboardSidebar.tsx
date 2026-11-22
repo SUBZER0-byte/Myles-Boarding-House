@@ -155,7 +155,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
         {/* Desktop: collapse toggle, Mobile: close button */}
         <button
           onClick={onToggle}
-          className={`hidden h-9 w-12 items-center justify-center rounded-full border border-sidebar-border hover:bg-sidebar-accent transition-colors md:flex ${collapsed ? "self-center" : "shrink-0"}`}
+          className={`hidden h-9 w-14 items-center justify-center rounded-[999px] border border-sidebar-border hover:bg-sidebar-accent transition-colors md:flex ${collapsed ? "self-center" : "shrink-0"}`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -163,7 +163,7 @@ export function DashboardSidebar({ role, collapsed, onToggle, mobileOpen, onMobi
         </button>
         <button
           onClick={onMobileClose}
-          className="flex h-9 w-12 items-center justify-center rounded-full border border-sidebar-border hover:bg-sidebar-accent transition-colors md:hidden"
+          className="flex h-9 w-14 items-center justify-center rounded-[999px] border border-sidebar-border bg-sidebar-accent/30 hover:bg-sidebar-accent transition-colors md:hidden"
           aria-label="Close sidebar"
           title="Close sidebar"
         >

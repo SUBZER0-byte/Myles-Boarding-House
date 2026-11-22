@@ -35,7 +35,7 @@ export function DashboardLayout({ role, children }: { role: "admin" | "tenant" |
       >
         <button
           onClick={() => setMobileOpen(true)}
-          className="flex h-9 w-12 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-accent/30 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+          className="flex h-9 w-14 shrink-0 items-center justify-center rounded-[999px] border border-sidebar-border bg-sidebar-accent/30 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
           aria-label="Open sidebar"
           title="Open sidebar"
         >
