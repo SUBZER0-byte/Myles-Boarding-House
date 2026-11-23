@@ -431,5 +431,8 @@ verify_jwt = false
 [functions.rent-payment-reminders]
 verify_jwt = false
 
+[functions.booking-sms-notifications]
+verify_jwt = true
+
 [functions.chatbot]
 verify_jwt = false

@@ -404,7 +404,7 @@ const GuestBooking = () => {
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!paymentBooking) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();
-          await submitMyBookingInitialPayment(
+          const smsResult = await submitMyBookingInitialPayment(
             paymentBooking.booking_id,
             method,
             reference,
@@ -412,7 +412,16 @@ const GuestBooking = () => {
             paymentSubmissionKey.current,
           );
           paymentSubmissionKey.current = null;
-          toast({ title: "GCash payment submitted for admin review" });
+          toast({
+            title: "GCash payment submitted for admin review",
+            ...(smsResult.status !== "sent" ? {
+              description: smsResult.status === "partial"
+                ? "Some administrators could not be notified by SMS."
+                : smsResult.status === "in_progress"
+                  ? "The administrator SMS notification is still being processed."
+                  : "An administrator could not be notified by SMS. Please contact the boarding house if needed.",
+            } : {}),
+          });
           refetch();
         }}
       />

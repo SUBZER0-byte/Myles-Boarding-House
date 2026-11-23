@@ -67,6 +67,15 @@ interface RpcResult<T> {
   data?: T;
 }
 
+export interface BookingSmsNotificationResult {
+  status: "sent" | "partial" | "failed" | "in_progress";
+  sent: number;
+  failed: number;
+  message?: string;
+}
+
+type BookingSmsAction = "payment_submitted" | "booking_confirmed";
+
 async function call<T>(action: string, data: Record<string, unknown> = {}): Promise<T> {
   const { data: response, error } = await supabase.rpc("manage_guest_booking", {
     p_action: action,
@@ -78,6 +87,38 @@ async function call<T>(action: string, data: Record<string, unknown> = {}): Prom
   }
   const result = response as RpcResult<T>;
   return result.data as T;
+}
+
+async function notifyBookingSms(
+  action: BookingSmsAction,
+  bookingId: number,
+): Promise<BookingSmsNotificationResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke<BookingSmsNotificationResult>(
+      "booking-sms-notifications",
+      { body: { action, booking_id: bookingId } },
+    );
+    if (error) throw new Error(error.message || "Could not send booking SMS notifications.");
+    if (
+      !data
+      || !["sent", "partial", "failed", "in_progress"].includes(data.status)
+      || !Number.isSafeInteger(data.sent)
+      || data.sent < 0
+      || !Number.isSafeInteger(data.failed)
+      || data.failed < 0
+    ) {
+      throw new Error("The booking SMS service returned an invalid response.");
+    }
+    return data;
+  } catch (error) {
+    console.error("Booking SMS notification failed:", error);
+    return {
+      status: "failed",
+      sent: 0,
+      failed: 1,
+      message: error instanceof Error ? error.message : "Could not send booking SMS notifications.",
+    };
+  }
 }
 
 function requireId(value: number, label: string) {
@@ -192,6 +233,7 @@ export async function submitMyBookingInitialPayment(
     screenshot_path: screenshotPath,
     submission_key: submissionKey,
   });
+  return notifyBookingSms("payment_submitted", bookingId);
 }
 
 export function cancelMyGuestBooking(bookingId: number) {
@@ -274,9 +316,10 @@ async function attachAdminBookingGender(bookings: AdminGuestBooking[]): Promise<
   }));
 }
 
-export function confirmAdminBookingPayment(bookingId: number) {
+export async function confirmAdminBookingPayment(bookingId: number): Promise<BookingSmsNotificationResult> {
   requireId(bookingId, "booking");
-  return call("admin_confirm_initial_payment", { booking_id: bookingId });
+  await call("admin_confirm_initial_payment", { booking_id: bookingId });
+  return notifyBookingSms("booking_confirmed", bookingId);
 }
 
 export function rejectAdminBookingPayment(bookingId: number) {

@@ -72,8 +72,17 @@ const AdminGuestBookingPayments = () => {
 
   const confirmInitialGcashPayment = async (booking: Booking) => {
     try {
-      await confirmAdminBookingPayment(booking.booking_id);
-      toast({ title: "GCash payment confirmed" });
+      const smsResult = await confirmAdminBookingPayment(booking.booking_id);
+      toast({
+        title: "GCash payment confirmed",
+        ...(smsResult.status !== "sent" ? {
+          description: smsResult.status === "partial"
+            ? "The booking is confirmed, but the guest confirmation SMS could not be fully sent."
+            : smsResult.status === "in_progress"
+              ? "The guest confirmation SMS is still being processed."
+              : "The booking is confirmed, but the guest confirmation SMS could not be sent. Please contact the guest.",
+        } : {}),
+      });
       refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Could not confirm payment.", variant: "destructive" });

@@ -17,7 +17,7 @@ describe("rent payment reminder SMS", () => {
 
   it("rejects phone numbers outside the registered Philippine mobile format", () => {
     expect(() => normalizePhilippineSmsPhone("12345")).toThrow(
-      "Tenant phone number is not a valid Philippine mobile number.",
+      "Phone number is not a valid Philippine mobile number.",
     );
   });
 

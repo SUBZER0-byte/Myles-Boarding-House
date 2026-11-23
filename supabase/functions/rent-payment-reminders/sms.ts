@@ -6,7 +6,7 @@ export function normalizePhilippineSmsPhone(rawPhone: string): string {
       ? `0${digits}`
       : digits;
   if (!/^09\d{9}$/.test(localNumber)) {
-    throw new Error("Tenant phone number is not a valid Philippine mobile number.");
+    throw new Error("Phone number is not a valid Philippine mobile number.");
   }
   return `+63${localNumber.slice(1)}`;
 }

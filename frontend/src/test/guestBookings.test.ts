@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc, getUser, upload, createSignedUrl, fromTable } = vi.hoisted(() => ({
+const { rpc, getUser, upload, createSignedUrl, fromTable, functionsInvoke } = vi.hoisted(() => ({
   rpc: vi.fn(),
   getUser: vi.fn(),
   upload: vi.fn(),
   createSignedUrl: vi.fn(),
   fromTable: vi.fn(),
+  functionsInvoke: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/supabase", () => ({
     rpc,
     from: fromTable,
     auth: { getUser },
+    functions: { invoke: functionsInvoke },
     storage: {
       from: () => ({ upload, createSignedUrl }),
     },
@@ -22,6 +24,7 @@ vi.mock("@/lib/supabase", () => ({
 import {
   acquireMyGuestRoomHold,
   cancelMyGuestBooking,
+  confirmAdminBookingPayment,
   createMyGuestBooking,
   getGuestBookingBoundaryDates,
   listAdminGuestBookings,
@@ -32,6 +35,11 @@ import {
 describe("Supabase guest booking service", () => {
   beforeEach(() => {
     rpc.mockReset();
+    functionsInvoke.mockReset();
+    functionsInvoke.mockResolvedValue({
+      data: { status: "sent", sent: 1, failed: 0 },
+      error: null,
+    });
     getUser.mockReset();
     upload.mockReset();
     createSignedUrl.mockReset();
@@ -196,8 +204,12 @@ describe("Supabase guest booking service", () => {
     upload.mockResolvedValue({ error: null });
     const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
 
-    await submitMyBookingInitialPayment(15, "GCash", " TX-123 ", file, key);
+    const smsResult = await submitMyBookingInitialPayment(15, "GCash", " TX-123 ", file, key);
 
+    expect(smsResult).toEqual({ status: "sent", sent: 1, failed: 0 });
+    expect(functionsInvoke).toHaveBeenCalledWith("booking-sms-notifications", {
+      body: { action: "payment_submitted", booking_id: 15 },
+    });
     const path = `auth-guest-id/15/${key}.png`;
     expect(upload).toHaveBeenCalledWith(path, file, {
       contentType: "image/png",
@@ -212,6 +224,42 @@ describe("Supabase guest booking service", () => {
         screenshot_path: path,
         submission_key: key,
       },
+    });
+  });
+
+  it("reports notification failure without treating the submitted payment as a failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
+    const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
+    getUser.mockResolvedValue({ data: { user: { id: "auth-guest-id" } }, error: null });
+    upload.mockResolvedValue({ error: null });
+    functionsInvoke.mockResolvedValueOnce({
+      data: null,
+      error: new Error("SMS service unavailable"),
+    });
+
+    await expect(submitMyBookingInitialPayment(15, "GCash", "TX-123", file, key))
+      .resolves.toMatchObject({ status: "failed", sent: 0, failed: 1 });
+    expect(rpc).toHaveBeenCalledWith("manage_guest_booking", expect.objectContaining({
+      p_action: "submit_initial_payment",
+    }));
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("notifies the guest after the admin confirms the initial booking payment", async () => {
+    await expect(confirmAdminBookingPayment(15)).resolves.toEqual({
+      status: "sent",
+      sent: 1,
+      failed: 0,
+    });
+
+    expect(rpc).toHaveBeenCalledWith("manage_guest_booking", {
+      p_action: "admin_confirm_initial_payment",
+      p_data: { booking_id: 15 },
+    });
+    expect(functionsInvoke).toHaveBeenCalledWith("booking-sms-notifications", {
+      body: { action: "booking_confirmed", booking_id: 15 },
     });
   });
 
