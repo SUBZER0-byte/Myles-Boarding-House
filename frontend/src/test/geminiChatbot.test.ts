@@ -40,6 +40,23 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("cannot reserve, create, or confirm bookings");
   });
 
+  it("explains guest booking cancellations, tenant cancellations, refunds, and full rent payments", () => {
+    const prompt = buildChatbotSystemPrompt("{}", "english");
+
+    expect(prompt).toContain("Guest Panel > My Booking");
+    expect(prompt).toContain("Pending, Pending Verification, or Confirmed");
+    expect(prompt).toContain("Cancelling a booking does not itself submit a refund request");
+    expect(prompt).toContain("Tenant Dashboard > Cancellation");
+    expect(prompt).toContain("45 minutes");
+    expect(prompt).toContain("until the end of that day");
+    expect(prompt).toContain("Tenant Dashboard > Payments");
+    expect(prompt).toContain("at least two eligible unpaid rent installments");
+    expect(prompt).toContain("fixed-amount GCash QR");
+    expect(prompt).toContain("enter the GCash transaction number and upload a JPG, PNG, or WEBP screenshot");
+    expect(prompt).toContain("remaining refundable balance after approved refunds");
+    expect(prompt).toContain("The chatbot cannot submit or withdraw cancellations");
+  });
+
   it("explains the actual sign-in, guest registration, and password-reset flows", () => {
     const prompt = buildChatbotSystemPrompt("{}", "english");
 
