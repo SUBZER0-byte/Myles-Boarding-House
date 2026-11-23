@@ -96,8 +96,17 @@ const AdminCancellations = () => {
     if (!approveTarget) return;
     setBusy(true);
     try {
-      await approveTenantCancellation(approveTarget.cancellation_id);
-      toast({ title: "Cancellation approved and refund recorded" });
+      const sms = await approveTenantCancellation(approveTarget.cancellation_id);
+      toast({
+        title: sms.status === "sent"
+          ? "Cancellation approved; tenant notified"
+          : "Cancellation approved and refund recorded",
+        ...(sms.status !== "sent" ? {
+          description: sms.status === "in_progress"
+            ? "The decision is complete; the tenant SMS notification is still processing."
+            : "The decision and refund record are complete, but the tenant could not be notified by SMS.",
+        } : {}),
+      });
       setApproveTarget(null);
       void refetch();
     } catch (error) {
@@ -112,8 +121,15 @@ const AdminCancellations = () => {
     if (!rejectTarget) return;
     setBusy(true);
     try {
-      await rejectTenantCancellation(rejectTarget.cancellation_id, rejectReason);
-      toast({ title: "Cancellation rejected" });
+      const sms = await rejectTenantCancellation(rejectTarget.cancellation_id, rejectReason);
+      toast({
+        title: sms.status === "sent" ? "Cancellation rejected; tenant notified" : "Cancellation rejected",
+        ...(sms.status !== "sent" ? {
+          description: sms.status === "in_progress"
+            ? "The decision is complete; the tenant SMS notification is still processing."
+            : "The rejection was recorded, but the tenant could not be notified by SMS.",
+        } : {}),
+      });
       setRejectTarget(null);
       setRejectReason("");
       void refetch();

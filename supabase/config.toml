@@ -434,5 +434,8 @@ verify_jwt = false
 [functions.booking-sms-notifications]
 verify_jwt = true
 
+[functions.cancellation-sms-notifications]
+verify_jwt = true
+
 [functions.chatbot]
 verify_jwt = false

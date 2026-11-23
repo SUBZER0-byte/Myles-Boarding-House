@@ -103,8 +103,19 @@ const TenantCancellation = () => {
     if (!userId) return;
     setBusy(true);
     try {
-      await submitMyCancellationRequest();
-      toast({ title: "Cancellation request submitted" });
+      const result = await submitMyCancellationRequest();
+      toast({
+        title: result.sms.status === "sent"
+          ? "Cancellation request submitted; management notified"
+          : "Cancellation request submitted",
+        ...(result.sms.status !== "sent" ? {
+          description: result.sms.status === "partial"
+            ? "The request was submitted, but one or more Admins could not be notified by SMS."
+            : result.sms.status === "in_progress"
+              ? "The request was submitted; the Admin SMS notification is still processing."
+              : "The request was submitted, but management could not be notified by SMS.",
+        } : {}),
+      });
       setConfirmOpen(false);
       void refetch();
     } catch (error) {
