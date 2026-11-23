@@ -92,7 +92,7 @@ async function enforceRateLimit(request: Request, origin: string): Promise<boole
 
 async function loadPublicContext(availabilityRange: AvailabilityDateRange): Promise<Record<string, unknown>> {
   const supabase = createSupabaseAdminClient();
-  const [rooms, house, announcements, faqs] = await Promise.all([
+  const [rooms, house, announcements, faqs, ratingSummary] = await Promise.all([
     supabase.rpc("get_public_rooms_for_guest_browse_with_booking_state", {
       p_check_in_date: availabilityRange.checkInDate,
       p_check_out_date: availabilityRange.checkOutDate,
@@ -104,9 +104,17 @@ async function loadPublicContext(availabilityRange: AvailabilityDateRange): Prom
       .eq("is_active", 1)
       .order("sort_order")
       .limit(50),
+    supabase.rpc("get_public_rating_summary"),
   ]);
-  const failed = [rooms, house, announcements, faqs].find((result) => result.error);
+  const failed = [rooms, house, announcements, faqs, ratingSummary].find((result) => result.error);
   if (failed?.error) throw new Error("Could not load chatbot public business context.");
+  if (
+    !ratingSummary.data
+    || typeof ratingSummary.data !== "object"
+    || Array.isArray(ratingSummary.data)
+  ) {
+    throw new Error("Could not load chatbot public rating context.");
+  }
 
   return {
     room_availability: {
@@ -114,6 +122,7 @@ async function loadPublicContext(availabilityRange: AvailabilityDateRange): Prom
       check_out_date: availabilityRange.checkOutDate,
       rooms: toPublicRoomAvailability(rooms.data),
     },
+    public_ratings: ratingSummary.data,
     house: house.data ?? [],
     announcements: announcements.data ?? [],
     faqs: faqs.data ?? [],

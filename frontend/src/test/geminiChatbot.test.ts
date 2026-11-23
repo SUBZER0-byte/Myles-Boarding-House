@@ -53,6 +53,28 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("Never ask users to send passwords, one-time codes, or reset codes in chat");
   });
 
+  it("explains rating submission and uses only revealed rating aggregates", () => {
+    const publicRatings = {
+      total_revealed: 4,
+      overall_average: 4.25,
+      by_category: [{ category: "Cleanliness", total: 2, average: 4.5 }],
+    };
+    const prompt = buildChatbotSystemPrompt(
+      JSON.stringify({ public_ratings: publicRatings }),
+      "english",
+    );
+
+    expect(prompt).toContain("Tenant Dashboard > Ratings (Ratings & Feedback)");
+    expect(prompt).toContain("half-star increments");
+    expect(prompt).toContain("Maintenance & Repairs");
+    expect(prompt).toContain("Hidden or Revealed status");
+    expect(prompt).toContain("Use public_ratings in the supplied context");
+    expect(prompt).toContain('"overall_average":4.25');
+    expect(prompt).toContain("Revealed ratings only");
+    expect(prompt).toContain("no ratings have been revealed yet");
+    expect(prompt).toContain("Average-rating-by-category cards are shown in Admin Panel > Ratings");
+  });
+
   it("preserves the system instructions and maps assistant history to Gemini model turns", () => {
     expect(buildGeminiRequestBody(
       "Keep the boarding-house assistant role.",
