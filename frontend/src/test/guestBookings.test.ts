@@ -178,14 +178,14 @@ describe("Supabase guest booking service", () => {
       })
       .mockResolvedValueOnce({
         data: {
-          payment_expires_at_epoch: 1795737600,
+          payment_expires_at_epoch: 1795653000,
           server_now_epoch: 1795651200,
         },
         error: null,
       });
     await expect(createMyGuestBooking(input)).resolves.toMatchObject({
       booking_id: 15,
-      payment_expires_at_epoch: 1795737600,
+      payment_expires_at_epoch: 1795653000,
       server_now_epoch: 1795651200,
     });
     expect(rpc).toHaveBeenCalledWith("manage_guest_booking", {
@@ -204,9 +204,31 @@ describe("Supabase guest booking service", () => {
     upload.mockResolvedValue({ error: null });
     const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
 
-    const smsResult = await submitMyBookingInitialPayment(15, "GCash", " TX-123 ", file, key);
+    rpc
+      .mockResolvedValueOnce({
+        data: { type: "success", message: "Payment submitted for administrator review" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          payment_expires_at_epoch: 1795737600,
+          server_now_epoch: 1795651200,
+        },
+        error: null,
+      });
 
-    expect(smsResult).toEqual({ status: "sent", sent: 1, failed: 0 });
+    const submissionResult = await submitMyBookingInitialPayment(15, "GCash", " TX-123 ", file, key);
+
+    expect(submissionResult).toMatchObject({
+      status: "sent",
+      sent: 1,
+      failed: 0,
+      reservationDeadline: {
+        payment_expires_at_epoch: 1795737600,
+        server_now_epoch: 1795651200,
+      },
+      reservationDeadlineError: null,
+    });
     expect(functionsInvoke).toHaveBeenCalledWith("booking-sms-notifications", {
       body: { action: "payment_submitted", booking_id: 15 },
     });
@@ -225,6 +247,9 @@ describe("Supabase guest booking service", () => {
         submission_key: key,
       },
     });
+    expect(rpc).toHaveBeenNthCalledWith(2, "get_guest_booking_reservation_deadline", {
+      p_booking_id: 15,
+    });
   });
 
   it("reports notification failure without treating the submitted payment as a failure", async () => {
@@ -233,13 +258,62 @@ describe("Supabase guest booking service", () => {
     const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
     getUser.mockResolvedValue({ data: { user: { id: "auth-guest-id" } }, error: null });
     upload.mockResolvedValue({ error: null });
+    rpc
+      .mockResolvedValueOnce({
+        data: { type: "success", message: "Payment submitted for administrator review" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          payment_expires_at_epoch: 1795737600,
+          server_now_epoch: 1795651200,
+        },
+        error: null,
+      });
     functionsInvoke.mockResolvedValueOnce({
       data: null,
       error: new Error("SMS service unavailable"),
     });
 
     await expect(submitMyBookingInitialPayment(15, "GCash", "TX-123", file, key))
-      .resolves.toMatchObject({ status: "failed", sent: 0, failed: 1 });
+      .resolves.toMatchObject({
+        status: "failed",
+        sent: 0,
+        failed: 1,
+        reservationDeadline: {
+          payment_expires_at_epoch: 1795737600,
+          server_now_epoch: 1795651200,
+        },
+      });
+    expect(rpc).toHaveBeenCalledWith("manage_guest_booking", expect.objectContaining({
+      p_action: "submit_initial_payment",
+    }));
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("reports a deadline refresh failure without treating the submitted payment as a failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const file = new File(["receipt"], "receipt.png", { type: "image/png" });
+    const key = "cd968ff0-0e22-4bf1-8c4a-4c0a23bb8da4";
+    getUser.mockResolvedValue({ data: { user: { id: "auth-guest-id" } }, error: null });
+    upload.mockResolvedValue({ error: null });
+    rpc
+      .mockResolvedValueOnce({
+        data: { type: "success", message: "Payment submitted for administrator review" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error("deadline unavailable"),
+      });
+
+    await expect(submitMyBookingInitialPayment(15, "GCash", "TX-123", file, key))
+      .resolves.toMatchObject({
+        status: "sent",
+        reservationDeadline: null,
+        reservationDeadlineError: "deadline unavailable",
+      });
     expect(rpc).toHaveBeenCalledWith("manage_guest_booking", expect.objectContaining({
       p_action: "submit_initial_payment",
     }));

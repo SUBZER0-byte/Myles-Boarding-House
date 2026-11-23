@@ -257,7 +257,7 @@ const GuestBooking = () => {
                   {b.status === "Pending Verification" && (
                     <div className="flex items-start gap-2 p-3 rounded-md bg-warning/10 border border-warning/30 text-warning text-xs">
                       <Clock size={14} className="mt-0.5 shrink-0" />
-                      Your payment is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed.
+                      Your payment is awaiting administrator verification. The one-bed reservation remains active for 24 hours from payment submission. You will receive an update once your payment has been reviewed.
                     </div>
                   )}
                   {b.status === "Confirmed" && (
@@ -275,7 +275,9 @@ const GuestBooking = () => {
                   {b.status === "Expired" && (
                     <div className="flex items-start gap-2 p-3 rounded-md bg-muted border border-border text-muted-foreground text-xs">
                       <Clock size={14} className="mt-0.5 shrink-0" />
-                      The 24-hour reservation deadline passed. This booking no longer reserves room capacity.
+                      {b.initial_payment_status === "Submitted"
+                        ? "The 24-hour payment-review reservation window expired. This booking no longer reserves room capacity."
+                        : "The 30-minute unpaid reservation expired before payment proof was submitted. This booking no longer reserves room capacity."}
                     </div>
                   )}
 
@@ -395,16 +397,16 @@ const GuestBooking = () => {
         paymentExpiresAtEpoch={paymentBooking?.payment_expires_at_epoch}
         serverNowEpoch={paymentBooking?.server_now_epoch}
         title="Complete Booking Payment"
-        description="Your room is reserved for 24 hours from booking submission. Closing this window does not cancel the saved booking. Complete payment before the countdown ends; the reservation expires automatically after 24 hours."
+        description="Submit your payment proof within 30 minutes of booking. After you click “I've paid — submit for review,” the reservation remains active for 24 hours while an administrator reviews your payment. Closing this window does not cancel the saved booking."
         successTitle="Payment Submitted"
-        successDescription="Your payment proof is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed."
+        successDescription="Your payment proof is awaiting administrator verification. The one-bed reservation remains active for 24 hours from payment submission. You will receive an update once your payment has been reviewed."
         allowScreenshot
         requireReference
         requireScreenshot
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!paymentBooking) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();
-          const smsResult = await submitMyBookingInitialPayment(
+          const submissionResult = await submitMyBookingInitialPayment(
             paymentBooking.booking_id,
             method,
             reference,
@@ -412,15 +414,29 @@ const GuestBooking = () => {
             paymentSubmissionKey.current,
           );
           paymentSubmissionKey.current = null;
+          const nextDeadline = submissionResult.reservationDeadline;
+          setPaymentBooking(current => current?.booking_id === paymentBooking.booking_id
+            ? {
+                ...current,
+                payment_expires_at_epoch: nextDeadline?.payment_expires_at_epoch ?? null,
+                server_now_epoch: nextDeadline?.server_now_epoch ?? 0,
+              }
+            : current);
+          const warnings = [
+            submissionResult.reservationDeadlineError
+              ? "Payment was submitted, but the updated reservation deadline could not be loaded. Reopen this booking to refresh it."
+              : null,
+            submissionResult.status === "partial"
+              ? "Some administrators could not be notified by SMS."
+              : submissionResult.status === "in_progress"
+                ? "The administrator SMS notification is still being processed."
+                : submissionResult.status !== "sent"
+                  ? "An administrator could not be notified by SMS. Please contact the boarding house if needed."
+                  : null,
+          ].filter((warning): warning is string => warning !== null);
           toast({
             title: "GCash payment submitted for admin review",
-            ...(smsResult.status !== "sent" ? {
-              description: smsResult.status === "partial"
-                ? "Some administrators could not be notified by SMS."
-                : smsResult.status === "in_progress"
-                  ? "The administrator SMS notification is still being processed."
-                  : "An administrator could not be notified by SMS. Please contact the boarding house if needed.",
-            } : {}),
+            ...(warnings.length ? { description: warnings.join(" ") } : {}),
           });
           refetch();
         }}

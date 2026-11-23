@@ -32,10 +32,11 @@ describe("Gemini chatbot request mapping", () => {
 
     expect(prompt).toContain("Guest Panel > Browse Rooms");
     expect(prompt).toContain("five-minute room hold");
+    expect(prompt).toContain("reserves one bed for 30 minutes while the initial payment is unpaid");
+    expect(prompt).toContain("reservation deadline reset to 24 hours from submission");
     expect(prompt).toContain("stay length of at least one month");
     expect(prompt).toContain("Pay One Month Rent requires one month of rent at booking");
-    expect(prompt).toContain("reserved for 24 hours from submission");
-    expect(prompt).toContain("payment remains pending Admin verification");
+    expect(prompt).toContain("The booking is not confirmed until verified");
     expect(prompt).toContain("Guest Panel > My Booking");
     expect(prompt).toContain("cannot reserve, create, or confirm bookings");
   });

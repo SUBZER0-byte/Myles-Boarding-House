@@ -15,7 +15,7 @@ interface BookingTermsDialogProps {
 const termsSections = [
   {
     title: "1. Booking & Reservation",
-    body: "Clicking Book Now temporarily holds the room for 5 minutes while you complete the booking details. After submitting your booking, complete the initial payment within 24 hours. GCash payments submitted for review are not confirmed until an administrator verifies them.",
+    body: "Clicking Book Now temporarily holds the room for 5 minutes while you complete the booking details. After saving the booking, submit your GCash payment proof within 30 minutes. When you click “I've paid — submit for review,” the reservation deadline changes to 24 hours from submission. Payment proof is not confirmed until an administrator verifies it.",
   },
   {
     title: "2. Payment Terms",

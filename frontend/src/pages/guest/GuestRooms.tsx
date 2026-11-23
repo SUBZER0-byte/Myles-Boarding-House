@@ -306,7 +306,7 @@ const GuestRooms = () => {
       });
       toast({
         title: "Room temporarily reserved",
-        description: "Your booking reserves one bed for 24 hours from submission. Complete the initial payment before the countdown ends.",
+        description: "Your room is reserved for 30 minutes while you complete the initial payment. After you submit payment proof for review, the reservation lasts 24 hours.",
       });
       setDetailsOpen(false);
       setTermsOpen(false);
@@ -764,13 +764,13 @@ const GuestRooms = () => {
         requireScreenshot
         allowedMethods={["gcash"]}
         title="Initial Booking Payment"
-        description="Your room is reserved for 24 hours from booking submission. Closing this window does not cancel the saved booking. Complete payment before the countdown ends; the reservation expires automatically after 24 hours."
+        description="Submit your payment proof within 30 minutes of booking. After you click “I've paid — submit for review,” the reservation remains active for 24 hours while an administrator reviews your payment. Closing this window does not cancel the saved booking."
         successTitle="Booking Payment Submitted"
-        successDescription="Your payment proof is awaiting administrator verification. The one-bed reservation remains active only until 24 hours after the original booking submission. You will receive an update once your payment has been reviewed."
+        successDescription="Your payment proof is awaiting administrator verification. The reservation remains active for 24 hours from payment submission. You will receive an update once your payment has been reviewed."
         onPaid={async (method, reference, _captureId, _orderId, screenshot) => {
           if (!submittedBookingId) throw new Error("Booking reference is missing.");
           paymentSubmissionKey.current ||= crypto.randomUUID();
-          const smsResult = await submitMyBookingInitialPayment(
+          const submissionResult = await submitMyBookingInitialPayment(
             submittedBookingId,
             method,
             reference,
@@ -778,15 +778,27 @@ const GuestRooms = () => {
             paymentSubmissionKey.current,
           );
           paymentSubmissionKey.current = null;
+          setPaymentDeadline(submissionResult.reservationDeadline
+            ? {
+                expiresAtEpoch: submissionResult.reservationDeadline.payment_expires_at_epoch,
+                serverNowEpoch: submissionResult.reservationDeadline.server_now_epoch,
+              }
+            : null);
+          const warnings = [
+            submissionResult.reservationDeadlineError
+              ? "Payment was submitted, but the updated reservation deadline could not be loaded. Reopen My Booking to refresh it."
+              : null,
+            submissionResult.status === "partial"
+              ? "Some administrators could not be notified by SMS."
+              : submissionResult.status === "in_progress"
+                ? "The administrator SMS notification is still being processed."
+                : submissionResult.status !== "sent"
+                  ? "An administrator could not be notified by SMS. Please contact the boarding house if needed."
+                  : null,
+          ].filter((warning): warning is string => warning !== null);
           toast({
             title: "GCash payment submitted for admin review",
-            ...(smsResult.status !== "sent" ? {
-              description: smsResult.status === "partial"
-                ? "Some administrators could not be notified by SMS."
-                : smsResult.status === "in_progress"
-                  ? "The administrator SMS notification is still being processed."
-                  : "An administrator could not be notified by SMS. Please contact the boarding house if needed.",
-            } : {}),
+            ...(warnings.length ? { description: warnings.join(" ") } : {}),
           });
           refetchRooms();
         }}

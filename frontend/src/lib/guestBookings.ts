@@ -74,6 +74,14 @@ export interface BookingSmsNotificationResult {
   message?: string;
 }
 
+export interface BookingPaymentSubmissionResult extends BookingSmsNotificationResult {
+  reservationDeadline: {
+    payment_expires_at_epoch: number;
+    server_now_epoch: number;
+  } | null;
+  reservationDeadlineError: string | null;
+}
+
 type BookingSmsAction = "payment_submitted" | "booking_confirmed";
 
 async function call<T>(action: string, data: Record<string, unknown> = {}): Promise<T> {
@@ -125,6 +133,31 @@ function requireId(value: number, label: string) {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`A valid ${label} is required.`);
 }
 
+async function loadMyGuestBookingReservationDeadline(bookingId: number) {
+  const { data, error } = await supabase.rpc("get_guest_booking_reservation_deadline", {
+    p_booking_id: bookingId,
+  });
+  if (error) throw new Error(error.message || "Could not load the reservation deadline.");
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("The booking service returned an invalid reservation deadline.");
+  }
+  const deadline = data as Record<string, unknown>;
+  if (
+    typeof deadline.payment_expires_at_epoch !== "number"
+    || !Number.isSafeInteger(deadline.payment_expires_at_epoch)
+    || deadline.payment_expires_at_epoch <= 0
+    || typeof deadline.server_now_epoch !== "number"
+    || !Number.isSafeInteger(deadline.server_now_epoch)
+    || deadline.server_now_epoch <= 0
+  ) {
+    throw new Error("The booking service returned an invalid reservation deadline.");
+  }
+  return {
+    payment_expires_at_epoch: deadline.payment_expires_at_epoch,
+    server_now_epoch: deadline.server_now_epoch,
+  };
+}
+
 export function listMyGuestBookings() {
   return call<GuestBooking[]>("guest_list").then(async (bookings) => {
     if (!Array.isArray(bookings)) throw new Error("The booking service returned an invalid list.");
@@ -171,28 +204,10 @@ export async function createMyGuestBooking(input: {
     throw new Error("The booking service returned an invalid booking identifier.");
   }
 
-  const { data, error } = await supabase.rpc("get_guest_booking_reservation_deadline", {
-    p_booking_id: booking.booking_id,
-  });
-  if (error) throw new Error(error.message || "Could not load the reservation deadline.");
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error("The booking service returned an invalid reservation deadline.");
-  }
-  const deadline = data as Record<string, unknown>;
-  if (
-    typeof deadline.payment_expires_at_epoch !== "number"
-    || !Number.isSafeInteger(deadline.payment_expires_at_epoch)
-    || deadline.payment_expires_at_epoch <= 0
-    || typeof deadline.server_now_epoch !== "number"
-    || !Number.isSafeInteger(deadline.server_now_epoch)
-    || deadline.server_now_epoch <= 0
-  ) {
-    throw new Error("The booking service returned an invalid reservation deadline.");
-  }
+  const deadline = await loadMyGuestBookingReservationDeadline(booking.booking_id);
   return {
     ...booking,
-    payment_expires_at_epoch: deadline.payment_expires_at_epoch,
-    server_now_epoch: deadline.server_now_epoch,
+    ...deadline,
   };
 }
 
@@ -233,7 +248,18 @@ export async function submitMyBookingInitialPayment(
     screenshot_path: screenshotPath,
     submission_key: submissionKey,
   });
-  return notifyBookingSms("payment_submitted", bookingId);
+  let reservationDeadline: BookingPaymentSubmissionResult["reservationDeadline"] = null;
+  let reservationDeadlineError: string | null = null;
+  try {
+    reservationDeadline = await loadMyGuestBookingReservationDeadline(bookingId);
+  } catch (error) {
+    reservationDeadlineError = error instanceof Error
+      ? error.message
+      : "Could not refresh the reservation deadline.";
+    console.error("Could not refresh the guest booking reservation deadline:", error);
+  }
+  const smsResult = await notifyBookingSms("payment_submitted", bookingId);
+  return { ...smsResult, reservationDeadline, reservationDeadlineError };
 }
 
 export function cancelMyGuestBooking(bookingId: number) {

@@ -133,7 +133,7 @@ export function BookingPaymentDialog({
 
   const submitPayment = async () => {
     if (secondsRemaining === 0) {
-      setErrorMsg("The 24-hour reservation deadline has passed.");
+      setErrorMsg("The reservation payment deadline has passed.");
       return;
     }
     const reference = paymentRef.trim();
@@ -190,7 +190,7 @@ export function BookingPaymentDialog({
             </p>
             <p>
               {secondsRemaining === 0
-                ? "The 24-hour reservation deadline has passed."
+                ? "The reservation payment deadline has passed."
                 : `Time remaining: ${formatRemainingTime(secondsRemaining)}`}
             </p>
           </div>
