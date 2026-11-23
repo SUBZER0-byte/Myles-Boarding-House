@@ -124,7 +124,9 @@ Internal publisher TCP listening on 127.0.0.1:8081
 
 ## 7. Configure Gemini API (Supabase Chatbot)
 
-Create a key in [Google AI Studio](https://aistudio.google.com/apikey). For the Vercel + Supabase deployment, add `GEMINI_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. The chatbot defaults to `GEMINI_MODEL=gemini-3.5-flash-lite`, which currently has free-tier input and output tokens subject to Google's project quotas. The Edge Function calls Gemini's `generateContent` API; no Google SDK package or local model is required.
+Create a key in [Google AI Studio](https://aistudio.google.com/apikey). For the Vercel + Supabase deployment, add `GEMINI_API_KEY` in **Supabase Dashboard → Edge Functions → Secrets**. The chatbot uses `GEMINI_MODEL` when set and otherwise defaults to `gemini-2.5-flash`; confirm that the selected model is available to your AI Studio project and within its quota. The function calls Gemini's `generateContent` REST API, so no Google SDK package or local model is required. Google's current [getting-started guide](https://aistudio.google.com/docs/get-started) demonstrates the newer Interactions API and `@google/genai` SDK; that is a separate API option, not required by this existing function.
+
+The source is in `supabase/functions/chatbot`. Deploy that Edge Function and set `APP_ALLOWED_ORIGINS` to the exact production origin (plus any explicitly approved preview origins) before expecting the hosted chatbot to work. A secret being present does not deploy the function.
 
 Do not store the key in Vercel environment variables, frontend `.env`, browser code, Admin settings, or the PHP host for the Supabase-backed chatbot. For local Edge Function development, put it in the ignored `supabase/.env` and run `npx.cmd supabase functions serve --env-file supabase/.env` from the repository root; local serving requires Docker Desktop. Google's free-tier prompts may be used to improve its products, so do not send sensitive tenant, payment, or account information.
 

@@ -430,3 +430,6 @@ verify_jwt = false
 
 [functions.rent-payment-reminders]
 verify_jwt = false
+
+[functions.chatbot]
+verify_jwt = false
