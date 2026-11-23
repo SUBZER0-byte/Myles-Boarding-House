@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useChatPolling } from "@/hooks/useChatPolling";
 import { askChatbot, getChatbotStatus, getChatbotSuggestions, type ChatbotResponse } from "@/lib/chatbot";
 import { formatPhilippineClockTime, toPhilippineISOString } from "@/lib/philippineTime";
+import { useRoomAvailabilityRange } from "@/lib/roomAvailabilityContext";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -41,6 +42,7 @@ function getFriendlyMessage(data: ChatApiResponse | undefined, fallback: string)
 }
 
 export function ChatbotWidget() {
+  const availabilityRange = useRoomAvailabilityRange();
   const { data: remoteSuggestions, error: suggestionsError } = useChatPolling(getChatbotSuggestions, 30000);
   const suggestions = [...new Set([...(remoteSuggestions ?? []), "How do I book a room?", "What rooms are available and how much are they?", "How do I check room rates and booking costs?", "What room details can you show me?", "How do I use GPS directions to the boarding house?", "What are the latest announcements?", "How do I create an account?", "How do I pay my rent?", "How do I request a full rent payment?", "How do I cancel my booking or tenancy?", "How do I request a refund?", "How do I leave a rating?", "How do I report a maintenance issue?", "How do I file a complaint?"])];
   const [isOpen, setIsOpen] = useState(false);
@@ -206,6 +208,7 @@ export function ChatbotWidget() {
             message: trimmed,
             history,
             language: preferredLanguage,
+            ...(availabilityRange ? { availabilityRange } : {}),
           }, controller.signal);
 
           const reply = data?.type === "success" && data.reply

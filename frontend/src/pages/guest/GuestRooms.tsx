@@ -359,7 +359,10 @@ const GuestRooms = () => {
   );
 
   return (
-    <DashboardLayout role="guest">
+    <DashboardLayout
+      role="guest"
+      roomAvailabilityRange={{ checkInDate: roomCheckInDate, checkOutDate: roomCheckOutDate }}
+    >
       <div className="space-y-6">
         <div>
           <h1 className="font-display text-2xl font-bold">Browse Rooms</h1>

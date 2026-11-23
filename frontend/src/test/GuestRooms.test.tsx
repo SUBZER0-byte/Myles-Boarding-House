@@ -10,12 +10,14 @@ const {
   refetchRooms,
   room,
   boundaryDates,
+  dashboardRange,
 } = vi.hoisted(() => ({
   acquireMyGuestRoomHold: vi.fn(),
   releaseMyGuestRoomHold: vi.fn(),
   getGuestBookingBoundaryDates: vi.fn(),
   refetchRooms: vi.fn(),
   boundaryDates: { room_id: 1, dates: [] as string[] },
+  dashboardRange: { value: null as { checkInDate: string; checkOutDate: string } | null },
   room: {
     room_id: 1,
     room_number: "11",
@@ -37,7 +39,16 @@ const {
 }));
 
 vi.mock("@/components/DashboardLayout", () => ({
-  DashboardLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DashboardLayout: ({
+    children,
+    roomAvailabilityRange,
+  }: {
+    children: ReactNode;
+    roomAvailabilityRange?: { checkInDate: string; checkOutDate: string } | null;
+  }) => {
+    dashboardRange.value = roomAvailabilityRange ?? null;
+    return <div>{children}</div>;
+  },
 }));
 vi.mock("@/components/GuestRoomPhotoSlideshow", () => ({
   GuestRoomPhotoSlideshow: () => null,
@@ -102,9 +113,23 @@ describe("GuestRooms temporary hold cancellation", () => {
     boundaryDates.room_id = room.room_id;
     boundaryDates.dates = [];
     refetchRooms.mockReset();
+    dashboardRange.value = null;
   });
 
   afterEach(() => cleanup());
+
+  it("shares the Browse Rooms date window with the chatbot", async () => {
+    const checkInDate = new Date().toISOString().slice(0, 10);
+    const checkOutDate = new Date(`${checkInDate}T00:00:00`);
+    checkOutDate.setDate(checkOutDate.getDate() + 1);
+
+    render(<GuestRooms />);
+
+    expect(dashboardRange.value).toEqual({
+      checkInDate,
+      checkOutDate: format(checkOutDate, "yyyy-MM-dd"),
+    });
+  });
 
   it("shows the current database room status in the room card and quick view", async () => {
     room.status = "Occupied";

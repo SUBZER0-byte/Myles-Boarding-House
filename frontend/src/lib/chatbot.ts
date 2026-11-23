@@ -55,6 +55,19 @@ export function askChatbot(input: {
   message: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
   language: "auto" | "english" | "tagalog";
+  availabilityRange?: { checkInDate: string; checkOutDate: string };
 }, signal?: AbortSignal): Promise<ChatbotResponse> {
-  return invokeChatbot({ action: "chat", ...input }, signal);
+  const { availabilityRange, ...chat } = input;
+  return invokeChatbot({
+    action: "chat",
+    ...chat,
+    ...(availabilityRange
+      ? {
+        availability_range: {
+          check_in_date: availabilityRange.checkInDate,
+          check_out_date: availabilityRange.checkOutDate,
+        },
+      }
+      : {}),
+  }, signal);
 }

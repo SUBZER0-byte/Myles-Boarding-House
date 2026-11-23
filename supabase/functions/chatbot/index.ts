@@ -1,6 +1,11 @@
 import { getClientIp } from "../_shared/client-ip.ts";
 import { buildChatbotSystemPrompt } from "../_shared/chatbot_prompt.ts";
 import { buildGeminiRequestBody, extractGeminiReply, type GeminiTurn } from "../_shared/gemini.ts";
+import {
+  parseAvailabilityDateRange,
+  toPublicRoomAvailability,
+  type AvailabilityDateRange,
+} from "../_shared/room_availability.ts";
 import { createSupabaseAdminClient } from "../_shared/supabase.ts";
 
 type Language = "auto" | "english" | "tagalog";
@@ -85,10 +90,13 @@ async function enforceRateLimit(request: Request, origin: string): Promise<boole
   return minuteLimit.data === true && hourLimit.data === true;
 }
 
-async function loadPublicContext(): Promise<Record<string, unknown>> {
+async function loadPublicContext(availabilityRange: AvailabilityDateRange): Promise<Record<string, unknown>> {
   const supabase = createSupabaseAdminClient();
   const [rooms, house, announcements, faqs] = await Promise.all([
-    supabase.rpc("get_public_rooms"),
+    supabase.rpc("get_public_rooms_for_guest_browse_with_booking_state", {
+      p_check_in_date: availabilityRange.checkInDate,
+      p_check_out_date: availabilityRange.checkOutDate,
+    }),
     supabase.rpc("get_public_house_info"),
     supabase.rpc("get_public_announcements"),
     supabase.from("chatbot_faqs")
@@ -101,7 +109,11 @@ async function loadPublicContext(): Promise<Record<string, unknown>> {
   if (failed?.error) throw new Error("Could not load chatbot public business context.");
 
   return {
-    rooms: rooms.data ?? [],
+    room_availability: {
+      check_in_date: availabilityRange.checkInDate,
+      check_out_date: availabilityRange.checkOutDate,
+      rooms: toPublicRoomAvailability(rooms.data),
+    },
     house: house.data ?? [],
     announcements: announcements.data ?? [],
     faqs: faqs.data ?? [],
@@ -191,6 +203,13 @@ Deno.serve(async (request) => {
     return jsonResponse({ type: "error", message: "The message or conversation history is invalid." }, 400, cors);
   }
 
+  let availabilityRange: AvailabilityDateRange;
+  try {
+    availabilityRange = parseAvailabilityDateRange(body.availability_range);
+  } catch {
+    return jsonResponse({ type: "error", message: "The room availability dates are invalid." }, 400, cors);
+  }
+
   try {
     if (!await enforceRateLimit(request, origin)) {
       return jsonResponse({
@@ -200,7 +219,7 @@ Deno.serve(async (request) => {
         retryable: true,
       }, 429, cors);
     }
-    const context = await loadPublicContext();
+    const context = await loadPublicContext(availabilityRange);
     const prompt = buildChatbotSystemPrompt(JSON.stringify(context), language);
     const result = await askGemini(prompt, history, message);
     const statusCode = result.type === "success" ? 200 : result.type === "busy" ? 429 : 502;

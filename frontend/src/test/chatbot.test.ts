@@ -54,6 +54,30 @@ describe("Supabase chatbot client", () => {
     });
   });
 
+  it("sends Guest Browse Rooms dates when the chatbot is opened in that panel", async () => {
+    invoke.mockResolvedValue({ data: { type: "success", reply: "Room 2 has space." }, error: null });
+    await askChatbot({
+      message: "Is there space for my dates?",
+      history: [],
+      language: "english",
+      availabilityRange: { checkInDate: "2026-12-01", checkOutDate: "2027-01-01" },
+    });
+
+    expect(invoke).toHaveBeenCalledWith("chatbot", {
+      body: {
+        action: "chat",
+        message: "Is there space for my dates?",
+        history: [],
+        language: "english",
+        availability_range: {
+          check_in_date: "2026-12-01",
+          check_out_date: "2027-01-01",
+        },
+      },
+      signal: undefined,
+    });
+  });
+
   it("surfaces non-JSON function errors", async () => {
     invoke.mockResolvedValue({
       data: null,
