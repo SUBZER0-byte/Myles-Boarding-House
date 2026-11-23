@@ -51,7 +51,7 @@ export function ChatbotWidget() {
   ]);
   const [input, setInput] = useState("");
   const [preferredLanguage, setPreferredLanguage] = useState<"auto" | "english" | "tagalog">("auto");
-  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [aiStatus, setAiStatus] = useState<AiStatus>("online");
@@ -307,6 +307,7 @@ export function ChatbotWidget() {
   };
 
   const handleSuggestionClick = (s: string) => {
+    setShowSuggestions(false);
     handleSendRequest(s);
   };
 
@@ -498,7 +499,7 @@ export function ChatbotWidget() {
 
       <button
         onClick={() => {
-          if (!isOpen) setShowSuggestions(true);
+          if (!isOpen) setShowSuggestions(false);
           setIsOpen(!isOpen);
         }}
         className="chatbot-toggle-position fixed z-[1000] flex h-10 w-14 items-center justify-center rounded-[999px] bg-orange-600 text-white shadow-[0_20px_60px_rgba(249,115,22,0.28)] transition hover:bg-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-300 sm:h-12 sm:w-16 xl:h-16 xl:w-20"
