@@ -3,7 +3,6 @@ export const ratingCategories = [
   "Cleanliness",
   "Facilities",
   "Safety & Security",
-  "Staff & Management",
   "Maintenance & Repairs",
   "Location & Accessibility",
   "Value for Money",

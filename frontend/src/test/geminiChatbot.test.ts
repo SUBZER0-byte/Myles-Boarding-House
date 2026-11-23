@@ -67,6 +67,8 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("Tenant Dashboard > Ratings (Ratings & Feedback)");
     expect(prompt).toContain("half-star increments");
     expect(prompt).toContain("Maintenance & Repairs");
+    expect(prompt).toContain("Current categories are Room Comfort, Cleanliness, Facilities, Safety & Security, Maintenance & Repairs, Location & Accessibility, Value for Money, Services, and Overall Satisfaction.");
+    expect(prompt).toContain("Staff & Management is retired");
     expect(prompt).toContain("Hidden or Revealed status");
     expect(prompt).toContain("Use public_ratings in the supplied context");
     expect(prompt).toContain('"overall_average":4.25');

@@ -11,6 +11,7 @@ import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { RatingStars } from "@/components/RatingStars";
 import { formatPhilippineDateTime } from "@/lib/philippineTime";
+import { ratingCategories } from "@/lib/ratingCategories";
 import {
   deleteAdminRating,
   getAdminRatingCategorySummary,
@@ -34,6 +35,9 @@ const AdminRatings = () => {
     refetch: refetchCategorySummary,
     error: categorySummaryError,
   } = useSupabasePolling(loadCategorySummary, 10000);
+  const activeCategorySummary = (categorySummary ?? []).filter((item) =>
+    ratingCategories.some((category) => category === item.category)
+  );
   const [replyOpen, setReplyOpen] = useState(false);
   const [selected, setSelected] = useState<AdminRating | null>(null);
   const [reply, setReply] = useState("");
@@ -142,10 +146,10 @@ const AdminRatings = () => {
         <section className="space-y-3">
           <div>
             <h2 className="font-semibold">Average rating by category</h2>
-            <p className="text-xs text-muted-foreground">Only approved feedback is included.</p>
+            <p className="text-xs text-muted-foreground">Only revealed feedback is included.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {(categorySummary ?? []).map(item => (
+            {activeCategorySummary.map(item => (
               <div key={item.category} className="border border-border rounded-lg p-4 bg-card">
                 <p className="text-sm font-medium">{item.category}</p>
                 <div className="flex items-center gap-2 mt-2">
