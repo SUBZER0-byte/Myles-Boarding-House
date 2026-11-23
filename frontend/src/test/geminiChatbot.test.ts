@@ -40,6 +40,19 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("cannot reserve, create, or confirm bookings");
   });
 
+  it("explains the actual sign-in, guest registration, and password-reset flows", () => {
+    const prompt = buildChatbotSystemPrompt("{}", "english");
+
+    expect(prompt).toContain("enter their username or email and password");
+    expect(prompt).toContain("public form creates a Guest account");
+    expect(prompt).toContain("choose Send OTP");
+    expect(prompt).toContain("six-digit SMS code");
+    expect(prompt).toContain("Successful registration signs them in");
+    expect(prompt).toContain("Forgot password?");
+    expect(prompt).toContain("six-digit code is sent by SMS to the registered mobile number");
+    expect(prompt).toContain("Never ask users to send passwords, one-time codes, or reset codes in chat");
+  });
+
   it("preserves the system instructions and maps assistant history to Gemini model turns", () => {
     expect(buildGeminiRequestBody(
       "Keep the boarding-house assistant role.",
