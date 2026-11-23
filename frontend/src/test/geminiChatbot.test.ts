@@ -16,6 +16,17 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("Sumagot lamang sa Filipino/Tagalog");
   });
 
+  it("explains the actual tenant maintenance and complaint workflows", () => {
+    const prompt = buildChatbotSystemPrompt("{}", "english");
+
+    expect(prompt).toContain("choose New Request");
+    expect(prompt).toContain("choose a priority (Low, Medium, High, or Urgent)");
+    expect(prompt).toContain("choose File Complaint");
+    expect(prompt).toContain("They can track the request and its history on the Maintenance page");
+    expect(prompt).toContain("attempts to alert the Admin by SMS");
+    expect(prompt).toContain("you cannot file or cancel a request for the user through chat");
+  });
+
   it("preserves the system instructions and maps assistant history to Gemini model turns", () => {
     expect(buildGeminiRequestBody(
       "Keep the boarding-house assistant role.",
