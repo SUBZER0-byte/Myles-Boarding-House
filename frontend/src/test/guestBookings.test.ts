@@ -29,6 +29,7 @@ import {
   getGuestBookingBoundaryDates,
   listAdminGuestBookings,
   listMyGuestBookings,
+  rejectAdminBookingPayment,
   submitMyBookingInitialPayment,
 } from "@/lib/guestBookings";
 
@@ -335,6 +336,29 @@ describe("Supabase guest booking service", () => {
     expect(functionsInvoke).toHaveBeenCalledWith("booking-sms-notifications", {
       body: { action: "booking_confirmed", booking_id: 15 },
     });
+  });
+
+  it("stores a required rejection reason before notifying the guest by SMS", async () => {
+    await expect(rejectAdminBookingPayment(15, "  Reference could not be verified.  ")).resolves.toEqual({
+      status: "sent",
+      sent: 1,
+      failed: 0,
+    });
+
+    expect(rpc).toHaveBeenCalledWith("reject_guest_booking_payment_with_reason", {
+      p_booking_id: 15,
+      p_reason: "Reference could not be verified.",
+    });
+    expect(functionsInvoke).toHaveBeenCalledWith("booking-sms-notifications", {
+      body: { action: "booking_rejected", booking_id: 15 },
+    });
+  });
+
+  it("does not reject or send an SMS without a valid rejection reason", async () => {
+    await expect(rejectAdminBookingPayment(15, "  ")).rejects.toThrow("Enter a rejection reason");
+    await expect(rejectAdminBookingPayment(15, "x".repeat(301))).rejects.toThrow("Enter a rejection reason");
+    expect(rpc).not.toHaveBeenCalled();
+    expect(functionsInvoke).not.toHaveBeenCalled();
   });
 
   it("rejects a booking payment without a reference even when a screenshot is attached", async () => {

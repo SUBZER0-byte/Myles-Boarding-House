@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CreditCard, XCircle, Loader2 } from "lucide-react";
@@ -38,6 +39,10 @@ const AdminGuestBookingPayments = () => {
     useSupabasePolling(loadExtensionRequests, 5000);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rejectionOpen, setRejectionOpen] = useState(false);
+  const [rejectionBooking, setRejectionBooking] = useState<Booking | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [form, setForm] = useState({ amount: "", method: "GCash", reference: "" });
   const paymentIdempotencyKeys = useRef(new Map<number, string>());
@@ -89,13 +94,35 @@ const AdminGuestBookingPayments = () => {
     }
   };
 
-  const rejectInitialGcashPayment = async (booking: Booking) => {
+  const openRejectionDialog = (booking: Booking) => {
+    setRejectionBooking(booking);
+    setRejectionReason("");
+    setRejectionOpen(true);
+  };
+
+  const rejectInitialGcashPayment = async () => {
+    if (!rejectionBooking) return;
+    setRejecting(true);
     try {
-      await rejectAdminBookingPayment(booking.booking_id);
-      toast({ title: "GCash payment rejected" });
+      const smsResult = await rejectAdminBookingPayment(rejectionBooking.booking_id, rejectionReason);
+      toast({
+        title: smsResult.status === "sent" ? "GCash payment rejected; guest notified" : "GCash payment rejected",
+        ...(smsResult.status !== "sent" ? {
+          description: smsResult.status === "partial"
+            ? "The payment was rejected, but the guest could not be fully notified by SMS."
+            : smsResult.status === "in_progress"
+              ? "The rejection SMS is still being processed."
+              : "The payment was rejected, but the guest could not be notified by SMS. Please contact the guest.",
+        } : {}),
+      });
+      setRejectionOpen(false);
+      setRejectionBooking(null);
+      setRejectionReason("");
       refetch();
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "Could not reject payment.", variant: "destructive" });
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -270,9 +297,9 @@ const AdminGuestBookingPayments = () => {
                       </p>
                     )}
                   </div>
-                  {["Pending", "Pending Verification"].includes(b.status) && (
+                  {b.status === "Pending Verification" && (
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="destructive" onClick={() => rejectInitialGcashPayment(b)}>
+                      <Button size="sm" variant="destructive" onClick={() => openRejectionDialog(b)}>
                         Reject Payment
                       </Button>
                       <Button size="sm" onClick={() => confirmInitialGcashPayment(b)}>
@@ -348,6 +375,56 @@ const AdminGuestBookingPayments = () => {
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPaymentOpen(false)}>Cancel</Button>
             <Button onClick={recordPayment}>Record</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={rejectionOpen}
+        onOpenChange={open => {
+          if (rejecting) return;
+          setRejectionOpen(open);
+          if (!open) {
+            setRejectionBooking(null);
+            setRejectionReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reject Booking Payment</DialogTitle>
+            <DialogDescription>
+              Enter a reason for rejecting {rejectionBooking?.full_name}'s payment. This reason will be included in an SMS with the payment amount.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="booking-payment-rejection-reason">Rejection reason *</Label>
+            <Textarea
+              id="booking-payment-rejection-reason"
+              maxLength={300}
+              value={rejectionReason}
+              onChange={event => setRejectionReason(event.target.value)}
+              placeholder="Explain why the submitted payment could not be accepted."
+              disabled={rejecting}
+            />
+            <p className="text-right text-xs text-muted-foreground">{rejectionReason.length}/300</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setRejectionOpen(false)}
+              disabled={rejecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={rejectInitialGcashPayment}
+              disabled={rejecting || !rejectionReason.trim()}
+            >
+              {rejecting && <Loader2 size={14} className="mr-2 animate-spin" />}
+              Reject Payment & Notify Guest
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

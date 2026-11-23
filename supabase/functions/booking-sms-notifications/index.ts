@@ -8,6 +8,7 @@ import { isTextBeeEnabled } from "../_shared/textbee.ts";
 import {
   buildAdminBookingPaymentSubmittedMessage,
   buildGuestBookingConfirmedMessage,
+  buildGuestBookingRejectedMessage,
   normalizePhilippineSmsPhone,
   sendTextBeeSms,
 } from "./sms.ts";
@@ -22,7 +23,7 @@ const allowedOrigins = new Set(
     .filter(Boolean),
 );
 
-type BookingSmsAction = "payment_submitted" | "booking_confirmed";
+type BookingSmsAction = "payment_submitted" | "booking_confirmed" | "booking_rejected";
 type BookingSmsStatus = "sent" | "partial" | "failed" | "in_progress";
 
 function responseHeaders(origin: string | null): Headers {
@@ -44,7 +45,7 @@ function jsonResponse(body: Record<string, unknown>, status: number, origin: str
 }
 
 function isBookingSmsAction(value: unknown): value is BookingSmsAction {
-  return value === "payment_submitted" || value === "booking_confirmed";
+  return value === "payment_submitted" || value === "booking_confirmed" || value === "booking_rejected";
 }
 
 Deno.serve(async request => {
@@ -118,6 +119,7 @@ Deno.serve(async request => {
     if (!booking) return jsonResponse({ error: "Booking not found." }, 404, origin);
 
     const isPaymentSubmission = action === "payment_submitted";
+    const isBookingRejection = action === "booking_rejected";
     if (isPaymentSubmission) {
       if (actor.user_type !== "Guest" || booking.guest_user_id !== actor.user_id) {
         return jsonResponse({ error: "You cannot notify administrators about this booking." }, 403, origin);
@@ -131,7 +133,7 @@ Deno.serve(async request => {
 
     const { data: initialPayment, error: paymentError } = await admin
       .from("booking_initial_payment_requests")
-      .select("amount,status")
+      .select("amount,status,rejection_reason,rejected_by")
       .eq("booking_id", bookingId)
       .maybeSingle();
     if (paymentError) {
@@ -141,12 +143,13 @@ Deno.serve(async request => {
     if (
       !initialPayment
       || (isPaymentSubmission && !["Submitted", "Confirmed"].includes(initialPayment.status))
-      || (!isPaymentSubmission && initialPayment.status !== "Confirmed")
+      || (action === "booking_confirmed" && initialPayment.status !== "Confirmed")
+      || (isBookingRejection && initialPayment.status !== "Rejected")
     ) {
       return jsonResponse({ error: "The booking payment is not in the required status." }, 409, origin);
     }
 
-    if (!isPaymentSubmission) {
+    if (action === "booking_confirmed") {
       if (booking.status !== "Confirmed") {
         return jsonResponse({ error: "The booking is not confirmed." }, 409, origin);
       }
@@ -163,6 +166,19 @@ Deno.serve(async request => {
       }
       if (!confirmedPayment || confirmedPayment.confirmed_by !== actor.user_id) {
         return jsonResponse({ error: "Only the administrator who confirmed the payment can send this notification." }, 403, origin);
+      }
+    } else if (isBookingRejection) {
+      if (booking.status !== "Rejected") {
+        return jsonResponse({ error: "The booking payment was not rejected." }, 409, origin);
+      }
+      if (
+        typeof initialPayment.rejection_reason !== "string"
+        || !initialPayment.rejection_reason.trim()
+      ) {
+        return jsonResponse({ error: "A rejection reason is required before sending this notification." }, 409, origin);
+      }
+      if (initialPayment.rejected_by !== actor.user_id) {
+        return jsonResponse({ error: "Only the administrator who rejected the payment can send this notification." }, 403, origin);
       }
     }
 
@@ -182,7 +198,12 @@ Deno.serve(async request => {
     };
     const message = isPaymentSubmission
       ? buildAdminBookingPaymentSubmittedMessage(details)
-      : buildGuestBookingConfirmedMessage(details);
+      : action === "booking_confirmed"
+        ? buildGuestBookingConfirmedMessage(details)
+        : buildGuestBookingRejectedMessage({
+            ...details,
+            rejectionReason: initialPayment.rejection_reason,
+          });
 
     let recipients: string[];
     let failed = 0;

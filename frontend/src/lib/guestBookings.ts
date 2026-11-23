@@ -82,7 +82,7 @@ export interface BookingPaymentSubmissionResult extends BookingSmsNotificationRe
   reservationDeadlineError: string | null;
 }
 
-type BookingSmsAction = "payment_submitted" | "booking_confirmed";
+type BookingSmsAction = "payment_submitted" | "booking_confirmed" | "booking_rejected";
 
 async function call<T>(action: string, data: Record<string, unknown> = {}): Promise<T> {
   const { data: response, error } = await supabase.rpc("manage_guest_booking", {
@@ -348,9 +348,24 @@ export async function confirmAdminBookingPayment(bookingId: number): Promise<Boo
   return notifyBookingSms("booking_confirmed", bookingId);
 }
 
-export function rejectAdminBookingPayment(bookingId: number) {
+export async function rejectAdminBookingPayment(
+  bookingId: number,
+  reason: string,
+): Promise<BookingSmsNotificationResult> {
   requireId(bookingId, "booking");
-  return call("admin_reject_initial_payment", { booking_id: bookingId });
+  const cleanReason = reason.trim();
+  if (!cleanReason || cleanReason.length > 300) {
+    throw new Error("Enter a rejection reason of no more than 300 characters.");
+  }
+  const { data: response, error } = await supabase.rpc("reject_guest_booking_payment_with_reason", {
+    p_booking_id: bookingId,
+    p_reason: cleanReason,
+  });
+  if (error) throw new Error(error.message || "Could not reject the booking payment.");
+  if (!response || typeof response !== "object" || Array.isArray(response) || response.type !== "success") {
+    throw new Error("The booking service returned an invalid rejection response.");
+  }
+  return notifyBookingSms("booking_rejected", bookingId);
 }
 
 export function updateAdminGuestBookingStatus(bookingId: number, status: string) {
