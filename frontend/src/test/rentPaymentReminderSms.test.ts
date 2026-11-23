@@ -21,9 +21,9 @@ describe("rent payment reminder SMS", () => {
     );
   });
 
-  it("includes the exact due date and three-day notice in the SMS", () => {
+  it("includes the exact due date and five-day notice in the SMS", () => {
     expect(buildRentPaymentReminderMessage(6500, "2026-11-23")).toBe(
-      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23 (in 3 days). Please pay before the due date. - Myle's Boarding House",
+      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23 (in 5 days). Please pay before the due date. - Myle's Boarding House",
     );
   });
 

@@ -19,7 +19,7 @@ export function buildRentPaymentReminderMessage(amount: number, dueDate: string)
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
-  return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 3 days). Please pay before the due date. - Myle's Boarding House`;
+  return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. - Myle's Boarding House`;
 }
 
 export async function sendTextBeeSms(
