@@ -15,11 +15,11 @@ interface BookingTermsDialogProps {
 const termsSections = [
   {
     title: "1. Booking & Reservation",
-    body: "Clicking Book Now temporarily holds the room for 5 minutes while you complete the booking details. After submitting your booking, complete the initial payment within 15 minutes. GCash payments submitted for review are not confirmed until an administrator verifies them.",
+    body: "Clicking Book Now temporarily holds the room for 5 minutes while you complete the booking details. After submitting your booking, complete the initial payment within 24 hours. GCash payments submitted for review are not confirmed until an administrator verifies them.",
   },
   {
     title: "2. Payment Terms",
-    body: "Monthly rent is due on or before the 5th day of each month. A late fee of ₱100/day will be applied after a 3-day grace period. Online payments are processed securely through PayPal.",
+    body: "Monthly rent is due on or before the 5th day of each month. A late fee of ₱100/day will be applied after a 3-day grace period. Initial booking payments use the in-app GCash flow and are subject to administrator verification.",
   },
   {
     title: "3. Length of Stay",

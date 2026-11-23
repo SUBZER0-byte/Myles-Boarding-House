@@ -27,6 +27,19 @@ describe("Gemini chatbot request mapping", () => {
     expect(prompt).toContain("you cannot file or cancel a request for the user through chat");
   });
 
+  it("explains the actual guest booking, payment, and confirmation flow", () => {
+    const prompt = buildChatbotSystemPrompt("{}", "english");
+
+    expect(prompt).toContain("Guest Panel > Browse Rooms");
+    expect(prompt).toContain("five-minute room hold");
+    expect(prompt).toContain("stay length of at least one month");
+    expect(prompt).toContain("Pay One Month Rent requires one month of rent at booking");
+    expect(prompt).toContain("reserved for 24 hours from submission");
+    expect(prompt).toContain("payment remains pending Admin verification");
+    expect(prompt).toContain("Guest Panel > My Booking");
+    expect(prompt).toContain("cannot reserve, create, or confirm bookings");
+  });
+
   it("preserves the system instructions and maps assistant history to Gemini model turns", () => {
     expect(buildGeminiRequestBody(
       "Keep the boarding-house assistant role.",
