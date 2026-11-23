@@ -110,7 +110,7 @@ async function loadPublicContext(): Promise<Record<string, unknown>> {
 
 async function askGemini(systemPrompt: string, history: GeminiTurn[], message: string) {
   const apiKey = requiredEnv("GEMINI_API_KEY");
-  const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-2.5-flash";
+  const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-3.5-flash-lite";
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
