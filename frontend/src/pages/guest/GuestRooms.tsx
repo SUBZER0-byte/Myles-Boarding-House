@@ -152,15 +152,11 @@ const GuestRooms = () => {
   );
   const monthlyRentPerPerson = Number(bookingRoom?.monthly_rent ?? 0);
   const availableRooms = rooms ?? noPublicRooms;
-  const genderFilteredRooms = useMemo(
-    () => availableRooms.filter((room) => isRoomGenderCompatible(room.occupant_genders, session?.gender)),
-    [availableRooms, session?.gender],
-  );
   const filteredRooms = useMemo(
-    () => filterRooms(genderFilteredRooms, roomFilters),
-    [genderFilteredRooms, roomFilters],
+    () => filterRooms(availableRooms, roomFilters),
+    [availableRooms, roomFilters],
   );
-  const roomFilterOptions = useMemo(() => getRoomFilterOptions(genderFilteredRooms), [genderFilteredRooms]);
+  const roomFilterOptions = useMemo(() => getRoomFilterOptions(availableRooms), [availableRooms]);
 
   useEffect(() => {
     setSaved(readSavedRoomIds());
@@ -452,7 +448,7 @@ const GuestRooms = () => {
           floors={roomFilterOptions.floors}
           capacities={roomFilterOptions.capacities}
           resultCount={filteredRooms.length}
-          totalCount={genderFilteredRooms.length}
+          totalCount={availableRooms.length}
           onChange={setRoomFilters}
         />
 
@@ -463,6 +459,7 @@ const GuestRooms = () => {
             const availableForDates = Number(r.available_for_dates) === 1 || r.available_for_dates === true;
             const hasAvailableBeds = Number(r.available_beds) > 0;
             const isMaintenance = roomStatus === "maintenance";
+            const isGenderCompatible = isRoomGenderCompatible(r.occupant_genders, session?.gender);
             const hasActiveBooking = r.has_active_booking === true;
             const statusLabel = r.status || "Unknown";
             const key = roomStatus;
@@ -484,6 +481,11 @@ const GuestRooms = () => {
                 </div>
                 <p className="mb-2 text-sm font-medium text-foreground/80">{formatRoomFloor(r.floor_number)}</p>
                 <RoomOccupantGender genders={r.occupant_genders} className="mb-2" />
+                {!isGenderCompatible && (
+                  <p className="mb-2 text-xs text-destructive">
+                    This room is assigned to the opposite gender and cannot be booked by your account.
+                  </p>
+                )}
                 <RoomReservationSummary
                   deadlines={r.reservation_deadlines_epoch}
                   serverNowEpoch={r.reservation_server_now_epoch}
@@ -521,7 +523,11 @@ const GuestRooms = () => {
                     <Maximize2 size={14} />
                     Quick view
                   </Button>
-                  {hasActiveBooking ? (
+                  {!isGenderCompatible ? (
+                    <Button className="w-full" size="sm" variant="outline" disabled>
+                      Gender restricted
+                    </Button>
+                  ) : hasActiveBooking ? (
                     <Button className="w-full" size="sm" variant="outline" disabled>
                       Already in My Bookings
                     </Button>
@@ -543,8 +549,6 @@ const GuestRooms = () => {
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {availableRooms.length === 0
               ? "No rooms are currently available to browse."
-              : genderFilteredRooms.length === 0
-                ? "No rooms are available for your gender."
               : "No rooms match your selected filters."}
           </div>
         )}
@@ -565,10 +569,15 @@ const GuestRooms = () => {
             const availableForDates = Number(quickViewRoom.available_for_dates) === 1 || quickViewRoom.available_for_dates === true;
             const hasAvailableBeds = Number(quickViewRoom.available_beds) > 0;
             const isMaintenance = roomStatus === "maintenance";
+            const isGenderCompatible = isRoomGenderCompatible(
+              quickViewRoom.occupant_genders,
+              session?.gender,
+            );
             const hasActiveBooking = quickViewRoom.has_active_booking === true;
             const statusLabel = quickViewRoom.status || "Unknown";
             const statusKey = roomStatus;
-            const isBookable = !isMaintenance
+            const isBookable = isGenderCompatible
+              && !isMaintenance
               && !hasActiveBooking
               && (hasDateRange ? availableForDates : hasAvailableBeds);
             const isSaved = saved.includes(Number(quickViewRoom.room_id));
@@ -597,6 +606,11 @@ const GuestRooms = () => {
                   </span>
                 </div>
                 <RoomOccupantGender genders={quickViewRoom.occupant_genders} className="mt-3" />
+                {!isGenderCompatible && (
+                  <p className="mt-2 text-sm text-destructive">
+                    This room is assigned to the opposite gender and cannot be booked by your account.
+                  </p>
+                )}
                 <RoomReservationSummary
                   deadlines={quickViewRoom.reservation_deadlines_epoch}
                   serverNowEpoch={quickViewRoom.reservation_server_now_epoch}
@@ -627,7 +641,9 @@ const GuestRooms = () => {
                   >
                     {acquiringHoldRoomId === quickViewRoom.room_id
                       ? "Reserving..."
-                      : hasActiveBooking ? "Already in My Bookings" : isBookable ? "Book Now" : statusLabel}
+                      : !isGenderCompatible
+                        ? "Gender restricted"
+                        : hasActiveBooking ? "Already in My Bookings" : isBookable ? "Book Now" : statusLabel}
                   </Button>
                 </div>
               </DialogContent>

@@ -10,6 +10,7 @@ const {
   getGuestBookingBoundaryDates,
   refetchRooms,
   room,
+  roomList,
   boundaryDates,
   dashboardRange,
   guestGender,
@@ -40,6 +41,7 @@ const {
     reservation_deadlines_epoch: [] as number[],
     reservation_server_now_epoch: Math.floor(Date.now() / 1000),
   },
+  roomList: { value: [] as Array<Record<string, unknown>> },
 }));
 
 vi.mock("@/components/DashboardLayout", () => ({
@@ -63,7 +65,7 @@ vi.mock("@/components/BookingPaymentDialog", () => ({
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/hooks/useSupabasePolling", () => ({
   useSupabasePolling: (_load: unknown, interval: number) => ({
-    data: interval === 10000 ? [room] : boundaryDates,
+    data: interval === 10000 ? (roomList.value.length ? roomList.value : [room]) : boundaryDates,
     error: null,
     loading: false,
     refetch: refetchRooms,
@@ -134,6 +136,8 @@ describe("GuestRooms temporary hold cancellation", () => {
     boundaryDates.dates = [];
     refetchRooms.mockReset();
     dashboardRange.value = null;
+    guestGender.value = null;
+    roomList.value = [];
   });
 
   afterEach(() => cleanup());
@@ -177,7 +181,6 @@ describe("GuestRooms temporary hold cancellation", () => {
     room.reservation_count = 1;
     room.reservation_deadlines_epoch = [Math.floor(Date.now() / 1000) + 3600];
     room.reservation_server_now_epoch = Math.floor(Date.now() / 1000);
-    guestGender.value = null;
     render(<GuestRooms />);
 
     expect(await screen.findByText("Reserved by 1 guest")).toBeTruthy();
@@ -194,13 +197,36 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(within(screen.getByRole("dialog")).getByText("Registered occupant gender(s): Female")).toBeTruthy();
   });
 
-  it("hides rooms whose first known occupant is the opposite gender", async () => {
+  it("shows all rooms but prevents booking when the first known occupant is the opposite gender", async () => {
     guestGender.value = "Male";
     room.occupant_genders = ["Female"];
     render(<GuestRooms />);
 
-    expect(await screen.findByText("No rooms are available for your gender.")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Book Now" })).toBeNull();
+    expect(await screen.findByText("Room 11")).toBeTruthy();
+    expect(screen.getByText("This room is assigned to the opposite gender and cannot be booked by your account."))
+      .toBeTruthy();
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 of 1 room");
+    expect(screen.getByRole("button", { name: "Gender restricted" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
+    const quickView = screen.getByRole("dialog");
+    expect(within(quickView).getByRole("button", { name: "Gender restricted" })).toBeDisabled();
+  });
+
+  it("displays all 16 database rooms, including rooms restricted by gender", async () => {
+    guestGender.value = "Male";
+    roomList.value = Array.from({ length: 16 }, (_, index) => ({
+      ...room,
+      room_id: index + 1,
+      room_number: String(index + 1),
+      occupant_genders: index % 2 === 0 ? ["Male"] : ["Female"],
+    }));
+    render(<GuestRooms />);
+
+    expect(await screen.findByText("Room 1")).toBeTruthy();
+    expect(screen.getByText("Room 16")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Quick view" })).toHaveLength(16);
+    expect(screen.getAllByRole("button", { name: "Gender restricted" })).toHaveLength(8);
   });
 
   it("records the selected relationship in the booking notes", async () => {
