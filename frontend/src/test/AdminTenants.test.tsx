@@ -182,9 +182,16 @@ describe("Admin tenant account creation", () => {
     });
     fireEvent.keyDown(actionsButton, { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    await screen.findByRole("heading", { name: "Edit Tenant" });
+    expect(screen.getByRole("button", { name: "Move-in date" })).toHaveTextContent(
+      format(new Date("2026-12-01T00:00:00"), "PPP"),
+    );
     fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
-    expect(screen.getByLabelText("Move-out date (calculated)")).toHaveProperty("value", "2027-02-01");
+    expect(screen.getByLabelText("Move-out date (calculated)")).toHaveProperty(
+      "value",
+      format(new Date("2027-02-01T00:00:00"), "PPP"),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(updateAdminTenant).toHaveBeenCalledWith(expect.objectContaining({
@@ -195,4 +202,5 @@ describe("Admin tenant account creation", () => {
     })));
     expect(updateAdminTenant.mock.calls[0][0]).not.toHaveProperty("stay_months");
   });
+
 });

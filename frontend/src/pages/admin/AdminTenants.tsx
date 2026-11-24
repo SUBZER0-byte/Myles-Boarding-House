@@ -57,6 +57,7 @@ const AdminTenants = () => {
   const [availableRoomsLoading, setAvailableRoomsLoading] = useState(false);
   const [availableRoomsError, setAvailableRoomsError] = useState("");
   const [addMoveInCalendarOpen, setAddMoveInCalendarOpen] = useState(false);
+  const [editMoveInCalendarOpen, setEditMoveInCalendarOpen] = useState(false);
   const [addForm, setAddForm] = useState({
     full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
     emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null as Gender | null,
@@ -78,6 +79,9 @@ const AdminTenants = () => {
     String(today.getDate()).padStart(2, "0"),
   ].join("-");
   const minimumMoveInDate = getCurrentPhilippineDate();
+  const editCalendarInitialDate = form.move_in_date > minimumMoveInDate
+    ? form.move_in_date
+    : minimumMoveInDate;
   const addStayMonths = /^\d+$/.test(addForm.stay_months) ? Number(addForm.stay_months) : 0;
   const editStayMonths = /^\d+$/.test(form.stay_months) ? Number(form.stay_months) : 0;
   const addMoveOutDate = calculateMoveOutDate(addForm.move_in_date, addStayMonths);
@@ -207,6 +211,7 @@ const AdminTenants = () => {
   const openEdit = (t: AdminTenant) => {
     setSelected(t);
     setTenantPicture(null);
+    setEditMoveInCalendarOpen(false);
     setForm({
       full_name: t.full_name, email: t.email, phone: t.phone,
       address: t.address ?? "", birthday: t.birthday ?? "",
@@ -440,7 +445,38 @@ const AdminTenants = () => {
         <div className="grid gap-1.5"><Label>Room ID</Label>
           <Input type="number" min="1" value={form.room_id} onChange={e => setForm({ ...form, room_id: e.target.value })} placeholder="Optional room ID" /></div>
         <div className="grid gap-1.5"><Label htmlFor="tenant-edit-move-in">Move-in *</Label>
-          <Input id="tenant-edit-move-in" required type="date" value={form.move_in_date} onChange={e => setForm({ ...form, move_in_date: e.target.value })} /></div>
+          <Popover open={editMoveInCalendarOpen} onOpenChange={setEditMoveInCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                id="tenant-edit-move-in"
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal"
+                aria-label="Move-in date"
+              >
+                <CalendarDays className="mr-2 h-4 w-4" />
+                {form.move_in_date
+                  ? format(new Date(`${form.move_in_date}T00:00:00`), "PPP")
+                  : "Select move-in date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={form.move_in_date ? new Date(`${form.move_in_date}T00:00:00`) : undefined}
+                defaultMonth={new Date(`${editCalendarInitialDate}T00:00:00`)}
+                disabled={{ before: new Date(`${minimumMoveInDate}T00:00:00`) }}
+                onSelect={date => {
+                  setForm(current => ({
+                    ...current,
+                    move_in_date: date ? format(date, "yyyy-MM-dd") : "",
+                  }));
+                  setEditMoveInCalendarOpen(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="grid gap-1.5"><Label htmlFor="tenant-edit-stay-months">Length of Stay (months) *</Label>
@@ -460,7 +496,9 @@ const AdminTenants = () => {
           <Input
             id="tenant-edit-move-out"
             readOnly
-            value={editMoveOutDate}
+            value={editMoveOutDate
+              ? format(new Date(`${editMoveOutDate}T00:00:00`), "PPP")
+              : ""}
             placeholder="Select move-in date and stay length"
           /></div>
       </div>
