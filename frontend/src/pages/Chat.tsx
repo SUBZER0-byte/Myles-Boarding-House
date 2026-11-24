@@ -15,6 +15,7 @@ import {
   listChatMessages,
   removeChatMessage,
   sendChatMessage,
+  canChatWithUserType,
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/chatWorkflows";
@@ -79,7 +80,9 @@ export default function Chat() {
 
   const loadConversations = useCallback(() => listChatConversations(), []);
   const loadMessages = useCallback(
-    () => peerId ? listChatMessages(peerId) : Promise.resolve([]),
+    () => peerId
+      ? listChatMessages(peerId).then(messages => ({ peerId, messages }))
+      : Promise.resolve({ peerId: null, messages: [] }),
     [peerId],
   );
   const {
@@ -89,19 +92,22 @@ export default function Chat() {
   } = useChatPolling<ChatConversation[]>(loadConversations, 3000, authChecked && !!authUser);
   const visibleConversations = useMemo(
     () => (conversations ?? []).filter((c) =>
-      Number(c.user_id) !== myId && (role !== "guest" || c.user_type.toLowerCase() === "admin")
+      Number(c.user_id) !== myId && canChatWithUserType(role, c.user_type)
     ),
     [conversations, myId, role]
   );
 
-  const { data: liveMessages, error: messagesError } = useChatPolling<ChatMessage[]>(
+  const { data: liveMessages, error: messagesError } = useChatPolling<{
+    peerId: number | null;
+    messages: ChatMessage[];
+  }>(
     loadMessages,
     3000,
     !!peerId && !!authUser,
   );
 
   useEffect(() => {
-    setMessages(liveMessages ?? []);
+    setMessages(liveMessages?.peerId === peerId ? liveMessages.messages : []);
   }, [liveMessages, peerId]);
 
   useEffect(() => {
@@ -109,8 +115,8 @@ export default function Chat() {
   }, [messagesError]);
 
   useEffect(() => {
-    if (peerId === myId) {
-      setPeerId(null);
+    if (peerId !== null && (peerId === myId || !visibleConversations.some(c => c.user_id === peerId))) {
+      setPeerId(visibleConversations[0]?.user_id ?? null);
       return;
     }
     if (!peerId && visibleConversations.length > 0) {

@@ -19,6 +19,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
+  canChatWithUserType,
   listChatConversations,
   listChatMessages,
   removeChatMessage,
@@ -39,6 +40,15 @@ describe("Supabase chat workflows", () => {
     createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://storage.example/chat-image" }, error: null });
     remove.mockResolvedValue({ error: null });
     rpc.mockResolvedValue({ data: { type: "success", data: [] }, error: null });
+  });
+
+  it("limits tenant chat peers to tenant and admin accounts", () => {
+    expect(canChatWithUserType("Tenant", "Tenant")).toBe(true);
+    expect(canChatWithUserType("Tenant", "Admin")).toBe(true);
+    expect(canChatWithUserType("Tenant", "Guest")).toBe(false);
+    expect(canChatWithUserType("Guest", "Admin")).toBe(true);
+    expect(canChatWithUserType("Guest", "Tenant")).toBe(false);
+    expect(canChatWithUserType("Admin", "Guest")).toBe(true);
   });
 
   it("loads conversations through the identity-scoped chat RPC", async () => {

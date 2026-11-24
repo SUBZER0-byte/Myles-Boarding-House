@@ -38,6 +38,16 @@ interface ChatResponse {
   data?: unknown;
 }
 
+export function canChatWithUserType(actorRole: string, peerUserType: string): boolean {
+  const normalizedActorRole = actorRole.toLowerCase();
+  const normalizedPeerType = peerUserType.toLowerCase();
+  if (normalizedActorRole === "guest") return normalizedPeerType === "admin";
+  if (normalizedActorRole === "tenant") {
+    return normalizedPeerType === "tenant" || normalizedPeerType === "admin";
+  }
+  return true;
+}
+
 const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
 async function invokeChat(action: string, data: Record<string, unknown> = {}): Promise<unknown> {
