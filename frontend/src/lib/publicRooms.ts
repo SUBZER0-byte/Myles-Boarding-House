@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
+import { isGender } from "@/lib/gender";
 
 export type OccupantGender = "Male" | "Female" | "Not provided";
 
@@ -30,6 +31,16 @@ export function parseOccupantGenders(value: unknown): OccupantGender[] {
     throw new Error("The room service returned invalid occupant gender data.");
   }
   return [...new Set(value)];
+}
+
+export function isRoomGenderCompatible(
+  occupantGenders: OccupantGender[] | undefined,
+  guestGender: unknown,
+): boolean {
+  const firstKnownOccupantGender = occupantGenders?.find(isGender);
+  return !firstKnownOccupantGender
+    || !isGender(guestGender)
+    || firstKnownOccupantGender === guestGender;
 }
 
 export function parseFloorNumber(value: unknown): number {

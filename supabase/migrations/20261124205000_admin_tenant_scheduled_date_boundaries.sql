@@ -117,3 +117,5 @@ REVOKE ALL ON FUNCTION public.get_admin_tenant_scheduled_dates(date, date, integ
     FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_admin_tenant_scheduled_dates(date, date, integer)
     TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

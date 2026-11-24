@@ -20,7 +20,12 @@ import { toast } from "@/hooks/use-toast";
 import { readSavedRoomIds, writeSavedRoomIds } from "@/lib/savedRooms";
 import { format } from "date-fns";
 import { calculateMoveOutDate } from "@/lib/stayDates";
-import { getCurrentPhilippineDate, getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import {
+  getCurrentPhilippineDate,
+  getPublicRoomsForDates,
+  isRoomGenderCompatible,
+  type PublicRoom,
+} from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import {
   emptyRoomFilters,
@@ -87,8 +92,15 @@ const GuestRooms = () => {
     move_in_date: "",
     check_out_date: "",
     payment_plan: "Pay One Month Rent",
+    connection_to_opposite_gender_tenant: "Not applicable",
+    relationship_other: "",
     notes: "",
   });
+  const partnerRelationship = session?.gender === "Male"
+    ? "Girlfriend"
+    : session?.gender === "Female"
+      ? "Boyfriend"
+      : "Girlfriend/Boyfriend";
   const stayMonths = /^\d+$/.test(stayMonthsInput) ? Number(stayMonthsInput) : 0;
   const paymentPlan = stayMonths < 2 && form.payment_plan === "Pay Monthly"
     ? "Pay One Month Rent"
@@ -140,11 +152,15 @@ const GuestRooms = () => {
   );
   const monthlyRentPerPerson = Number(bookingRoom?.monthly_rent ?? 0);
   const availableRooms = rooms ?? noPublicRooms;
-  const filteredRooms = useMemo(
-    () => filterRooms(availableRooms, roomFilters),
-    [availableRooms, roomFilters],
+  const genderFilteredRooms = useMemo(
+    () => availableRooms.filter((room) => isRoomGenderCompatible(room.occupant_genders, session?.gender)),
+    [availableRooms, session?.gender],
   );
-  const roomFilterOptions = useMemo(() => getRoomFilterOptions(availableRooms), [availableRooms]);
+  const filteredRooms = useMemo(
+    () => filterRooms(genderFilteredRooms, roomFilters),
+    [genderFilteredRooms, roomFilters],
+  );
+  const roomFilterOptions = useMemo(() => getRoomFilterOptions(genderFilteredRooms), [genderFilteredRooms]);
 
   useEffect(() => {
     setSaved(readSavedRoomIds());
@@ -223,6 +239,15 @@ const GuestRooms = () => {
 
   const startBooking = async (room: PublicRoom) => {
     if (acquiringHold) return;
+    if (!isRoomGenderCompatible(room.occupant_genders, session?.gender)) {
+      toast({
+        title: "Room unavailable for your gender",
+        description: "The room's first known occupant is of a different gender.",
+        variant: "destructive",
+      });
+      refetchRooms();
+      return;
+    }
     if (room.has_active_booking) {
       toast({
         title: "Room already in My Bookings",
@@ -319,11 +344,30 @@ const GuestRooms = () => {
 
   const submitBooking = async () => {
     if (!bookingRoom || submitting) return;
+    if (
+      form.connection_to_opposite_gender_tenant === "Other"
+      && !form.relationship_other.trim()
+    ) {
+      toast({
+        title: "Relationship details required",
+        description: "Please describe the connection or choose another option.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     try {
       bookingRequestKey.current ||= crypto.randomUUID();
+      const relationshipNote = form.connection_to_opposite_gender_tenant === "Other"
+        ? `Connection to an opposite-gender tenant: Other - ${form.relationship_other.trim()}`
+        : `Connection to an opposite-gender tenant: ${form.connection_to_opposite_gender_tenant}`;
+      const bookingNotes = [relationshipNote, form.notes.trim()].filter(Boolean).join("\n\n");
       const data = await createMyGuestBooking({
-        ...form,
+        full_name: form.full_name,
+        phone: form.phone,
+        move_in_date: form.move_in_date,
+        check_out_date: form.check_out_date,
+        notes: bookingNotes,
         payment_plan: paymentPlan,
         room_id: bookingRoom.room_id,
         idempotency_key: bookingRequestKey.current,
@@ -408,7 +452,7 @@ const GuestRooms = () => {
           floors={roomFilterOptions.floors}
           capacities={roomFilterOptions.capacities}
           resultCount={filteredRooms.length}
-          totalCount={availableRooms.length}
+          totalCount={genderFilteredRooms.length}
           onChange={setRoomFilters}
         />
 
@@ -499,6 +543,8 @@ const GuestRooms = () => {
           <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {availableRooms.length === 0
               ? "No rooms are currently available to browse."
+              : genderFilteredRooms.length === 0
+                ? "No rooms are available for your gender."
               : "No rooms match your selected filters."}
           </div>
         )}
@@ -635,6 +681,40 @@ const GuestRooms = () => {
               <Label className="text-xs">Phone</Label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="09XXXXXXXXX" />
             </div>
+            <div>
+              <Label htmlFor="guest-opposite-gender-connection" className="text-xs">
+                Connection to a tenant of the opposite gender (if applicable)
+              </Label>
+              <select
+                id="guest-opposite-gender-connection"
+                required
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.connection_to_opposite_gender_tenant}
+                onChange={(event) => setForm((current) => ({
+                  ...current,
+                  connection_to_opposite_gender_tenant: event.target.value,
+                  relationship_other: event.target.value === "Other" ? current.relationship_other : "",
+                }))}
+              >
+                <option value="Not applicable">Not applicable</option>
+                <option value="Relative">Relative</option>
+                <option value="Sibling">Sibling</option>
+                <option value={partnerRelationship}>{partnerRelationship}</option>
+                <option value="Other">Other</option>
+              </select>
+              {form.connection_to_opposite_gender_tenant === "Other" && (
+                <Input
+                  className="mt-2"
+                  aria-label="Describe the relationship"
+                  value={form.relationship_other}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    relationship_other: event.target.value,
+                  }))}
+                  placeholder="Describe the connection"
+                />
+              )}
+            </div>
             {!boundaryDatesReady && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
                 <span role={scheduledRoomDatesError ? "alert" : "status"}>
@@ -760,6 +840,9 @@ const GuestRooms = () => {
             {step === 3 && <>
               <div className="grid gap-2 text-sm rounded-md border border-border p-3">
                 <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent per person:</strong> {peso(monthlyRentPerPerson)}</p><p><strong>Total rent for 1 person:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {paymentPlanLabel}</p>
+                <p><strong>Connection to opposite-gender tenant:</strong> {form.connection_to_opposite_gender_tenant === "Other"
+                  ? `Other - ${form.relationship_other.trim()}`
+                  : form.connection_to_opposite_gender_tenant}</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 {paymentPlan === "Pay One Month Rent"

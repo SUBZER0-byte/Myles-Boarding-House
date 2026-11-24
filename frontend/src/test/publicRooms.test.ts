@@ -15,6 +15,7 @@ import {
   getPublicRoomPhotos,
   getPublicRooms,
   getPublicRoomsForDates,
+  isRoomGenderCompatible,
 } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
 
@@ -23,6 +24,14 @@ describe("public room reads", () => {
     rpc.mockReset();
     getPublicUrl.mockReset();
     getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
+  });
+
+  it("uses the first known occupant gender to determine room compatibility", () => {
+    expect(isRoomGenderCompatible(["Female", "Male"], "Female")).toBe(true);
+    expect(isRoomGenderCompatible(["Female", "Male"], "Male")).toBe(false);
+    expect(isRoomGenderCompatible(["Not provided", "Male"], "Female")).toBe(false);
+    expect(isRoomGenderCompatible(["Not provided"], "Female")).toBe(true);
+    expect(isRoomGenderCompatible([], "Male")).toBe(true);
   });
 
   it("resolves flat and nested Storage keys but rejects external or unsafe image paths", () => {

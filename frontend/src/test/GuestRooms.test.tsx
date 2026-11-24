@@ -12,6 +12,7 @@ const {
   room,
   boundaryDates,
   dashboardRange,
+  guestGender,
 } = vi.hoisted(() => ({
   acquireMyGuestRoomHold: vi.fn(),
   createMyGuestBooking: vi.fn(),
@@ -20,6 +21,7 @@ const {
   refetchRooms: vi.fn(),
   boundaryDates: { room_id: 1, dates: [] as string[] },
   dashboardRange: { value: null as { checkInDate: string; checkOutDate: string } | null },
+  guestGender: { value: null as string | null },
   room: {
     room_id: 1,
     room_number: "11",
@@ -74,6 +76,7 @@ vi.mock("@/lib/api", () => ({
       username: "guest",
       email: "guest@example.test",
       phone: "09170000000",
+      gender: guestGender.value,
     }),
   },
 }));
@@ -87,6 +90,15 @@ vi.mock("@/lib/guestBookings", () => ({
 vi.mock("@/lib/publicRooms", () => ({
   getCurrentPhilippineDate: () => new Date().toISOString().slice(0, 10),
   getPublicRoomsForDates: vi.fn(),
+  isRoomGenderCompatible: (
+    occupantGenders: string[] | undefined,
+    guestGender: string | null,
+  ) => {
+    const firstKnownOccupantGender = occupantGenders?.find(
+      (gender) => gender === "Male" || gender === "Female",
+    );
+    return !firstKnownOccupantGender || !guestGender || firstKnownOccupantGender === guestGender;
+  },
 }));
 vi.mock("@/lib/savedRooms", () => ({
   readSavedRoomIds: () => [],
@@ -165,6 +177,7 @@ describe("GuestRooms temporary hold cancellation", () => {
     room.reservation_count = 1;
     room.reservation_deadlines_epoch = [Math.floor(Date.now() / 1000) + 3600];
     room.reservation_server_now_epoch = Math.floor(Date.now() / 1000);
+    guestGender.value = null;
     render(<GuestRooms />);
 
     expect(await screen.findByText("Reserved by 1 guest")).toBeTruthy();
@@ -172,12 +185,51 @@ describe("GuestRooms temporary hold cancellation", () => {
   });
 
   it("shows the current occupant gender in Browse Rooms and its quick view", async () => {
+    guestGender.value = "Female";
     room.occupant_genders = ["Female"];
     render(<GuestRooms />);
 
     expect(await screen.findByText("Registered occupant gender(s): Female")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Quick view" }));
     expect(within(screen.getByRole("dialog")).getByText("Registered occupant gender(s): Female")).toBeTruthy();
+  });
+
+  it("hides rooms whose first known occupant is the opposite gender", async () => {
+    guestGender.value = "Male";
+    room.occupant_genders = ["Female"];
+    render(<GuestRooms />);
+
+    expect(await screen.findByText("No rooms are available for your gender.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Book Now" })).toBeNull();
+  });
+
+  it("records the selected relationship in the booking notes", async () => {
+    guestGender.value = "Male";
+    render(<GuestRooms />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
+    await screen.findByRole("heading", { name: "Terms & Agreement" });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Agree & Continue" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+
+    fireEvent.change(screen.getByLabelText("Connection to a tenant of the opposite gender (if applicable)"), {
+      target: { value: "Girlfriend" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Select move-in date" }));
+    const moveInDate = new Date();
+    moveInDate.setHours(0, 0, 0, 0);
+    fireEvent.click(screen.getByRole("gridcell", { name: String(moveInDate.getDate()) }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Payment Plan" }));
+    await screen.findByText(/Estimated rent for 1 person:/);
+    fireEvent.click(screen.getByRole("button", { name: "Review Booking" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Booking" }));
+
+    await waitFor(() => expect(createMyGuestBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notes: "Connection to an opposite-gender tenant: Girlfriend",
+      }),
+    ));
   });
 
   it("prevents booking the same room again while it is in the guest's active bookings", async () => {
