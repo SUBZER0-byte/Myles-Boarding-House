@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
 const evidenceBucket = "mbh-financial-evidence";
+const bookingProofBucket = "mbh-booking-payment-proofs";
+const bookingProofPathPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[1-9]\d*\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp)$/i;
 const maxEvidenceSize = 5 * 1024 * 1024;
 const allowedEvidenceTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -171,7 +173,8 @@ export function generateNextMonthRentPayments() {
 
 export async function getAdminRentPaymentScreenshot(path: string) {
   if (!path.trim()) throw new Error("Payment screenshot is unavailable.");
-  const { data, error } = await supabase.storage.from(evidenceBucket).createSignedUrl(path, 300);
+  const bucket = bookingProofPathPattern.test(path) ? bookingProofBucket : evidenceBucket;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
   if (error) throw new Error(error.message || "Could not open the payment screenshot.");
   return data.signedUrl;
 }

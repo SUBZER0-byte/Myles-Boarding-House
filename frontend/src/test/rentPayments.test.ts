@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rpc, getUser, upload, createSignedUrl } = vi.hoisted(() => ({
-  rpc: vi.fn(),
-  getUser: vi.fn(),
-  upload: vi.fn(),
-  createSignedUrl: vi.fn(),
-}));
+const { rpc, getUser, upload, createSignedUrl, storageFrom } = vi.hoisted(() => {
+  const rpc = vi.fn();
+  const getUser = vi.fn();
+  const upload = vi.fn();
+  const createSignedUrl = vi.fn();
+  const storageFrom = vi.fn(() => ({ upload, createSignedUrl }));
+  return { rpc, getUser, upload, createSignedUrl, storageFrom };
+});
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     rpc,
     auth: { getUser },
-    storage: {
-      from: vi.fn(() => ({ upload, createSignedUrl })),
-    },
+    storage: { from: storageFrom },
   },
 }));
 
@@ -34,6 +34,7 @@ describe("Supabase rent payment workflows", () => {
     getUser.mockReset();
     upload.mockReset();
     createSignedUrl.mockReset();
+    storageFrom.mockClear();
     getUser.mockResolvedValue({ data: { user: { id: authId } }, error: null });
     upload.mockResolvedValue({ error: null });
     createSignedUrl.mockResolvedValue({ data: { signedUrl: "https://storage.example/signed" }, error: null });
@@ -89,16 +90,27 @@ describe("Supabase rent payment workflows", () => {
     expect(JSON.stringify(rpc.mock.calls)).not.toContain("tenant_id");
   });
 
-  it("loads Admin rent records through an Admin RPC and signs private proof URLs", async () => {
+  it("signs rent-payment proof URLs from the financial evidence bucket", async () => {
     await listAdminRentPayments({ tenant_id: 4, status: "Submitted" });
     expect(rpc).toHaveBeenCalledWith("manage_rent_ledger", {
       p_action: "admin_list",
       p_data: { tenant_id: 4, status: "Submitted" },
     });
 
-    await expect(getAdminRentPaymentScreenshot("tenant/path/proof.png"))
+    const path = `${authId}/rent-payment/350/${submissionId}.png`;
+    await expect(getAdminRentPaymentScreenshot(path))
       .resolves.toBe("https://storage.example/signed");
-    expect(createSignedUrl).toHaveBeenCalledWith("tenant/path/proof.png", 300);
+    expect(storageFrom).toHaveBeenCalledWith("mbh-financial-evidence");
+    expect(createSignedUrl).toHaveBeenCalledWith(path, 300);
+  });
+
+  it("signs booking-origin payment proofs from the booking proof bucket", async () => {
+    const path = `${authId}/123/${submissionId}.jpg`;
+
+    await expect(getAdminRentPaymentScreenshot(path))
+      .resolves.toBe("https://storage.example/signed");
+    expect(storageFrom).toHaveBeenCalledWith("mbh-booking-payment-proofs");
+    expect(createSignedUrl).toHaveBeenCalledWith(path, 300);
   });
 
   it("uses UUID request keys and propagates upload failures", async () => {
