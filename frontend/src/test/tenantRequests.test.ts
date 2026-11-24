@@ -109,6 +109,49 @@ describe("tenant request workflows", () => {
     });
   });
 
+  it("accepts videos up to 100MB for complaints and maintenance and rejects larger files", async () => {
+    const makeVideo = (size: number) => {
+      const file = new File(["video"], "recording.mp4", { type: "video/mp4" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+    invoke
+      .mockResolvedValueOnce({ data: { type: "success", complaint_id: 23 }, error: null })
+      .mockResolvedValueOnce({ data: { type: "success", request_id: 32 }, error: null });
+    rpc.mockResolvedValue({ data: { type: "success" }, error: null });
+
+    await expect(createTenantComplaint({
+      title: "Leak",
+      description: "Video evidence",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: makeVideo(100 * 1024 * 1024), type: "video" }])).resolves.toMatchObject({
+      type: "success",
+    });
+    await expect(createTenantMaintenanceRequest({
+      title: "Leaking sink",
+      description: "Video evidence",
+      category: "Plumbing",
+      priority: "High",
+    }, [{ file: makeVideo(100 * 1024 * 1024), type: "video" }])).resolves.toBeUndefined();
+    await expect(createTenantComplaint({
+      title: "Leak",
+      description: "Video evidence",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: makeVideo(100 * 1024 * 1024 + 1), type: "video" }]))
+      .rejects.toThrow("Video must be MP4, WEBM, or MOV and 100MB or smaller.");
+    await expect(createTenantMaintenanceRequest({
+      title: "Leaking sink",
+      description: "Video evidence",
+      category: "Plumbing",
+      priority: "High",
+    }, [{ file: makeVideo(100 * 1024 * 1024 + 1), type: "video" }]))
+      .rejects.toThrow("Video must be MP4, WEBM, or MOV and 100MB or smaller.");
+
+    expect(upload).toHaveBeenCalledTimes(2);
+  });
+
   it("uploads multiple images and an optional video for maintenance requests", async () => {
     invoke.mockResolvedValue({ data: { type: "success", request_id: 31 }, error: null });
     rpc.mockResolvedValue({ data: { type: "success" }, error: null });

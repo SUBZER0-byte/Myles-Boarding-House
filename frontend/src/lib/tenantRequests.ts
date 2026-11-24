@@ -67,7 +67,7 @@ const REQUEST_ATTACHMENT_BUCKET = "mbh-request-photos";
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+export const MAX_REQUEST_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 300;
 const signedAttachmentUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
@@ -143,13 +143,13 @@ async function uploadRequestAttachments(
     for (const [sortOrder, attachment] of files.entries()) {
       const { file, type } = attachment;
       const allowedTypes = type === "image" ? IMAGE_TYPES : VIDEO_TYPES;
-      const sizeLimit = type === "image" ? MAX_IMAGE_SIZE : MAX_VIDEO_SIZE;
+      const sizeLimit = type === "image" ? MAX_IMAGE_SIZE : MAX_REQUEST_VIDEO_SIZE_BYTES;
       const kindLabel = type === "image" ? "image" : "video";
       if (!allowedTypes.includes(file.type) || file.size <= 0 || file.size > sizeLimit) {
         throw new Error(
           type === "image"
             ? "Images must be JPG, PNG, or WEBP and 10MB or smaller."
-            : "Video must be MP4, WEBM, or MOV and 50MB or smaller.",
+            : "Video must be MP4, WEBM, or MOV and 100MB or smaller.",
         );
       }
 

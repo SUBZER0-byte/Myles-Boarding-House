@@ -18,6 +18,7 @@ import {
   ComplaintAttachmentSaveError,
   createTenantComplaint,
   listTenantComplaints,
+  MAX_REQUEST_VIDEO_SIZE_BYTES,
 } from "@/lib/tenantRequests";
 
 const TenantComplaints = () => {
@@ -232,15 +233,15 @@ const TenantComplaints = () => {
                   if (selectedFile && (
                     !["video/mp4", "video/webm", "video/quicktime"].includes(selectedFile.type)
                     || selectedFile.size <= 0
-                    || selectedFile.size > 50 * 1024 * 1024
+                    || selectedFile.size > MAX_REQUEST_VIDEO_SIZE_BYTES
                   )) {
-                    toast({ title: "Choose an MP4, WEBM, or MOV video up to 50MB", variant: "destructive" });
+                    toast({ title: "Choose an MP4, WEBM, or MOV video up to 100MB", variant: "destructive" });
                     return;
                   }
                   setVideo(selectedFile);
                 }}
               />
-              <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 50MB.</p>
+              <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 100MB.</p>
               {video && (
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="truncate">{video.name}</span>
