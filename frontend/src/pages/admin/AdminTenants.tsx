@@ -7,19 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
+import { CalendarDays, Search, Plus, MoreHorizontal, Phone, Mail, Pencil, Trash2, UserX, UserCheck, Loader2, UserRound, LayoutGrid, Table2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import { getProfilePictureUrl } from "@/lib/profileSettings";
 import { formatGender, GENDER_OPTIONS, isGender, type Gender } from "@/lib/gender";
 import { tryRecordAdminManagementLog, type AdminManagementOperation } from "@/lib/adminLogs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
+import { getCurrentPhilippineDate, getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { calculateMoveOutDate, getStayMonths } from "@/lib/stayDates";
 import { formatRoomFloor } from "@/lib/roomFloor";
 import { createAdminGuest } from "@/lib/adminGuests";
+import { format } from "date-fns";
 import {
   createAdminTenantFromGuest,
   deleteAdminTenant,
@@ -53,6 +56,7 @@ const AdminTenants = () => {
   const [availableRooms, setAvailableRooms] = useState<PublicRoom[]>([]);
   const [availableRoomsLoading, setAvailableRoomsLoading] = useState(false);
   const [availableRoomsError, setAvailableRoomsError] = useState("");
+  const [addMoveInCalendarOpen, setAddMoveInCalendarOpen] = useState(false);
   const [addForm, setAddForm] = useState({
     full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
     emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null as Gender | null,
@@ -73,6 +77,7 @@ const AdminTenants = () => {
     String(today.getMonth() + 1).padStart(2, "0"),
     String(today.getDate()).padStart(2, "0"),
   ].join("-");
+  const minimumMoveInDate = getCurrentPhilippineDate();
   const addStayMonths = /^\d+$/.test(addForm.stay_months) ? Number(addForm.stay_months) : 0;
   const editStayMonths = /^\d+$/.test(form.stay_months) ? Number(form.stay_months) : 0;
   const addMoveOutDate = calculateMoveOutDate(addForm.move_in_date, addStayMonths);
@@ -194,7 +199,7 @@ const AdminTenants = () => {
     setAddForm({
       full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
       emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null,
-      room_id: "", move_in_date: todayString, stay_months: "1",
+      room_id: "", move_in_date: minimumMoveInDate, stay_months: "1",
     });
     setTenantPicture(null);
     setAddOpen(true);
@@ -793,7 +798,38 @@ const AdminTenants = () => {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="tenant-add-move-in">Move-in date</Label>
-              <Input id="tenant-add-move-in" required type="date" min={todayString} value={addForm.move_in_date} onChange={event => setAddForm({ ...addForm, move_in_date: event.target.value, room_id: "" })} />
+              <Popover open={addMoveInCalendarOpen} onOpenChange={setAddMoveInCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="tenant-add-move-in"
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    aria-label="Move-in date"
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {addForm.move_in_date
+                      ? format(new Date(`${addForm.move_in_date}T00:00:00`), "PPP")
+                      : "Select move-in date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={addForm.move_in_date ? new Date(`${addForm.move_in_date}T00:00:00`) : undefined}
+                    disabled={{ before: new Date(`${minimumMoveInDate}T00:00:00`) }}
+                    onSelect={date => {
+                      const moveInDate = date ? format(date, "yyyy-MM-dd") : "";
+                      setAddForm(current => ({
+                        ...current,
+                        move_in_date: moveInDate,
+                        room_id: "",
+                      }));
+                      setAddMoveInCalendarOpen(false);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="tenant-add-stay-months">Length of Stay (months)</Label>
@@ -812,8 +848,15 @@ const AdminTenants = () => {
               />
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="tenant-add-move-out">Move-out date (calculated)</Label>
-              <Input id="tenant-add-move-out" readOnly value={addMoveOutDate} placeholder="Select move-in date and stay length" />
+              <Label htmlFor="tenant-add-move-out">Move-out Date (calculated)</Label>
+              <Input
+                id="tenant-add-move-out"
+                readOnly
+                value={addMoveOutDate
+                  ? format(new Date(`${addMoveOutDate}T00:00:00`), "PPP")
+                  : ""}
+                placeholder="Select move-in date and stay length"
+              />
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="tenant-add-room">Room No.</Label>

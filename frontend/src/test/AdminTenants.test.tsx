@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { addDays, format } from "date-fns";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -55,10 +56,12 @@ vi.mock("@/lib/adminTenants", () => ({
   uploadAdminTenantPicture: vi.fn(),
 }));
 vi.mock("@/lib/publicRooms", () => ({
+  getCurrentPhilippineDate: () => new Date().toISOString().slice(0, 10),
   getPublicRoomsForDates,
 }));
 
 import AdminTenants from "@/pages/admin/AdminTenants";
+import { calculateMoveOutDate } from "@/lib/stayDates";
 
 describe("Admin tenant account creation", () => {
   const originalScrollIntoView = Element.prototype.scrollIntoView;
@@ -104,11 +107,22 @@ describe("Admin tenant account creation", () => {
     fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "09170000000" } });
     fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.change(screen.getByLabelText("Temporary password"), { target: { value: "initial-password" } });
-    fireEvent.change(screen.getByLabelText("Move-in date"), { target: { value: "2026-12-01" } });
+    const moveInDate = addDays(new Date(), 7);
+    const moveInDateString = format(moveInDate, "yyyy-MM-dd");
+    fireEvent.click(screen.getByRole("button", { name: "Move-in date" }));
+    const moveInDayCells = await screen.findAllByRole("gridcell", { name: String(moveInDate.getDate()) });
+    const selectableMoveInDay = moveInDayCells.find(cell => !cell.hasAttribute("disabled"));
+    expect(selectableMoveInDay).toBeTruthy();
+    if (selectableMoveInDay) fireEvent.click(selectableMoveInDay);
     fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
 
     const roomSelect = screen.getByRole("combobox", { name: "Room No." });
-    await waitFor(() => expect(getPublicRoomsForDates).toHaveBeenLastCalledWith("2026-12-01", "2027-02-01"));
+    const moveOutDate = calculateMoveOutDate(moveInDateString, 2);
+    expect(screen.getByLabelText("Move-out Date (calculated)")).toHaveProperty(
+      "value",
+      format(new Date(`${moveOutDate}T00:00:00`), "PPP"),
+    );
+    await waitFor(() => expect(getPublicRoomsForDates).toHaveBeenLastCalledWith(moveInDateString, moveOutDate));
     fireEvent.click(roomSelect);
     fireEvent.click(await screen.findByRole("option", { name: /Room 12/ }));
     fireEvent.click(screen.getByRole("button", { name: "Create Tenant" }));
@@ -125,7 +139,7 @@ describe("Admin tenant account creation", () => {
       emergency_contact_phone: "",
       password: "initial-password",
     }));
-    expect(createAdminTenantFromGuest).toHaveBeenCalledWith(8, 4, "2026-12-01", "2027-02-01");
+    expect(createAdminTenantFromGuest).toHaveBeenCalledWith(8, 4, moveInDateString, moveOutDate);
     expect(tryRecordAdminManagementLog).toHaveBeenCalledWith({
       entity: "tenant",
       operation: "create",
