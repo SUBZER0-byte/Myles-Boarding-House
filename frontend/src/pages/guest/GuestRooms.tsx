@@ -385,12 +385,6 @@ const GuestRooms = () => {
           <p className="text-muted-foreground text-sm mt-1">Choose your stay dates to check room availability before booking.</p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">
-            Room status reflects the current database record. Booking availability is checked for your selected dates.
-          </p>
-        </div>
-
         {error && (
           <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">
             Backend unreachable: {error}
