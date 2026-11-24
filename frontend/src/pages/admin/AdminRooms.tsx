@@ -4,8 +4,15 @@ import { ImagePreview } from "@/components/ImagePreview";
 import { RoomOccupantGender } from "@/components/RoomOccupantGender";
 import { RoomReservationSummary } from "@/components/RoomReservationSummary";
 import { GuestRoomPhotoSlideshow } from "@/components/GuestRoomPhotoSlideshow";
+import { RoomFilters } from "@/components/RoomFilters";
 import type { OccupantGender } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
+import {
+  emptyRoomFilters,
+  filterRooms,
+  getRoomFilterOptions,
+  type RoomFilters as RoomFilterValues,
+} from "@/lib/roomFilters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -15,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, BedDouble, Loader2 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabasePolling } from "@/hooks/useSupabasePolling";
 import {
@@ -45,6 +52,7 @@ interface Room {
 }
 
 const empty = { room_number: "", floor_number: 1, capacity: 1, monthly_rent: 0, status: "Available", description: "" };
+const noAdminRooms: Room[] = [];
 
 function roomImageUrl(image: string | null | undefined): string {
   return getAdminRoomCoverUrl(image);
@@ -54,6 +62,7 @@ const AdminRooms = () => {
   const { toast } = useToast();
   const loadRooms = useCallback(() => getMyAdminRooms(), []);
   const { data: rooms, refetch, error } = useSupabasePolling<Room[]>(loadRooms);
+  const [roomFilters, setRoomFilters] = useState<RoomFilterValues>({ ...emptyRoomFilters });
   const [open, setOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [selected, setSelected] = useState<Room | null>(null);
@@ -62,6 +71,12 @@ const AdminRooms = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const photoManagerRef = useRef<RoomPhotosManagerHandle>(null);
+  const allRooms = rooms ?? noAdminRooms;
+  const filteredRooms = useMemo(
+    () => filterRooms(allRooms, roomFilters),
+    [allRooms, roomFilters],
+  );
+  const roomFilterOptions = useMemo(() => getRoomFilterOptions(allRooms), [allRooms]);
 
   const openAdd = () => {
     if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
@@ -220,8 +235,17 @@ const AdminRooms = () => {
         {error && <div className="p-3 rounded-md border border-destructive/30 bg-destructive/10 text-destructive text-xs">{error}</div>}
         {!rooms && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Loading…</div>}
 
+        <RoomFilters
+          filters={roomFilters}
+          floors={roomFilterOptions.floors}
+          capacities={roomFilterOptions.capacities}
+          resultCount={filteredRooms.length}
+          totalCount={allRooms.length}
+          onChange={setRoomFilters}
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms?.map((r) => {
+          {filteredRooms.map((r) => {
             return (
               <div key={r.room_id} className="flex h-full flex-col rounded-lg border border-border bg-card p-4 sm:p-5">
                 <GuestRoomPhotoSlideshow
@@ -260,7 +284,7 @@ const AdminRooms = () => {
                     </div>
                     <div className="flex gap-2 pt-1">
                       <Select value={r.status} onValueChange={(v) => setStatus(r, v)}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs" aria-label={`Set status for room ${r.room_number}`}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem
                             value="Available"
@@ -282,6 +306,13 @@ const AdminRooms = () => {
             );
           })}
         </div>
+        {rooms && filteredRooms.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            {allRooms.length === 0
+              ? "No rooms have been added yet."
+              : "No rooms match your selected filters."}
+          </div>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

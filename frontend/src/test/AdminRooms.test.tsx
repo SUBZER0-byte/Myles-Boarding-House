@@ -61,10 +61,23 @@ describe("AdminRooms", () => {
     expect(screen.getByText(/Next expires in 1h/)).toBeTruthy();
   });
 
+  it("filters Rooms Management by room number and can clear the filter", async () => {
+    render(<AdminRooms />);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Room number" }), {
+      target: { value: "999" },
+    });
+
+    expect(await screen.findByText("No rooms match your selected filters.")).toBeTruthy();
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 0 of 1 room");
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("Room 4")).toBeTruthy();
+  });
+
   it("disables Available when a room is occupied or reserved", () => {
     render(<AdminRooms />);
 
-    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("combobox", { name: "Set status for room 4" }));
     expect(screen.getByRole("option", { name: "Available" })).toHaveAttribute("aria-disabled", "true");
   });
 
@@ -73,7 +86,7 @@ describe("AdminRooms", () => {
     setMyAdminRoomStatus.mockResolvedValue(undefined);
     render(<AdminRooms />);
 
-    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("combobox", { name: "Set status for room 4" }));
     fireEvent.click(screen.getByRole("option", { name: "Occupied" }));
 
     await waitFor(() => expect(setMyAdminRoomStatus).toHaveBeenCalledWith(4, "Occupied"));

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RoomFilters } from "@/components/RoomFilters";
 import { BookingTermsDialog } from "@/components/BookingTermsDialog";
 import { BookingPaymentDialog } from "@/components/BookingPaymentDialog";
 import { toast } from "@/hooks/use-toast";
@@ -21,6 +22,12 @@ import { format } from "date-fns";
 import { calculateMoveOutDate } from "@/lib/stayDates";
 import { getCurrentPhilippineDate, getPublicRoomsForDates, type PublicRoom } from "@/lib/publicRooms";
 import { formatRoomFloor } from "@/lib/roomFloor";
+import {
+  emptyRoomFilters,
+  filterRooms,
+  getRoomFilterOptions,
+  type RoomFilters as RoomFilterValues,
+} from "@/lib/roomFilters";
 import {
   acquireMyGuestRoomHold,
   createMyGuestBooking,
@@ -47,11 +54,14 @@ const statusBadge: Record<StatusKey, string> = {
   maintenance: "bg-muted text-muted-foreground border-border",
 };
 
+const noPublicRooms: PublicRoom[] = [];
+
 const GuestRooms = () => {
   const session = sessionStore.get();
   const minimumCheckInDate = getCurrentPhilippineDate();
   const [saved, setSaved] = useState<number[]>([]);
   const [quickViewRoom, setQuickViewRoom] = useState<PublicRoom | null>(null);
+  const [roomFilters, setRoomFilters] = useState<RoomFilterValues>({ ...emptyRoomFilters });
 
   // Booking flow state
   const [bookingRoom, setBookingRoom] = useState<PublicRoom | null>(null);
@@ -123,6 +133,12 @@ const GuestRooms = () => {
     [unavailableDateSet],
   );
   const monthlyRentPerPerson = Number(bookingRoom?.monthly_rent ?? 0);
+  const availableRooms = rooms ?? noPublicRooms;
+  const filteredRooms = useMemo(
+    () => filterRooms(availableRooms, roomFilters),
+    [availableRooms, roomFilters],
+  );
+  const roomFilterOptions = useMemo(() => getRoomFilterOptions(availableRooms), [availableRooms]);
 
   useEffect(() => {
     setSaved(readSavedRoomIds());
@@ -387,8 +403,17 @@ const GuestRooms = () => {
           </div>
         )}
 
+        <RoomFilters
+          filters={roomFilters}
+          floors={roomFilterOptions.floors}
+          capacities={roomFilterOptions.capacities}
+          resultCount={filteredRooms.length}
+          totalCount={availableRooms.length}
+          onChange={setRoomFilters}
+        />
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(rooms || []).map((r) => {
+          {filteredRooms.map((r) => {
             const isSaved = saved.includes(Number(r.room_id));
             const roomStatus = (r.status || "available").toLowerCase() as StatusKey;
             const availableForDates = Number(r.available_for_dates) === 1 || r.available_for_dates === true;
@@ -470,6 +495,13 @@ const GuestRooms = () => {
             );
           })}
         </div>
+        {rooms && filteredRooms.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            {availableRooms.length === 0
+              ? "No rooms are currently available to browse."
+              : "No rooms match your selected filters."}
+          </div>
+        )}
 
         <Dialog
           open={quickViewRoom !== null}

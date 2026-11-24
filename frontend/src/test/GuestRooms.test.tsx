@@ -140,6 +140,19 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(within(screen.getByRole("dialog")).getByText("Occupied")).toBeTruthy();
   });
 
+  it("filters Browse Rooms by room number and shows an empty-filter result", async () => {
+    render(<GuestRooms />);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Room number" }), {
+      target: { value: "999" },
+    });
+
+    expect(await screen.findByText("No rooms match your selected filters.")).toBeTruthy();
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 0 of 1 room");
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByRole("button", { name: "Book Now" })).toBeTruthy();
+  });
+
   it("shows active room reservations and their countdown in Browse Rooms", async () => {
     room.reservation_count = 1;
     room.reservation_deadlines_epoch = [Math.floor(Date.now() / 1000) + 3600];
