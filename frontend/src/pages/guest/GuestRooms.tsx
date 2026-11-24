@@ -86,10 +86,16 @@ const GuestRooms = () => {
     phone: session?.phone || "",
     move_in_date: "",
     check_out_date: "",
-    payment_plan: "Pay Monthly",
+    payment_plan: "Pay One Month Rent",
     notes: "",
   });
   const stayMonths = /^\d+$/.test(stayMonthsInput) ? Number(stayMonthsInput) : 0;
+  const paymentPlan = stayMonths < 2 && form.payment_plan === "Pay Monthly"
+    ? "Pay One Month Rent"
+    : form.payment_plan;
+  const paymentPlanLabel = paymentPlan === "Pay Monthly"
+    ? "Pay 1 month and 1 deposit"
+    : "Pay 1 month";
   const minimumCheckOutDate = calculateMoveOutDate(form.move_in_date, 1);
   const calculatedCheckOutDate = calculateMoveOutDate(form.move_in_date, stayMonths);
   const hasAnyDates = Boolean(form.move_in_date || stayMonthsInput !== "1");
@@ -242,6 +248,7 @@ const GuestRooms = () => {
       }
       setQuickViewRoom(null);
       setBookingRoom(room);
+      setForm(current => ({ ...current, payment_plan: "Pay One Month Rent" }));
       bookingRequestKey.current = null;
       paymentSubmissionKey.current = null;
       setStep(1);
@@ -317,6 +324,7 @@ const GuestRooms = () => {
       bookingRequestKey.current ||= crypto.randomUUID();
       const data = await createMyGuestBooking({
         ...form,
+        payment_plan: paymentPlan,
         room_id: bookingRoom.room_id,
         idempotency_key: bookingRequestKey.current,
       });
@@ -359,12 +367,10 @@ const GuestRooms = () => {
   const totalRent = monthlyRentPerPerson * stayMonths;
   const securityDeposit = monthlyRentPerPerson;
   const advanceRent = monthlyRentPerPerson;
-  const initialPayment = form.payment_plan === "Pay One Month Rent"
-    ? advanceRent
-    : securityDeposit + advanceRent;
-  const remainingRent = form.payment_plan === "Pay One Month Rent"
-    ? Math.max(0, totalRent - advanceRent)
-    : Math.max(0, totalRent - advanceRent - securityDeposit);
+  const initialPayment = paymentPlan === "Pay Monthly"
+    ? securityDeposit + advanceRent
+    : advanceRent;
+  const remainingRent = Math.max(0, totalRent - advanceRent);
   const datesValid = Boolean(
     form.move_in_date >= minimumCheckInDate
     && calculatedCheckOutDate === form.check_out_date
@@ -733,33 +739,42 @@ const GuestRooms = () => {
             </Button>
             </>}
             {step === 2 && <>
-              <div className="rounded-md bg-muted/50 p-3 text-sm"><p>Length of stay: <strong>{stayMonths} month{stayMonths === 1 ? "" : "s"}</strong></p><p>Estimated total for 1 person: <strong>{peso(totalRent)}</strong></p></div>
+              <div className="rounded-md bg-muted/50 p-3 text-sm">
+                <p>Length of stay: <strong>{stayMonths} month{stayMonths === 1 ? "" : "s"}</strong></p>
+                <p>Estimated rent for 1 person: <strong>{peso(totalRent)}</strong></p>
+                <p>Payment required today: <strong>{peso(initialPayment)}</strong></p>
+                <p>
+                  Security deposit {paymentPlan === "Pay One Month Rent" ? "due at move-in" : "included today"}:
+                  {" "}{peso(securityDeposit)}
+                </p>
+                <p>Remaining rent after first month: <strong>{peso(remainingRent)}</strong></p>
+              </div>
               <div className="space-y-2"><Label className="text-xs">Payment Plan</Label>
-                <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={form.payment_plan} onChange={(e) => setForm({ ...form, payment_plan: e.target.value })}>
-                  <option>Pay Monthly</option>
-                  <option value="Pay One Month Rent">Pay One Month Rent (Deposit at Move-in)</option>
+                <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={paymentPlan} onChange={(e) => setForm(current => ({ ...current, payment_plan: e.target.value }))}>
+                  <option value="Pay One Month Rent">Pay 1 month</option>
+                  {stayMonths >= 2 && <option value="Pay Monthly">Pay 1 month and 1 deposit</option>}
                 </select>
               </div>
               <Button className="w-full" onClick={() => setStep(3)}>Review Booking</Button>
             </>}
             {step === 3 && <>
               <div className="grid gap-2 text-sm rounded-md border border-border p-3">
-                <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent per person:</strong> {peso(monthlyRentPerPerson)}</p><p><strong>Total rent for 1 person:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {form.payment_plan}</p>
+                <p><strong>Room:</strong> {bookingRoom?.room_number} ({formatRoomFloor(bookingRoom?.floor_number)})</p><p><strong>Dates:</strong> {form.move_in_date} to {form.check_out_date}</p><p><strong>Length:</strong> {stayMonths} month{stayMonths === 1 ? "" : "s"}</p><p><strong>Monthly rent per person:</strong> {peso(monthlyRentPerPerson)}</p><p><strong>Total rent for 1 person:</strong> {peso(totalRent)}</p><p><strong>Plan:</strong> {paymentPlanLabel}</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                {form.payment_plan === "Pay One Month Rent"
+                {paymentPlan === "Pay One Month Rent"
                   ? "Pay one month of rent now. The one-month security deposit is due when you move in."
-                  : "The one-month advance covers the first month, and the security deposit covers the final month of rent."}
+                  : "Pay one month of rent and one security deposit now. The deposit is separate from the rent for your stay."}
               </p>
               <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs space-y-1">
                 <p className="font-semibold text-foreground">Payment required today: {peso(initialPayment)}</p>
-                {form.payment_plan === "Pay One Month Rent" ? (
+                {paymentPlan === "Pay One Month Rent" ? (
                   <p className="text-muted-foreground">One-month security deposit due at move-in: {peso(securityDeposit)}</p>
                 ) : (
-                  <p className="text-muted-foreground">One-month security deposit: {peso(securityDeposit)}</p>
+                  <p className="text-muted-foreground">One-month security deposit (included today): {peso(securityDeposit)}</p>
                 )}
                 <p className="text-muted-foreground">One-month advance rent: {peso(advanceRent)}</p>
-                <p className="font-medium text-foreground">Remaining rent: {peso(remainingRent)}</p>
+                <p className="font-medium text-foreground">Remaining rent for {Math.max(0, stayMonths - 1)} month{stayMonths === 2 ? "" : "s"}: {peso(remainingRent)}</p>
               </div>
               <Button className="w-full" disabled={submitting} onClick={submitBooking}>{submitting ? "Submitting..." : "Confirm Booking"}</Button>
             </>}

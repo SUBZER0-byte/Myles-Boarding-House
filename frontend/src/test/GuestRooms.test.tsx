@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireMyGuestRoomHold,
+  createMyGuestBooking,
   releaseMyGuestRoomHold,
   getGuestBookingBoundaryDates,
   refetchRooms,
@@ -13,6 +14,7 @@ const {
   dashboardRange,
 } = vi.hoisted(() => ({
   acquireMyGuestRoomHold: vi.fn(),
+  createMyGuestBooking: vi.fn(),
   releaseMyGuestRoomHold: vi.fn(),
   getGuestBookingBoundaryDates: vi.fn(),
   refetchRooms: vi.fn(),
@@ -77,7 +79,7 @@ vi.mock("@/lib/api", () => ({
 }));
 vi.mock("@/lib/guestBookings", () => ({
   acquireMyGuestRoomHold,
-  createMyGuestBooking: vi.fn(),
+  createMyGuestBooking,
   getGuestBookingBoundaryDates,
   releaseMyGuestRoomHold,
   submitMyBookingInitialPayment: vi.fn(),
@@ -108,6 +110,12 @@ describe("GuestRooms temporary hold cancellation", () => {
       reservation_server_now_epoch: Math.floor(Date.now() / 1000),
     });
     acquireMyGuestRoomHold.mockReset().mockResolvedValue({ expires_at: "2026-11-14T22:17:00Z" });
+    createMyGuestBooking.mockReset().mockResolvedValue({
+      booking_id: 1,
+      initial_payment_amount: 1000,
+      payment_expires_at_epoch: 0,
+      server_now_epoch: 0,
+    });
     releaseMyGuestRoomHold.mockReset().mockResolvedValue(null);
     getGuestBookingBoundaryDates.mockReset().mockResolvedValue({ room_id: room.room_id, dates: [] });
     boundaryDates.room_id = room.room_id;
@@ -253,7 +261,38 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(screen.getByRole("button", { name: "Select move-in date" })).toBeTruthy();
   });
 
-  it("calculates booking rent from the per-person rate, not room capacity", async () => {
+  it("offers only one-month rent for one-month stays and itemizes its deposit separately", async () => {
+    render(<GuestRooms />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
+    await screen.findByRole("heading", { name: "Terms & Agreement" });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: "Agree & Continue" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select move-in date" }));
+    const moveInDate = new Date();
+    moveInDate.setHours(0, 0, 0, 0);
+    fireEvent.click(screen.getByRole("gridcell", { name: String(moveInDate.getDate()) }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Payment Plan" }));
+
+    expect(await screen.findByText(/Estimated rent for 1 person:/)).toHaveTextContent("₱1,000");
+    const bookingDialog = screen.getByRole("dialog");
+    const paymentPlan = within(bookingDialog).getByRole("combobox");
+    expect(within(bookingDialog).getByRole("option", { name: "Pay 1 month" })).toBeTruthy();
+    expect(within(bookingDialog).queryByRole("option", { name: "Pay 1 month and 1 deposit" })).toBeNull();
+    expect(paymentPlan).toHaveValue("Pay One Month Rent");
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Security deposit due at move-in:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱0");
+    fireEvent.click(within(bookingDialog).getByRole("button", { name: "Review Booking" }));
+
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/security deposit due at move-in:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Remaining rent for 0 months:/)).toHaveTextContent("₱0");
+  });
+
+  it("calculates booking rent from the per-person rate and adds deposit only for stays of two months or more", async () => {
     room.capacity = 4;
     room.available_beds = 4;
     render(<GuestRooms />);
@@ -271,12 +310,27 @@ describe("GuestRooms temporary hold cancellation", () => {
     fireEvent.change(screen.getByLabelText("Length of Stay (months)"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Continue to Payment Plan" }));
 
-    expect(await screen.findByText(/Estimated total for 1 person:/)).toHaveTextContent("₱2,000");
+    expect(await screen.findByText(/Estimated rent for 1 person:/)).toHaveTextContent("₱2,000");
+    const bookingDialog = screen.getByRole("dialog");
+    const paymentPlan = within(bookingDialog).getByRole("combobox");
+    expect(within(bookingDialog).getByRole("option", { name: "Pay 1 month and 1 deposit" })).toBeTruthy();
+    fireEvent.change(paymentPlan, { target: { value: "Pay Monthly" } });
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/Security deposit included today:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱1,000");
     fireEvent.click(screen.getByRole("button", { name: "Review Booking" }));
 
-    expect(screen.getByText(/Monthly rent per person:/).parentElement).toHaveTextContent("₱1,000");
-    expect(screen.getByText(/Total rent for 1 person:/).parentElement).toHaveTextContent("₱2,000");
-    expect(screen.getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/Monthly rent per person:/).parentElement).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Total rent for 1 person:/).parentElement).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/Plan:/).parentElement).toHaveTextContent("Pay 1 month and 1 deposit");
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/security deposit \(included today\):/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Remaining rent for 1 month:/)).toHaveTextContent("₱1,000");
+    fireEvent.click(within(bookingDialog).getByRole("button", { name: "Confirm Booking" }));
+    await waitFor(() => expect(createMyGuestBooking).toHaveBeenCalledOnce());
+    expect(createMyGuestBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_plan: "Pay Monthly" }),
+    );
   });
 
   it("does not leave a hold or reopen booking when the quick view closes during hold acquisition", async () => {
