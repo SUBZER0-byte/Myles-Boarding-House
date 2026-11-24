@@ -28,6 +28,7 @@ import {
   deleteAdminTenant,
   findAdminTenantAccounts,
   getAdminTenantAccountGender,
+  getAdminTenantScheduledDates,
   listAdminTenants,
   setAdminTenantAccountStatus,
   updateAdminTenant,
@@ -58,6 +59,11 @@ const AdminTenants = () => {
   const [availableRoomsError, setAvailableRoomsError] = useState("");
   const [addMoveInCalendarOpen, setAddMoveInCalendarOpen] = useState(false);
   const [editMoveInCalendarOpen, setEditMoveInCalendarOpen] = useState(false);
+  const [scheduledDates, setScheduledDates] = useState<string[] | null>(null);
+  const [scheduledDatesTenantId, setScheduledDatesTenantId] = useState<number | null>(null);
+  const [scheduledDatesLoading, setScheduledDatesLoading] = useState(false);
+  const [scheduledDatesError, setScheduledDatesError] = useState("");
+  const [scheduledDatesRetryCount, setScheduledDatesRetryCount] = useState(0);
   const [addForm, setAddForm] = useState({
     full_name: "", username: "", email: "", phone: "", address: "", birthday: "",
     emergency_contact_name: "", emergency_contact_phone: "", password: "", gender: null as Gender | null,
@@ -86,6 +92,54 @@ const AdminTenants = () => {
   const editStayMonths = /^\d+$/.test(form.stay_months) ? Number(form.stay_months) : 0;
   const addMoveOutDate = calculateMoveOutDate(addForm.move_in_date, addStayMonths);
   const editMoveOutDate = calculateMoveOutDate(form.move_in_date, editStayMonths);
+  const tenantIdForScheduledDates = editOpen ? selected?.tenant_id ?? null : null;
+  const scheduledDatesAreReady = scheduledDates !== null
+    && scheduledDatesTenantId === tenantIdForScheduledDates;
+  const scheduledDatesForDialog = scheduledDatesAreReady ? scheduledDates : [];
+  const scheduledDateSet = new Set(scheduledDatesForDialog);
+  const disabledMoveInDates = [
+    { before: new Date(`${minimumMoveInDate}T00:00:00`) },
+    ...scheduledDatesForDialog.map(date => new Date(`${date}T00:00:00`)),
+  ];
+  const addMoveInDateUnavailable = scheduledDateSet.has(addForm.move_in_date);
+  const addMoveOutDateUnavailable = Boolean(addMoveOutDate && scheduledDateSet.has(addMoveOutDate));
+  const editMoveInDateUnavailable = scheduledDateSet.has(form.move_in_date);
+  const editMoveOutDateUnavailable = Boolean(editMoveOutDate && scheduledDateSet.has(editMoveOutDate));
+
+  useEffect(() => {
+    if (!addOpen && !editOpen) {
+      setScheduledDates(null);
+      setScheduledDatesTenantId(null);
+      setScheduledDatesLoading(false);
+      setScheduledDatesError("");
+      return;
+    }
+
+    const tenantId = editOpen ? selected?.tenant_id ?? null : null;
+    if (editOpen && tenantId === null) return;
+
+    let active = true;
+    setScheduledDates(null);
+    setScheduledDatesTenantId(tenantId);
+    setScheduledDatesLoading(true);
+    setScheduledDatesError("");
+    getAdminTenantScheduledDates(tenantId)
+      .then(dates => {
+        if (active) setScheduledDates(dates);
+      })
+      .catch(error => {
+        if (active) setScheduledDatesError(
+          error instanceof Error ? error.message : "Unable to load scheduled tenant dates.",
+        );
+      })
+      .finally(() => {
+        if (active) setScheduledDatesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [addOpen, editOpen, scheduledDatesRetryCount, selected?.tenant_id]);
 
   useEffect(() => {
     if (tenants === null || error || loggedListRead.current) return;
@@ -211,7 +265,6 @@ const AdminTenants = () => {
   const openEdit = (t: AdminTenant) => {
     setSelected(t);
     setTenantPicture(null);
-    setEditMoveInCalendarOpen(false);
     setForm({
       full_name: t.full_name, email: t.email, phone: t.phone,
       address: t.address ?? "", birthday: t.birthday ?? "",
@@ -231,6 +284,14 @@ const AdminTenants = () => {
   };
 
   const handleAdd = async () => {
+    if (!scheduledDatesAreReady || scheduledDatesLoading || scheduledDatesError) {
+      toast({ title: "Unable to verify scheduled dates", description: scheduledDatesError || "Retry the date check before creating a tenant.", variant: "destructive" });
+      return;
+    }
+    if (addMoveInDateUnavailable || addMoveOutDateUnavailable) {
+      toast({ title: "Choose dates that are not already scheduled", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     let userId: number | null = null;
     try {
@@ -298,6 +359,14 @@ const AdminTenants = () => {
 
   const handleEdit = async () => {
     if (!selected) return;
+    if (!scheduledDatesAreReady || scheduledDatesLoading || scheduledDatesError) {
+      toast({ title: "Unable to verify scheduled dates", description: scheduledDatesError || "Retry the date check before saving.", variant: "destructive" });
+      return;
+    }
+    if (editMoveInDateUnavailable || editMoveOutDateUnavailable) {
+      toast({ title: "Choose dates that are not already scheduled", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const response = await updateAdminTenant({
@@ -453,6 +522,7 @@ const AdminTenants = () => {
                 variant="outline"
                 className="w-full justify-start text-left font-normal"
                 aria-label="Move-in date"
+                disabled={!scheduledDatesAreReady}
               >
                 <CalendarDays className="mr-2 h-4 w-4" />
                 {form.move_in_date
@@ -465,12 +535,14 @@ const AdminTenants = () => {
                 mode="single"
                 selected={form.move_in_date ? new Date(`${form.move_in_date}T00:00:00`) : undefined}
                 defaultMonth={new Date(`${editCalendarInitialDate}T00:00:00`)}
-                disabled={{ before: new Date(`${minimumMoveInDate}T00:00:00`) }}
+                disabled={disabledMoveInDates}
                 onSelect={date => {
-                  setForm(current => ({
-                    ...current,
-                    move_in_date: date ? format(date, "yyyy-MM-dd") : "",
-                  }));
+                  const moveInDate = date ? format(date, "yyyy-MM-dd") : "";
+                  if (moveInDate && scheduledDateSet.has(moveInDate)) {
+                    toast({ title: "This move-in date is already scheduled", variant: "destructive" });
+                    return;
+                  }
+                  setForm(current => ({ ...current, move_in_date: moveInDate }));
                   setEditMoveInCalendarOpen(false);
                 }}
               />
@@ -478,6 +550,13 @@ const AdminTenants = () => {
           </Popover>
         </div>
       </div>
+      {scheduledDatesLoading && <p className="text-xs text-muted-foreground">Checking scheduled tenant and booking dates…</p>}
+      {scheduledDatesError && (
+        <div className="flex items-center justify-between gap-2 text-xs text-destructive" role="alert">
+          <span>{scheduledDatesError}</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => setScheduledDatesRetryCount(count => count + 1)}>Retry</Button>
+        </div>
+      )}
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="grid gap-1.5"><Label htmlFor="tenant-edit-stay-months">Length of Stay (months) *</Label>
           <Input
@@ -502,6 +581,8 @@ const AdminTenants = () => {
             placeholder="Select move-in date and stay length"
           /></div>
       </div>
+      {editMoveInDateUnavailable && <p className="text-xs text-destructive" role="alert">This move-in date is already scheduled. Choose another date.</p>}
+      {editMoveOutDateUnavailable && <p className="text-xs text-destructive" role="alert">The calculated move-out date is already scheduled. Change the move-in date or length of stay.</p>}
       {editOpen && selected?.user_id != null ? (
         <div className="grid gap-1.5">
           <Label htmlFor="tenant-edit-username">Login username</Label>
@@ -835,7 +916,7 @@ const AdminTenants = () => {
               <Input id="tenant-add-password" required type="password" autoComplete="new-password" minLength={6} maxLength={200} value={addForm.password} onChange={event => setAddForm({ ...addForm, password: event.target.value })} />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="tenant-add-move-in">Move-in date</Label>
+              <Label htmlFor="tenant-add-move-in">Move-in / Check-in date</Label>
               <Popover open={addMoveInCalendarOpen} onOpenChange={setAddMoveInCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -844,6 +925,7 @@ const AdminTenants = () => {
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
                     aria-label="Move-in date"
+                    disabled={!scheduledDatesAreReady}
                   >
                     <CalendarDays className="mr-2 h-4 w-4" />
                     {addForm.move_in_date
@@ -855,9 +937,13 @@ const AdminTenants = () => {
                   <Calendar
                     mode="single"
                     selected={addForm.move_in_date ? new Date(`${addForm.move_in_date}T00:00:00`) : undefined}
-                    disabled={{ before: new Date(`${minimumMoveInDate}T00:00:00`) }}
+                    disabled={disabledMoveInDates}
                     onSelect={date => {
                       const moveInDate = date ? format(date, "yyyy-MM-dd") : "";
+                      if (moveInDate && scheduledDateSet.has(moveInDate)) {
+                        toast({ title: "This move-in date is already scheduled", variant: "destructive" });
+                        return;
+                      }
                       setAddForm(current => ({
                         ...current,
                         move_in_date: moveInDate,
@@ -886,7 +972,7 @@ const AdminTenants = () => {
               />
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="tenant-add-move-out">Move-out Date (calculated)</Label>
+              <Label htmlFor="tenant-add-move-out">Move-out / Check-out date (calculated)</Label>
               <Input
                 id="tenant-add-move-out"
                 readOnly
@@ -896,6 +982,15 @@ const AdminTenants = () => {
                 placeholder="Select move-in date and stay length"
               />
             </div>
+            {scheduledDatesLoading && <p className="text-xs text-muted-foreground sm:col-span-2">Checking scheduled tenant and booking dates…</p>}
+            {scheduledDatesError && (
+              <div className="flex items-center justify-between gap-2 text-xs text-destructive sm:col-span-2" role="alert">
+                <span>{scheduledDatesError}</span>
+                <Button type="button" size="sm" variant="outline" onClick={() => setScheduledDatesRetryCount(count => count + 1)}>Retry</Button>
+              </div>
+            )}
+            {addMoveInDateUnavailable && <p className="text-xs text-destructive sm:col-span-2" role="alert">This move-in date is already scheduled. Choose another date.</p>}
+            {addMoveOutDateUnavailable && <p className="text-xs text-destructive sm:col-span-2" role="alert">The calculated move-out date is already scheduled. Change the move-in date or length of stay.</p>}
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="tenant-add-room">Room No.</Label>
               <Select value={addForm.room_id} onValueChange={room_id => setAddForm({ ...addForm, room_id })} disabled={availableRoomsLoading || Boolean(availableRoomsError)}>
@@ -925,10 +1020,12 @@ const AdminTenants = () => {
               type="button"
               onClick={handleAdd}
               disabled={saving || availableRoomsLoading || Boolean(availableRoomsError)
+                || !scheduledDatesAreReady || scheduledDatesLoading || Boolean(scheduledDatesError)
                 || !addForm.full_name.trim() || !addForm.username.trim() || !addForm.email.trim()
                 || !/^09\d{9}$/.test(addForm.phone) || addForm.password.length < 6
                 || !addForm.room_id || !addForm.move_in_date
-                || !addMoveOutDate || addMoveOutDate <= addForm.move_in_date}
+                || !addMoveOutDate || addMoveOutDate <= addForm.move_in_date
+                || addMoveInDateUnavailable || addMoveOutDateUnavailable}
             >
               {saving ? "Creating…" : "Create Tenant"}
             </Button>
@@ -944,7 +1041,9 @@ const AdminTenants = () => {
             <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button
               onClick={handleEdit}
-              disabled={saving || !form.move_in_date || !editMoveOutDate}
+              disabled={saving || !scheduledDatesAreReady || scheduledDatesLoading || Boolean(scheduledDatesError)
+                || !form.move_in_date || !editMoveOutDate
+                || editMoveInDateUnavailable || editMoveOutDateUnavailable}
             >
               {saving ? "Saving…" : "Save"}
             </Button>

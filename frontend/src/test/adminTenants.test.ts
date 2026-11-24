@@ -12,6 +12,7 @@ import {
   deleteAdminTenant,
   findAdminTenantAccounts,
   getAdminTenantAccountGender,
+  getAdminTenantScheduledDates,
   listAdminTenants,
   setAdminTenantAccountStatus,
   updateAdminTenant,
@@ -73,6 +74,29 @@ describe("Admin tenant Supabase workflows", () => {
     rpc.mockResolvedValueOnce({ data: "Male", error: null });
     await expect(getAdminTenantAccountGender(8)).resolves.toBe("Male");
     expect(rpc).toHaveBeenCalledWith("get_admin_tenant_account_gender", { p_user_id: 8 });
+  });
+
+  it("loads sorted global scheduled dates while excluding the tenant being edited", async () => {
+    rpc.mockResolvedValueOnce({ data: ["2026-12-10", "2026-12-01", "2026-12-10"], error: null });
+
+    await expect(getAdminTenantScheduledDates(3)).resolves.toEqual(["2026-12-01", "2026-12-10"]);
+    expect(rpc).toHaveBeenCalledWith("get_admin_tenant_scheduled_dates", expect.objectContaining({
+      p_tenant_id: 3,
+    }));
+    const { p_from: from, p_until: until } = rpc.mock.calls[0][1] as {
+      p_from: string;
+      p_until: string;
+      p_tenant_id: number | null;
+    };
+    expect((Date.parse(until) - Date.parse(from)) / 86_400_000).toBe(366);
+  });
+
+  it("rejects malformed scheduled-date results and invalid tenant IDs", async () => {
+    await expect(getAdminTenantScheduledDates(0)).rejects.toThrow("A valid tenant ID is required.");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: ["not-a-date"], error: null });
+    await expect(getAdminTenantScheduledDates()).rejects.toThrow("invalid scheduled dates");
   });
 
   it("promotes a newly created account to a tenant with the selected room and stay dates", async () => {

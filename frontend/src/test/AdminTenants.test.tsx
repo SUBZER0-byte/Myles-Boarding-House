@@ -7,6 +7,7 @@ const {
   createAdminGuest,
   createAdminTenantFromGuest,
   getAdminTenantAccountGender,
+  getAdminTenantScheduledDates,
   getPublicRoomsForDates,
   refetch,
   tryRecordAdminManagementLog,
@@ -18,6 +19,7 @@ const {
   createAdminGuest: vi.fn(),
   createAdminTenantFromGuest: vi.fn(),
   getAdminTenantAccountGender: vi.fn(),
+  getAdminTenantScheduledDates: vi.fn(),
   getPublicRoomsForDates: vi.fn(),
   refetch: vi.fn(),
   tryRecordAdminManagementLog: vi.fn(),
@@ -48,6 +50,7 @@ vi.mock("@/lib/adminGuests", () => ({
 vi.mock("@/lib/adminTenants", () => ({
   createAdminTenantFromGuest,
   getAdminTenantAccountGender,
+  getAdminTenantScheduledDates,
   deleteAdminTenant: vi.fn(),
   findAdminTenantAccounts: vi.fn(),
   listAdminTenants: vi.fn(),
@@ -75,6 +78,7 @@ describe("Admin tenant account creation", () => {
     createAdminGuest.mockReset().mockResolvedValue(8);
     createAdminTenantFromGuest.mockReset().mockResolvedValue(12);
     updateAdminTenant.mockReset().mockResolvedValue({ type: "success" });
+    getAdminTenantScheduledDates.mockReset().mockResolvedValue([]);
     getPublicRoomsForDates.mockReset().mockResolvedValue([{
       room_id: 4,
       room_number: "12",
@@ -101,6 +105,8 @@ describe("Admin tenant account creation", () => {
     render(<AdminTenants />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add Tenant" }));
+    await waitFor(() => expect(getAdminTenantScheduledDates).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move-in date" })).toBeEnabled());
     fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "New Tenant" } });
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "newtenant" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "tenant@example.test" } });
@@ -118,7 +124,7 @@ describe("Admin tenant account creation", () => {
 
     const roomSelect = screen.getByRole("combobox", { name: "Room No." });
     const moveOutDate = calculateMoveOutDate(moveInDateString, 2);
-    expect(screen.getByLabelText("Move-out Date (calculated)")).toHaveProperty(
+    expect(screen.getByLabelText("Move-out / Check-out date (calculated)")).toHaveProperty(
       "value",
       format(new Date(`${moveOutDate}T00:00:00`), "PPP"),
     );
@@ -148,7 +154,34 @@ describe("Admin tenant account creation", () => {
     });
   });
 
+  it("disables scheduled dates in the Add Tenant move-in calendar", async () => {
+    const scheduledDate = addDays(new Date(), 12);
+    const scheduledDateString = format(scheduledDate, "yyyy-MM-dd");
+    getAdminTenantScheduledDates.mockResolvedValue([scheduledDateString]);
+    render(<AdminTenants />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Tenant" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move-in date" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Move-in date" }));
+
+    const scheduledDayCells = await screen.findAllByRole("gridcell", { name: String(scheduledDate.getDate()) });
+    expect(scheduledDayCells.some(cell => cell.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("blocks Add Tenant when the calculated move-out date is already scheduled", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const scheduledMoveOut = calculateMoveOutDate(today, 1);
+    getAdminTenantScheduledDates.mockResolvedValue([scheduledMoveOut]);
+    render(<AdminTenants />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Tenant" }));
+
+    expect(await screen.findByText(/The calculated move-out date is already scheduled/i)).toBeInTheDocument();
+  });
+
   it("uses the calculated move-out date when an existing tenant is updated", async () => {
+    const scheduledDate = addDays(new Date("2026-12-01T00:00:00"), 5);
+    getAdminTenantScheduledDates.mockResolvedValue([format(scheduledDate, "yyyy-MM-dd")]);
     tenantList.push({
       tenant_id: 3,
       user_id: 9,
@@ -182,10 +215,13 @@ describe("Admin tenant account creation", () => {
     });
     fireEvent.keyDown(actionsButton, { key: "Enter" });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
-    await screen.findByRole("heading", { name: "Edit Tenant" });
+    await waitFor(() => expect(getAdminTenantScheduledDates).toHaveBeenCalledWith(3));
     expect(screen.getByRole("button", { name: "Move-in date" })).toHaveTextContent(
       format(new Date("2026-12-01T00:00:00"), "PPP"),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Move-in date" }));
+    const scheduledDayCells = await screen.findAllByRole("gridcell", { name: String(scheduledDate.getDate()) });
+    expect(scheduledDayCells.some(cell => cell.hasAttribute("disabled"))).toBe(true);
     fireEvent.change(screen.getByLabelText("Gender"), { target: { value: "Female" } });
     fireEvent.change(screen.getByLabelText(/Length of Stay \(months\)/), { target: { value: "2" } });
     expect(screen.getByLabelText("Move-out date (calculated)")).toHaveProperty(
@@ -202,5 +238,4 @@ describe("Admin tenant account creation", () => {
     })));
     expect(updateAdminTenant.mock.calls[0][0]).not.toHaveProperty("stay_months");
   });
-
 });

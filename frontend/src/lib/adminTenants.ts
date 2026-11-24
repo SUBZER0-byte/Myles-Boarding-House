@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { isGender, parseGender, type Gender } from "@/lib/gender";
+import { getCurrentPhilippineDate } from "@/lib/publicRooms";
 
 export interface AdminTenant {
   tenant_id: number;
@@ -89,6 +90,25 @@ export async function getAdminTenantAccountGender(userId: number): Promise<Gende
   const { data, error } = await supabase.rpc("get_admin_tenant_account_gender", { p_user_id: userId });
   if (error) throw new Error(error.message || "Could not load the tenant account gender.");
   return parseGender(data);
+}
+
+export async function getAdminTenantScheduledDates(tenantId: number | null = null): Promise<string[]> {
+  if (tenantId !== null && (!Number.isSafeInteger(tenantId) || tenantId <= 0)) {
+    throw new Error("A valid tenant ID is required.");
+  }
+  const from = getCurrentPhilippineDate();
+  const [year, month, day] = from.split("-").map(Number);
+  const until = new Date(Date.UTC(year, month - 1, day + 366)).toISOString().slice(0, 10);
+  const { data, error } = await supabase.rpc("get_admin_tenant_scheduled_dates", {
+    p_from: from,
+    p_until: until,
+    p_tenant_id: tenantId,
+  });
+  if (error) throw new Error(error.message || "Could not load scheduled tenant dates.");
+  if (!Array.isArray(data) || data.some(date => typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date))) {
+    throw new Error("The tenant service returned invalid scheduled dates.");
+  }
+  return [...new Set(data)].sort();
 }
 
 export async function createAdminTenant(tenant: Record<string, unknown>): Promise<TenantResponse> {
