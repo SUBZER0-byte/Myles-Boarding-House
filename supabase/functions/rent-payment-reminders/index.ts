@@ -5,6 +5,8 @@ import {
 } from "./sms.ts";
 
 interface RentPaymentReminder {
+  tenant_user_id: number;
+  reminder_day: string;
   payment_id: number;
   due_date: string;
   reminder_type: "upcoming" | "overdue";
@@ -53,7 +55,7 @@ Deno.serve(async request => {
   );
   if (claimError) {
     console.error("Could not claim rent payment reminders:", claimError.message);
-    return jsonResponse(500, { error: "Could not load upcoming rent reminders." });
+    return jsonResponse(500, { error: "Could not load eligible rent reminders." });
   }
   if (!Array.isArray(reminders)) {
     return jsonResponse(500, { error: "The rent reminder service returned invalid data." });
@@ -81,9 +83,8 @@ Deno.serve(async request => {
     const { error: finishError } = await supabase.rpc(
       "finish_rent_payment_sms_reminder",
       {
-        p_payment_id: reminder.payment_id,
-        p_due_date: reminder.due_date,
-        p_reminder_type: reminder.reminder_type,
+        p_tenant_user_id: reminder.tenant_user_id,
+        p_reminder_day: reminder.reminder_day,
         p_success: sendError === null,
         p_error: sendError,
       },
@@ -91,14 +92,14 @@ Deno.serve(async request => {
     if (finishError) {
       failed += 1;
       console.error(
-        `Could not record rent reminder result for payment ${reminder.payment_id}:`,
+        `Could not record rent reminder result for tenant ${reminder.tenant_user_id}:`,
         finishError.message,
       );
       continue;
     }
     if (sendError) {
       failed += 1;
-      console.error(`Rent reminder SMS failed for payment ${reminder.payment_id}:`, sendError);
+      console.error(`Rent reminder SMS failed for tenant ${reminder.tenant_user_id}:`, sendError);
     } else {
       sent += 1;
     }
