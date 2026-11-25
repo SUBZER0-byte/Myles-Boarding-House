@@ -445,6 +445,7 @@ const GuestRooms = () => {
 
         <RoomFilters
           filters={roomFilters}
+          roomNumbers={roomFilterOptions.roomNumbers}
           floors={roomFilterOptions.floors}
           capacities={roomFilterOptions.capacities}
           resultCount={filteredRooms.length}

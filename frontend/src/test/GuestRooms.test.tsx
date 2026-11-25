@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { addMonths, format } from "date-fns";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   acquireMyGuestRoomHold,
@@ -29,7 +29,7 @@ const {
     floor_number: 1,
     capacity: 1,
     monthly_rent: 1000,
-    description: null,
+    description: "Quiet room with a garden view",
     status: "Available",
     image: null,
     occupants: 0,
@@ -110,11 +110,18 @@ vi.mock("@/lib/savedRooms", () => ({
 import GuestRooms from "@/pages/guest/GuestRooms";
 
 describe("GuestRooms temporary hold cancellation", () => {
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   beforeEach(() => {
     Object.assign(room, {
       status: "Available",
       capacity: 1,
       monthly_rent: 1000,
+      description: "Quiet room with a garden view",
       occupant_genders: [],
       available_beds: 1,
       available_for_dates: true,
@@ -141,6 +148,9 @@ describe("GuestRooms temporary hold cancellation", () => {
   });
 
   afterEach(() => cleanup());
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
 
   it("shares the Browse Rooms date window with the chatbot", async () => {
     const checkInDate = new Date().toISOString().slice(0, 10);
@@ -164,11 +174,20 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(within(screen.getByRole("dialog")).getByText("Occupied")).toBeTruthy();
   });
 
-  it("filters Browse Rooms by room number and shows an empty-filter result", async () => {
+  it("filters Browse Rooms by room number and description and can clear the filters", async () => {
     render(<GuestRooms />);
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Room number" }), {
-      target: { value: "999" },
+    fireEvent.click(screen.getByRole("combobox", { name: "Filter by room number" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Room 11" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Description" }), {
+      target: { value: "GARDEN" },
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 of 1 room");
+    expect(await screen.findByRole("button", { name: "Book Now" })).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Description" }), {
+      target: { value: "not present" },
     });
 
     expect(await screen.findByText("No rooms match your selected filters.")).toBeTruthy();

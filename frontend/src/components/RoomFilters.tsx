@@ -17,6 +17,7 @@ import { X } from "lucide-react";
 
 interface RoomFiltersProps {
   filters: RoomFilterValues;
+  roomNumbers: string[];
   floors: number[];
   capacities: number[];
   resultCount: number;
@@ -26,6 +27,7 @@ interface RoomFiltersProps {
 
 export function RoomFilters({
   filters,
+  roomNumbers,
   floors,
   capacities,
   resultCount,
@@ -39,16 +41,20 @@ export function RoomFilters({
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-4" aria-label="Filter rooms">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <div className="grid gap-1.5">
-          <Label htmlFor="room-number-search">Room number</Label>
-          <Input
-            id="room-number-search"
-            type="search"
-            placeholder="Search room number"
-            value={filters.roomNumber}
-            onChange={event => update("roomNumber", event.target.value)}
-          />
+          <Label htmlFor="room-number-filter">Room Number</Label>
+          <Select value={filters.roomNumber || "all"} onValueChange={value => update("roomNumber", value === "all" ? "" : value)}>
+            <SelectTrigger id="room-number-filter" aria-label="Filter by room number">
+              <SelectValue placeholder="All room numbers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All room numbers</SelectItem>
+              {roomNumbers.map(roomNumber => (
+                <SelectItem key={roomNumber} value={roomNumber}>Room {roomNumber}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="room-floor-filter">Floor</Label>
@@ -79,6 +85,16 @@ export function RoomFilters({
               ))}
             </SelectContent>
           </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="room-description-search">Description</Label>
+          <Input
+            id="room-description-search"
+            type="search"
+            placeholder="Search room description"
+            value={filters.description}
+            onChange={event => update("description", event.target.value)}
+          />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="room-min-price-filter">Min monthly rent (₱/person)</Label>

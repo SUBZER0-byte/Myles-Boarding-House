@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const { rooms, setMyAdminRoomStatus } = vi.hoisted(() => ({
   rooms: [{
@@ -10,7 +10,7 @@ const { rooms, setMyAdminRoomStatus } = vi.hoisted(() => ({
     capacity: 2,
     monthly_rent: 4500,
     status: "Occupied",
-    description: null,
+    description: "Quiet room beside the garden",
     image: null,
     occupants: 1,
     occupant_genders: ["Male"],
@@ -46,6 +46,16 @@ vi.mock("@/lib/adminRooms", () => ({
 import AdminRooms from "@/pages/admin/AdminRooms";
 
 describe("AdminRooms", () => {
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it("uses the guest room photo slideshow for room images", () => {
     render(<AdminRooms />);
 
@@ -61,17 +71,26 @@ describe("AdminRooms", () => {
     expect(screen.getByText(/Next expires in 1h/)).toBeTruthy();
   });
 
-  it("filters Rooms Management by room number and can clear the filter", async () => {
+  it("filters Rooms Management by room number and description and can clear filters", async () => {
     render(<AdminRooms />);
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Room number" }), {
-      target: { value: "999" },
+    fireEvent.click(screen.getByRole("combobox", { name: "Filter by room number" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Room 4" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Description" }), {
+      target: { value: "GARDEN" },
+    });
+
+    expect(screen.getByText("Room 4", { selector: "p" })).toBeTruthy();
+    expect(screen.getByRole("status")).toHaveTextContent("Showing 1 of 1 room");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Description" }), {
+      target: { value: "not present" },
     });
 
     expect(await screen.findByText("No rooms match your selected filters.")).toBeTruthy();
     expect(screen.getByRole("status")).toHaveTextContent("Showing 0 of 1 room");
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(await screen.findByText("Room 4")).toBeTruthy();
+    expect(await screen.findByText("Room 4", { selector: "p" })).toBeTruthy();
   });
 
   it("disables Available when a room is occupied or reserved", () => {
