@@ -364,6 +364,9 @@ const TenantPayments = () => {
             <div>
               <h2 className="font-display font-semibold text-lg">Payment record</h2>
               <p className="text-sm text-muted-foreground mt-1">Monthly rent at the fixed per-person room rate, from check-in through check-out</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                SMS reminders are sent to your registered mobile number 5 days before rent is due and again the day after, if it remains unpaid.
+              </p>
             </div>
             <Button
               variant="outline"

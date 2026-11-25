@@ -7,6 +7,7 @@ import {
 interface RentPaymentReminder {
   payment_id: number;
   due_date: string;
+  reminder_type: "upcoming" | "overdue";
   recipient_phone: string;
   amount: number;
   description: string | null;
@@ -66,6 +67,7 @@ Deno.serve(async request => {
       const message = buildRentPaymentReminderMessage(
         Number(reminder.amount),
         reminder.due_date,
+        reminder.reminder_type,
       );
       await sendTextBeeSms(reminder.recipient_phone, message, {
         apiBase,
@@ -80,6 +82,8 @@ Deno.serve(async request => {
       "finish_rent_payment_sms_reminder",
       {
         p_payment_id: reminder.payment_id,
+        p_due_date: reminder.due_date,
+        p_reminder_type: reminder.reminder_type,
         p_success: sendError === null,
         p_error: sendError,
       },

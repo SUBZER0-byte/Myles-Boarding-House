@@ -11,15 +11,26 @@ export function normalizePhilippineSmsPhone(rawPhone: string): string {
   return `+63${localNumber.slice(1)}`;
 }
 
-export function buildRentPaymentReminderMessage(amount: number, dueDate: string): string {
-  if (!Number.isFinite(amount) || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
-    throw new Error("Rent reminder amount or due date is invalid.");
+export function buildRentPaymentReminderMessage(
+  amount: number,
+  dueDate: string,
+  reminderType: string = "upcoming",
+): string {
+  if (
+    !Number.isFinite(amount)
+    || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)
+    || (reminderType !== "upcoming" && reminderType !== "overdue")
+  ) {
+    throw new Error("Rent reminder amount, due date, or type is invalid.");
   }
   const formattedAmount = new Intl.NumberFormat("en-PH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
-  return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. - Myle's Boarding House`;
+  if (reminderType === "upcoming") {
+    return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. - Myle's Boarding House`;
+  }
+  return `Overdue notice: your rent payment of PHP ${formattedAmount} was due on ${dueDate} and is now overdue. Please pay as soon as possible. - Myle's Boarding House`;
 }
 
 export async function sendTextBeeSms(

@@ -27,6 +27,20 @@ describe("rent payment reminder SMS", () => {
     );
   });
 
+  it("notifies the tenant when a rent payment becomes overdue", () => {
+    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "overdue")).toBe(
+      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and is now overdue. Please pay as soon as possible. - Myle's Boarding House",
+    );
+  });
+
+  it("rejects unsupported reminder types", () => {
+    expect(() => buildRentPaymentReminderMessage(
+      6500,
+      "2026-11-23",
+      "immediate",
+    )).toThrow("Rent reminder amount, due date, or type is invalid.");
+  });
+
   it("uses the same TextBee endpoint, header, and recipient payload as registration OTP", async () => {
     const fetcher = vi.fn(async () => new Response('{"status":"queued"}', { status: 200 }));
 
