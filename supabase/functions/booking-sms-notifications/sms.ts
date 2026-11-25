@@ -1,9 +1,14 @@
 import {
+  formatPhilippineTimestamp,
   normalizePhilippineSmsPhone,
   sendTextBeeSms,
 } from "../rent-payment-reminders/sms.ts";
 
-export { normalizePhilippineSmsPhone, sendTextBeeSms };
+export {
+  formatPhilippineTimestamp,
+  normalizePhilippineSmsPhone,
+  sendTextBeeSms,
+};
 
 interface BookingSmsDetails {
   guestName: string;
@@ -32,24 +37,6 @@ function formatBookingSmsDetails({ guestName, bookingId, amount }: BookingSmsDet
     maximumFractionDigits: 2,
   }).format(amount);
   return { name, formattedAmount };
-}
-
-export function formatPhilippineTimestamp(date: Date = new Date()): string {
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Booking SMS timestamp is invalid.");
-  }
-  const parts = new Intl.DateTimeFormat("en-PH", {
-    timeZone: "Asia/Manila",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find(value => value.type === type)?.value ?? "";
-  return `${part("month")} ${part("day")}, ${part("year")} ${part("hour")}:${part("minute")} ${part("dayPeriod")} PHT`;
 }
 
 export function buildAdminBookingPaymentSubmittedMessage(details: BookingSmsDetails): string {

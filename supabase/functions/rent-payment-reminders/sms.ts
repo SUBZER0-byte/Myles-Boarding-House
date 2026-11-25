@@ -1,3 +1,21 @@
+export function formatPhilippineTimestamp(date: Date = new Date()): string {
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("SMS timestamp is invalid.");
+  }
+  const parts = new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(value => value.type === type)?.value ?? "";
+  return `${part("month")} ${part("day")}, ${part("year")} ${part("hour")}:${part("minute")} ${part("dayPeriod")} PHT`;
+}
+
 export function normalizePhilippineSmsPhone(rawPhone: string): string {
   const digits = rawPhone.replace(/\D/g, "");
   const localNumber = digits.startsWith("63")
@@ -15,6 +33,7 @@ export function buildRentPaymentReminderMessage(
   amount: number,
   dueDate: string,
   reminderType: string = "upcoming",
+  timestamp: Date = new Date(),
 ): string {
   if (
     !Number.isFinite(amount)
@@ -27,10 +46,11 @@ export function buildRentPaymentReminderMessage(
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
+  const formattedTimestamp = formatPhilippineTimestamp(timestamp);
   if (reminderType === "upcoming") {
-    return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. - Myle's Boarding House`;
+    return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
   }
-  return `Overdue notice: your rent payment of PHP ${formattedAmount} was due on ${dueDate} and is now overdue. Please pay as soon as possible. - Myle's Boarding House`;
+  return `Overdue notice: your rent payment of PHP ${formattedAmount} was due on ${dueDate} and is now overdue. Please pay as soon as possible. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
 }
 
 export async function sendTextBeeSms(
