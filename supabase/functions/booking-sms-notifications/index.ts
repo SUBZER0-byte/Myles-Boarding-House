@@ -9,6 +9,7 @@ import {
   buildAdminBookingPaymentSubmittedMessage,
   buildGuestBookingConfirmedMessage,
   buildGuestBookingRejectedMessage,
+  formatPhilippineTimestamp,
   normalizePhilippineSmsPhone,
   sendTextBeeSms,
 } from "./sms.ts";
@@ -195,6 +196,7 @@ Deno.serve(async request => {
       guestName: booking.full_name,
       bookingId,
       amount: Number(initialPayment.amount),
+      timestamp: formatPhilippineTimestamp(),
     };
     const message = isPaymentSubmission
       ? buildAdminBookingPaymentSubmittedMessage(details)

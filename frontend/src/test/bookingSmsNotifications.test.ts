@@ -3,6 +3,7 @@ import {
   buildAdminBookingPaymentSubmittedMessage,
   buildGuestBookingConfirmedMessage,
   buildGuestBookingRejectedMessage,
+  formatPhilippineTimestamp,
 } from "../../../supabase/functions/booking-sms-notifications/sms";
 
 describe("booking SMS notifications", () => {
@@ -10,27 +11,33 @@ describe("booking SMS notifications", () => {
     guestName: "Jordan Reyes",
     bookingId: 42,
     amount: 1250.5,
+    timestamp: "Nov 25, 2026 8:00 AM PHT",
   };
 
-  it("includes the guest name and submitted payment amount in the administrator alert", () => {
+  it("includes the guest name, submitted payment amount, and timestamp in the administrator alert", () => {
     expect(buildAdminBookingPaymentSubmittedMessage(details)).toBe(
-      "Booking payment submitted for review: Jordan Reyes submitted PHP 1,250.50 (booking #42). Please review the booking payment. - Myle's Boarding House",
+      "Booking payment submitted for review: Jordan Reyes submitted PHP 1,250.50 (booking #42). Please review the booking payment. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
     );
   });
 
-  it("includes the guest name and confirmed payment amount in the guest confirmation", () => {
+  it("includes the guest name, confirmed payment amount, and timestamp in the guest confirmation", () => {
     expect(buildGuestBookingConfirmedMessage(details)).toBe(
-      "Jordan Reyes, your booking #42 is confirmed. Initial payment confirmed: PHP 1,250.50. - Myle's Boarding House",
+      "Jordan Reyes, your booking #42 is confirmed. Initial payment confirmed: PHP 1,250.50. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
     );
   });
 
-  it("includes the guest name, payment amount, and rejection reason in the guest rejection", () => {
+  it("includes the guest name, payment amount, rejection reason, and timestamp in the guest rejection", () => {
     expect(buildGuestBookingRejectedMessage({
       ...details,
       rejectionReason: "  The transaction reference could not be verified.\nPlease contact us. ",
     })).toBe(
-      "Jordan Reyes, your booking #42 payment of PHP 1,250.50 was rejected. Reason: The transaction reference could not be verified. Please contact us. - Myle's Boarding House",
+      "Jordan Reyes, your booking #42 payment of PHP 1,250.50 was rejected. Reason: The transaction reference could not be verified. Please contact us. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
     );
+  });
+
+  it("formats timestamps in Philippine time regardless of the runtime timezone", () => {
+    expect(formatPhilippineTimestamp(new Date("2026-11-25T00:00:00.000Z")))
+      .toBe("Nov 25, 2026 8:00 AM PHT");
   });
 
   it("rejects a missing or overlong rejection reason", () => {
