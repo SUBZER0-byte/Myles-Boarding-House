@@ -6,19 +6,23 @@ const {
   signInWithPassword,
   updateUser,
   getPublicUrl,
+  upload,
+  remove,
 } = vi.hoisted(() => ({
   rpc: vi.fn(),
   getUser: vi.fn(),
   signInWithPassword: vi.fn(),
   updateUser: vi.fn(),
   getPublicUrl: vi.fn(),
+  upload: vi.fn(),
+  remove: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     rpc,
     auth: { getUser, signInWithPassword, updateUser },
-    storage: { from: vi.fn(() => ({ getPublicUrl })) },
+    storage: { from: vi.fn(() => ({ getPublicUrl, upload, remove })) },
   },
 }));
 
@@ -26,14 +30,18 @@ import {
   changeMyPassword,
   getMySettingsProfile,
   getProfilePictureUrl,
+  MAX_PROFILE_PICTURE_SIZE_BYTES,
   requestMyEmailChange,
   saveMySettingsProfile,
+  uploadMyProfilePicture,
 } from "@/lib/profileSettings";
 
 describe("Supabase profile settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getPublicUrl.mockImplementation((path: string) => ({ data: { publicUrl: `https://storage.example/${path}` } }));
+    upload.mockResolvedValue({ error: null });
+    remove.mockResolvedValue({ error: null });
   });
 
   it("resolves existing and legacy relative Storage keys, rejecting external paths", () => {
@@ -43,6 +51,25 @@ describe("Supabase profile settings", () => {
       .toBe("https://storage.example/profile_pictures/user_3/legacy-profile.jpg");
     expect(getProfilePictureUrl("https://example.com/profile.jpg")).toBe("");
     expect(getProfilePictureUrl("../private.jpg")).toBe("");
+  });
+
+  it("allows profile picture uploads up to 100MB and rejects larger files", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "00000000-0000-4000-8000-000000000001" } }, error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
+    const makeImage = (size: number) => {
+      const file = new File(["image"], "profile.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+
+    await uploadMyProfilePicture(makeImage(MAX_PROFILE_PICTURE_SIZE_BYTES));
+    await expect(uploadMyProfilePicture(makeImage(MAX_PROFILE_PICTURE_SIZE_BYTES + 1)))
+      .rejects.toThrow("100MB or smaller");
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("set_my_profile_picture", {
+      p_path: expect.stringMatching(/^00000000-0000-4000-8000-000000000001\/[0-9a-f-]+\.png$/),
+    });
   });
 
   it("loads the current profile through the authenticated settings RPC", async () => {

@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 const bucket = "mbh-payment-qrs";
-const maxQrSize = 10 * 1024 * 1024;
+export const MAX_GCASH_QR_IMAGE_SIZE_BYTES = 100 * 1024 * 1024;
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface RpcResponse<T> {
@@ -42,8 +42,8 @@ async function call<T>(action: string, data: Record<string, unknown> = {}): Prom
 }
 
 function validateQr(file: File) {
-  if (!allowedTypes.has(file.type) || file.size <= 0 || file.size > maxQrSize) {
-    throw new Error("GCash QR must be a JPG, PNG, or WEBP image up to 10 MB.");
+  if (!allowedTypes.has(file.type) || file.size <= 0 || file.size > MAX_GCASH_QR_IMAGE_SIZE_BYTES) {
+    throw new Error("GCash QR must be a JPG, PNG, or WEBP image up to 100 MB.");
   }
   return file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
 }

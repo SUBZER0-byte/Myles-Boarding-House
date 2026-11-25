@@ -22,6 +22,7 @@ import {
   replaceAdminGcashQrImage,
   updateAdminGcashQrAmount,
   uploadAdminGcashQr,
+  MAX_GCASH_QR_IMAGE_SIZE_BYTES,
   type AdminGcashQrImage as GcashQrImage,
 } from "@/lib/gcashQrs";
 import { changeMyPassword } from "@/lib/profileSettings";
@@ -549,7 +550,7 @@ const AdminSettings = () => {
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
           <div>
             <h2 className="font-semibold">GCash Payment QR</h2>
-            <p className="text-sm text-muted-foreground mt-1">Upload fixed-amount GCash QR images. Guests and tenants can view the saved QR codes. JPG, PNG, or WEBP, up to 10MB.</p>
+            <p className="text-sm text-muted-foreground mt-1">Upload fixed-amount GCash QR images. Guests and tenants can view the saved QR codes. JPG, PNG, or WEBP, up to 100MB.</p>
           </div>
           <div className="grid gap-1.5 max-w-xs">
             <Label htmlFor="gcash-qr-fixed-amount">Fixed amount (₱)</Label>
@@ -569,8 +570,8 @@ const AdminSettings = () => {
             accept="image/jpeg,image/png,image/webp"
             onChange={event => {
               const file = event.target.files?.[0] ?? null;
-              if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
-                toast({ title: "Choose a JPG, PNG, or WEBP image up to 10MB", variant: "destructive" });
+              if (file && (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > MAX_GCASH_QR_IMAGE_SIZE_BYTES)) {
+                toast({ title: "Choose a JPG, PNG, or WEBP image up to 100MB", variant: "destructive" });
                 event.target.value = "";
                 setQrFile(null);
                 return;

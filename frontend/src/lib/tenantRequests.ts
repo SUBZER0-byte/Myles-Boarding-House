@@ -66,7 +66,7 @@ interface TenantRequestResponse<T = unknown> {
 const REQUEST_ATTACHMENT_BUCKET = "mbh-request-photos";
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+export const MAX_REQUEST_IMAGE_SIZE_BYTES = 100 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 300;
 const signedAttachmentUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
@@ -144,10 +144,10 @@ async function uploadRequestAttachments(
       const allowedTypes = type === "image" ? IMAGE_TYPES : VIDEO_TYPES;
       const kindLabel = type === "image" ? "image" : "video";
       if (!allowedTypes.includes(file.type) || file.size <= 0
-        || (type === "image" && file.size > MAX_IMAGE_SIZE)) {
+        || (type === "image" && file.size > MAX_REQUEST_IMAGE_SIZE_BYTES)) {
         throw new Error(
           type === "image"
-            ? "Images must be JPG, PNG, or WEBP and 10MB or smaller."
+            ? "Images must be JPG, PNG, or WEBP and 100MB or smaller."
             : "Video must be MP4, WEBM, or MOV.",
         );
       }

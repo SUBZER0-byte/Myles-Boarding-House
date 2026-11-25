@@ -18,6 +18,7 @@ import {
   ComplaintAttachmentSaveError,
   createTenantComplaint,
   listTenantComplaints,
+  MAX_REQUEST_IMAGE_SIZE_BYTES,
 } from "@/lib/tenantRequests";
 
 const TenantComplaints = () => {
@@ -194,15 +195,15 @@ const TenantComplaints = () => {
                   if (selectedFiles.some(file =>
                     !["image/jpeg", "image/png", "image/webp"].includes(file.type)
                     || file.size <= 0
-                    || file.size > 10 * 1024 * 1024
+                    || file.size > MAX_REQUEST_IMAGE_SIZE_BYTES
                   )) {
-                    toast({ title: "Choose JPG, PNG, or WEBP images up to 10MB each", variant: "destructive" });
+                    toast({ title: "Choose JPG, PNG, or WEBP images up to 100MB each", variant: "destructive" });
                     return;
                   }
                   setPhotos(current => [...current, ...selectedFiles]);
                 }}
               />
-              <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP up to 10MB each.</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, or WEBP up to 100MB each.</p>
               {photos.map((file, index) => (
                 <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 text-xs">
                   <span className="truncate">{file.name}</span>

@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 import { isSupabaseStorageImagePath } from "@/lib/storagePaths";
 import { isGender, parseGender } from "@/lib/gender";
 
+export const MAX_PROFILE_PICTURE_SIZE_BYTES = 100 * 1024 * 1024;
+
 export interface SettingsProfile {
   user_id: number;
   full_name: string;
@@ -140,8 +142,8 @@ export function getProfilePictureUrl(path: string | null | undefined): string {
 }
 
 export async function uploadMyProfilePicture(file: File, currentPath?: string | null): Promise<void> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-    throw new Error("Profile picture must be JPG, PNG, or WEBP and 5MB or smaller.");
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
+    throw new Error("Profile picture must be JPG, PNG, or WEBP and 100MB or smaller.");
   }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();

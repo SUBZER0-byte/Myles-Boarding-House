@@ -16,6 +16,7 @@ import {
   removeChatMessage,
   sendChatMessage,
   canChatWithUserType,
+  MAX_CHAT_IMAGE_SIZE_BYTES,
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/chatWorkflows";
@@ -135,8 +136,8 @@ export default function Chat() {
       setError("Please sign in to send messages.");
       return;
     }
-    if (imageFiles.some(file => file.size > 30 * 1024 * 1024)) {
-      setError("Each image must be smaller than 30 MB.");
+    if (imageFiles.some(file => file.size > MAX_CHAT_IMAGE_SIZE_BYTES)) {
+      setError("Each image must be 100 MB or smaller.");
       return;
     }
     if (imageFiles.length > 5) {
@@ -419,8 +420,8 @@ export default function Chat() {
                         event.target.value = "";
                         return;
                       }
-                      if (combinedFiles.some(file => file.size > 30 * 1024 * 1024)) {
-                        setError("Each image must be smaller than 30 MB.");
+                      if (combinedFiles.some(file => file.size > MAX_CHAT_IMAGE_SIZE_BYTES)) {
+                        setError("Each image must be 100 MB or smaller.");
                         event.target.value = "";
                         return;
                       }

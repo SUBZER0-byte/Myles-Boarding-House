@@ -3,7 +3,11 @@ import { Loader2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImagePreview } from "@/components/ImagePreview";
 import { useToast } from "@/hooks/use-toast";
-import { getProfilePictureUrl, uploadMyProfilePicture } from "@/lib/profileSettings";
+import {
+  getProfilePictureUrl,
+  MAX_PROFILE_PICTURE_SIZE_BYTES,
+  uploadMyProfilePicture,
+} from "@/lib/profileSettings";
 
 interface ProfilePictureCardProps {
   currentPath?: string | null;
@@ -25,9 +29,8 @@ export function ProfilePictureCard({ currentPath, canUpload = true, onUploaded }
   const upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const maxFileSize = 5;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > maxFileSize * 1024 * 1024) {
-      toast({ title: `Profile picture must be JPG, PNG, or WEBP and ${maxFileSize}MB or smaller`, variant: "destructive" });
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > MAX_PROFILE_PICTURE_SIZE_BYTES) {
+      toast({ title: "Profile picture must be JPG, PNG, or WEBP and 100MB or smaller", variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -68,7 +71,7 @@ export function ProfilePictureCard({ currentPath, canUpload = true, onUploaded }
             {uploading ? "Uploading..." : imageUrl ? "Change Picture" : "Upload Picture"}
           </Button>
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={upload} />
-          <p className="text-xs text-muted-foreground mt-2">JPG, PNG, or WEBP up to 5MB.</p>
+          <p className="text-xs text-muted-foreground mt-2">JPG, PNG, or WEBP up to 100MB.</p>
         </div>}
       </div>
     </div>

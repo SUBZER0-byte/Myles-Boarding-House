@@ -21,6 +21,7 @@ import {
   listPublicGcashQrs,
   replaceAdminGcashQrImage,
   uploadAdminGcashQr,
+  MAX_GCASH_QR_IMAGE_SIZE_BYTES,
 } from "@/lib/gcashQrs";
 
 const filename = "gcash-qr/ffe10000-0000-4000-8000-000000000001.png";
@@ -109,6 +110,20 @@ describe("Supabase GCash QR workflows", () => {
     ).rejects.toThrow("valid fixed amount");
     expect(upload).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("allows GCash QR images up to 100MB and rejects larger files", async () => {
+    const makeImage = (size: number) => {
+      const file = new File(["qr"], "qr.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+
+    await uploadAdminGcashQr(makeImage(MAX_GCASH_QR_IMAGE_SIZE_BYTES), 2500);
+    await expect(uploadAdminGcashQr(makeImage(MAX_GCASH_QR_IMAGE_SIZE_BYTES + 1), 4000))
+      .rejects.toThrow("up to 100 MB");
+
+    expect(upload).toHaveBeenCalledTimes(1);
   });
 
   it("deletes the database record before removing its Storage object", async () => {

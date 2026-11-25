@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 const CHAT_IMAGE_BUCKET = "mbh-chat-images";
 const CHAT_IMAGE_URL_TTL_SECONDS = 300;
-const MAX_CHAT_IMAGE_SIZE = 30 * 1024 * 1024;
+export const MAX_CHAT_IMAGE_SIZE_BYTES = 100 * 1024 * 1024;
 const MAX_CHAT_IMAGES = 5;
 const MAX_CHAT_IMAGE_TOTAL_SIZE = 150 * 1024 * 1024;
 
@@ -116,8 +116,8 @@ function imageExtension(file: File): string {
 
 async function uploadChatImages(files: File[]): Promise<string[]> {
   if (files.length > MAX_CHAT_IMAGES) throw new Error("You can attach up to 5 images per message.");
-  if (files.some(file => file.size <= 0 || file.size > MAX_CHAT_IMAGE_SIZE)) {
-    throw new Error("Each chat image must be smaller than 30 MB.");
+  if (files.some(file => file.size <= 0 || file.size > MAX_CHAT_IMAGE_SIZE_BYTES)) {
+    throw new Error("Each chat image must be 100 MB or smaller.");
   }
   if (files.reduce((total, file) => total + file.size, 0) > MAX_CHAT_IMAGE_TOTAL_SIZE) {
     throw new Error("Selected images must total less than 150 MB.");

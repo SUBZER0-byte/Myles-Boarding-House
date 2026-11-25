@@ -24,6 +24,7 @@ import {
   listChatMessages,
   removeChatMessage,
   sendChatMessage,
+  MAX_CHAT_IMAGE_SIZE_BYTES,
 } from "@/lib/chatWorkflows";
 
 const authId = "fce10000-0000-4000-8000-000000000001";
@@ -134,6 +135,30 @@ describe("Supabase chat workflows", () => {
         image_paths: [expect.stringMatching(new RegExp(`^${authId}/chat/[0-9a-f-]{36}\\.png$`))],
       },
     });
+  });
+
+  it("allows 100MB per chat image while preserving the 150MB combined limit", async () => {
+    const makeImage = (size: number) => {
+      const file = new File(["image"], "photo.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+    rpc.mockResolvedValue({
+      data: {
+        type: "success",
+        data: { message_id: 13, from_user_id: 3, to_user_id: 9, body: "", image_path: null },
+      },
+      error: null,
+    });
+
+    await sendChatMessage(9, "", [makeImage(MAX_CHAT_IMAGE_SIZE_BYTES)]);
+    await expect(sendChatMessage(9, "", [makeImage(MAX_CHAT_IMAGE_SIZE_BYTES + 1)]))
+      .rejects.toThrow("100 MB or smaller");
+    await expect(sendChatMessage(9, "", [makeImage(100 * 1024 * 1024), makeImage(51 * 1024 * 1024)]))
+      .rejects.toThrow("Selected images must total less than 150 MB.");
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unsupported images before upload and removes attachments on unsend", async () => {

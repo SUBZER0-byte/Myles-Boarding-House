@@ -33,6 +33,7 @@ import {
   listAdminMaintenanceRequests,
   listAdminComplaints,
   listTenantComplaints,
+  MAX_REQUEST_IMAGE_SIZE_BYTES,
   updateComplaintStatus,
 } from "@/lib/tenantRequests";
 
@@ -142,6 +143,40 @@ describe("tenant request workflows", () => {
       is_urgent: false,
     }, [{ file: makeVideo(0), type: "video" }]))
       .rejects.toThrow("Video must be MP4, WEBM, or MOV.");
+
+    expect(upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows complaint and maintenance images up to 100MB per file", async () => {
+    const makeImage = (size: number) => {
+      const file = new File(["image"], "evidence.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: size });
+      return file;
+    };
+    invoke
+      .mockResolvedValueOnce({ data: { type: "success", complaint_id: 24 }, error: null })
+      .mockResolvedValueOnce({ data: { type: "success", request_id: 33 }, error: null });
+    rpc.mockResolvedValue({ data: { type: "success" }, error: null });
+
+    await createTenantComplaint({
+      title: "Leak",
+      description: "Image evidence",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: makeImage(MAX_REQUEST_IMAGE_SIZE_BYTES), type: "image" }]);
+    await createTenantMaintenanceRequest({
+      title: "Leaking sink",
+      description: "Image evidence",
+      category: "Plumbing",
+      priority: "High",
+    }, [{ file: makeImage(MAX_REQUEST_IMAGE_SIZE_BYTES), type: "image" }]);
+    await expect(createTenantComplaint({
+      title: "Leak",
+      description: "Oversized image",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: makeImage(MAX_REQUEST_IMAGE_SIZE_BYTES + 1), type: "image" }]))
+      .rejects.toThrow("100MB or smaller");
 
     expect(upload).toHaveBeenCalledTimes(2);
   });
