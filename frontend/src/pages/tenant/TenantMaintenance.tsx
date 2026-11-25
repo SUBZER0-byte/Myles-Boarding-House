@@ -18,6 +18,7 @@ import {
   createTenantMaintenanceRequest,
   listTenantMaintenanceRequests,
   MAX_REQUEST_IMAGE_SIZE_BYTES,
+  MAX_REQUEST_VIDEO_SIZE_BYTES,
   MaintenanceAttachmentSaveError,
 } from "@/lib/tenantRequests";
 
@@ -234,14 +235,15 @@ const TenantMaintenance = () => {
                   if (selectedFile && (
                     !["video/mp4", "video/webm", "video/quicktime"].includes(selectedFile.type)
                     || selectedFile.size <= 0
+                    || selectedFile.size > MAX_REQUEST_VIDEO_SIZE_BYTES
                   )) {
-                    toast({ title: "Choose a non-empty MP4, WEBM, or MOV video", variant: "destructive" });
+                    toast({ title: "Choose a non-empty MP4, WEBM, or MOV video up to 500MB", variant: "destructive" });
                     return;
                   }
                   setVideo(selectedFile);
                 }}
               />
-              <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV. Supabase project upload limits apply.</p>
+              <p className="text-xs text-muted-foreground">MP4, WEBM, or MOV up to 500MB. The project-wide Supabase upload limit may be lower.</p>
               {video && (
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="truncate">{video.name}</span>

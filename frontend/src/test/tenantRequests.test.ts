@@ -34,6 +34,7 @@ import {
   listAdminComplaints,
   listTenantComplaints,
   MAX_REQUEST_IMAGE_SIZE_BYTES,
+  MAX_REQUEST_VIDEO_SIZE_BYTES,
   updateComplaintStatus,
 } from "@/lib/tenantRequests";
 
@@ -110,13 +111,14 @@ describe("tenant request workflows", () => {
     });
   });
 
-  it("accepts videos larger than the former 100MB cap for complaints and maintenance", async () => {
+  it("allows videos up to 500MB and rejects larger videos for complaints and maintenance", async () => {
     const makeVideo = (size: number) => {
       const file = new File(["video"], "recording.mp4", { type: "video/mp4" });
       Object.defineProperty(file, "size", { value: size });
       return file;
     };
-    const largeVideo = makeVideo(200 * 1024 * 1024);
+    const allowedVideo = makeVideo(MAX_REQUEST_VIDEO_SIZE_BYTES);
+    const oversizedVideo = makeVideo(MAX_REQUEST_VIDEO_SIZE_BYTES + 1);
     invoke
       .mockResolvedValueOnce({ data: { type: "success", complaint_id: 23 }, error: null })
       .mockResolvedValueOnce({ data: { type: "success", request_id: 32 }, error: null });
@@ -127,7 +129,7 @@ describe("tenant request workflows", () => {
       description: "Video evidence",
       category: "Plumbing",
       is_urgent: false,
-    }, [{ file: largeVideo, type: "video" }])).resolves.toMatchObject({
+    }, [{ file: allowedVideo, type: "video" }])).resolves.toMatchObject({
       type: "success",
     });
     await expect(createTenantMaintenanceRequest({
@@ -135,14 +137,28 @@ describe("tenant request workflows", () => {
       description: "Video evidence",
       category: "Plumbing",
       priority: "High",
-    }, [{ file: largeVideo, type: "video" }])).resolves.toBeUndefined();
+    }, [{ file: allowedVideo, type: "video" }])).resolves.toBeUndefined();
+    await expect(createTenantComplaint({
+      title: "Leak",
+      description: "Oversized video",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: oversizedVideo, type: "video" }]))
+      .rejects.toThrow("500MB or smaller");
+    await expect(createTenantMaintenanceRequest({
+      title: "Leaking sink",
+      description: "Oversized video",
+      category: "Plumbing",
+      priority: "High",
+    }, [{ file: oversizedVideo, type: "video" }]))
+      .rejects.toThrow("500MB or smaller");
     await expect(createTenantComplaint({
       title: "Leak",
       description: "Video evidence",
       category: "Plumbing",
       is_urgent: false,
     }, [{ file: makeVideo(0), type: "video" }]))
-      .rejects.toThrow("Video must be MP4, WEBM, or MOV.");
+      .rejects.toThrow("Video must be MP4, WEBM, or MOV and 500MB or smaller.");
 
     expect(upload).toHaveBeenCalledTimes(2);
   });
