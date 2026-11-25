@@ -109,12 +109,13 @@ describe("tenant request workflows", () => {
     });
   });
 
-  it("accepts videos up to 100MB for complaints and maintenance and rejects larger files", async () => {
+  it("accepts videos larger than the former 100MB cap for complaints and maintenance", async () => {
     const makeVideo = (size: number) => {
       const file = new File(["video"], "recording.mp4", { type: "video/mp4" });
       Object.defineProperty(file, "size", { value: size });
       return file;
     };
+    const largeVideo = makeVideo(200 * 1024 * 1024);
     invoke
       .mockResolvedValueOnce({ data: { type: "success", complaint_id: 23 }, error: null })
       .mockResolvedValueOnce({ data: { type: "success", request_id: 32 }, error: null });
@@ -125,7 +126,7 @@ describe("tenant request workflows", () => {
       description: "Video evidence",
       category: "Plumbing",
       is_urgent: false,
-    }, [{ file: makeVideo(100 * 1024 * 1024), type: "video" }])).resolves.toMatchObject({
+    }, [{ file: largeVideo, type: "video" }])).resolves.toMatchObject({
       type: "success",
     });
     await expect(createTenantMaintenanceRequest({
@@ -133,21 +134,14 @@ describe("tenant request workflows", () => {
       description: "Video evidence",
       category: "Plumbing",
       priority: "High",
-    }, [{ file: makeVideo(100 * 1024 * 1024), type: "video" }])).resolves.toBeUndefined();
+    }, [{ file: largeVideo, type: "video" }])).resolves.toBeUndefined();
     await expect(createTenantComplaint({
       title: "Leak",
       description: "Video evidence",
       category: "Plumbing",
       is_urgent: false,
-    }, [{ file: makeVideo(100 * 1024 * 1024 + 1), type: "video" }]))
-      .rejects.toThrow("Video must be MP4, WEBM, or MOV and 100MB or smaller.");
-    await expect(createTenantMaintenanceRequest({
-      title: "Leaking sink",
-      description: "Video evidence",
-      category: "Plumbing",
-      priority: "High",
-    }, [{ file: makeVideo(100 * 1024 * 1024 + 1), type: "video" }]))
-      .rejects.toThrow("Video must be MP4, WEBM, or MOV and 100MB or smaller.");
+    }, [{ file: makeVideo(0), type: "video" }]))
+      .rejects.toThrow("Video must be MP4, WEBM, or MOV.");
 
     expect(upload).toHaveBeenCalledTimes(2);
   });
