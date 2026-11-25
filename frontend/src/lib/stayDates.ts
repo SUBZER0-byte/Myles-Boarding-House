@@ -4,7 +4,10 @@ export function calculateMoveOutDate(moveInDate: string, stayMonths: number): st
   if (!moveInDate || !Number.isInteger(stayMonths) || stayMonths < 1) return "";
   const moveIn = new Date(`${moveInDate}T00:00:00`);
   if (Number.isNaN(moveIn.getTime()) || format(moveIn, "yyyy-MM-dd") !== moveInDate) return "";
-  return format(addMonths(moveIn, stayMonths), "yyyy-MM-dd");
+  const moveOut = addMonths(moveIn, stayMonths);
+  if (Number.isNaN(moveOut.getTime())) return "";
+  const formattedMoveOut = format(moveOut, "yyyy-MM-dd");
+  return /^\d{4}-\d{2}-\d{2}$/.test(formattedMoveOut) ? formattedMoveOut : "";
 }
 
 export function getStayMonths(moveInDate: string, moveOutDate: string | null | undefined): string {

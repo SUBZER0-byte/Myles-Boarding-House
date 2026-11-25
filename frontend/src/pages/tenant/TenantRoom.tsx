@@ -15,6 +15,8 @@ import { getAvailableTenantRooms, getMyTenantRoom } from "@/lib/tenantRoom";
 import { requestStayExtension } from "@/lib/stayExtensions";
 import { createTenantRoomChangeRequest } from "@/lib/tenantRequests";
 import { formatRoomFloor } from "@/lib/roomFloor";
+import { calculateMoveOutDate } from "@/lib/stayDates";
+import { format } from "date-fns";
 
 const TenantRoom = () => {
   const { toast } = useToast();
@@ -29,15 +31,12 @@ const TenantRoom = () => {
   const [target, setTarget] = useState<string>("");
   const [reason, setReason] = useState("");
   const [extensionOpen, setExtensionOpen] = useState(false);
-  const [requestedMoveOutDate, setRequestedMoveOutDate] = useState("");
+  const [extensionMonthsInput, setExtensionMonthsInput] = useState("1");
   const currentMoveOutDate = myRoom?.check_out_date ?? myRoom?.move_out_date ?? null;
-  const minimumExtensionDate = currentMoveOutDate
-    ? (() => {
-      const nextDate = new Date(`${currentMoveOutDate}T00:00:00`);
-      nextDate.setDate(nextDate.getDate() + 1);
-      return `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`;
-    })()
-    : undefined;
+  const extensionMonths = /^\d+$/.test(extensionMonthsInput) ? Number(extensionMonthsInput) : 0;
+  const requestedMoveOutDate = currentMoveOutDate
+    ? calculateMoveOutDate(currentMoveOutDate, extensionMonths)
+    : "";
 
   const request = async () => {
     if (!myRoom || !target) return;
@@ -62,7 +61,7 @@ const TenantRoom = () => {
       const message = await requestStayExtension(requestedMoveOutDate);
       toast({ title: message });
       setExtensionOpen(false);
-      setRequestedMoveOutDate("");
+      setExtensionMonthsInput("1");
       refetchRoom();
     } catch (cause) {
       toast({
@@ -169,7 +168,7 @@ const TenantRoom = () => {
                     </Button>
                     {!myRoom.requested_move_out_date && (
                       <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-                        You can request an extension anytime during your stay. Choose your new move-out date for admin approval.
+                        You can request an extension anytime during your stay. Choose how many months to add for admin approval.
                       </p>
                     )}
                   </div>
@@ -229,19 +228,32 @@ const TenantRoom = () => {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">Current move-out date: {currentMoveOutDate ?? "—"}</p>
             <div className="grid gap-1.5">
-              <Label htmlFor="requested-move-out-date">Requested move-out date</Label>
+              <Label htmlFor="extension-length-months">Extension length (months)</Label>
               <Input
-                id="requested-move-out-date"
-                type="date"
-                min={minimumExtensionDate}
-                value={requestedMoveOutDate}
-                onChange={event => setRequestedMoveOutDate(event.target.value)}
+                id="extension-length-months"
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={extensionMonthsInput}
+                onChange={event => setExtensionMonthsInput(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="calculated-extension-move-out">New move-out date (calculated)</Label>
+              <Input
+                id="calculated-extension-move-out"
+                readOnly
+                value={requestedMoveOutDate
+                  ? format(new Date(`${requestedMoveOutDate}T00:00:00`), "PPP")
+                  : ""}
+                placeholder="Select extension length to calculate date"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setExtensionOpen(false)}>Cancel</Button>
-            <Button onClick={requestExtension} disabled={!requestedMoveOutDate || requestedMoveOutDate < (minimumExtensionDate ?? "")}>Submit Request</Button>
+            <Button onClick={requestExtension} disabled={!requestedMoveOutDate}>Submit Request</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

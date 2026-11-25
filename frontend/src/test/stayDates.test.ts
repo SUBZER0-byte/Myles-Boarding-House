@@ -12,5 +12,6 @@ describe("stay date calculations", () => {
     expect(calculateMoveOutDate("", 1)).toBe("");
     expect(calculateMoveOutDate("2026-01-01", 0)).toBe("");
     expect(calculateMoveOutDate("2026-01-01", 1.5)).toBe("");
+    expect(calculateMoveOutDate("2026-01-01", Number.MAX_SAFE_INTEGER)).toBe("");
   });
 });
