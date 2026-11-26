@@ -85,6 +85,7 @@ Deno.serve(async request => {
       {
         p_tenant_user_id: reminder.tenant_user_id,
         p_reminder_day: reminder.reminder_day,
+        p_payment_id: reminder.payment_id,
         p_success: sendError === null,
         p_error: sendError,
       },

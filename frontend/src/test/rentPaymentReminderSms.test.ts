@@ -6,8 +6,6 @@ import {
 } from "../../../supabase/functions/rent-payment-reminders/sms";
 
 describe("rent payment reminder SMS", () => {
-  const timestamp = new Date("2026-11-25T00:00:00.000Z");
-
   it.each([
     ["09171234567", "+639171234567"],
     ["639171234567", "+639171234567"],
@@ -24,20 +22,15 @@ describe("rent payment reminder SMS", () => {
   });
 
   it("includes the due date without claiming each daily reminder is five days away", () => {
-    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "upcoming", timestamp)).toBe(
-      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23. Please pay by the due date. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
+    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "upcoming")).toBe(
+      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23. Please pay by the due date. - Myle's Boarding House",
     );
   });
 
   it("reminds the tenant an overdue payment is still unpaid", () => {
-    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "overdue", timestamp)).toBe(
-      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and remains unpaid. Please pay as soon as possible. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
+    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "overdue")).toBe(
+      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and remains unpaid. Please pay as soon as possible. - Myle's Boarding House",
     );
-  });
-
-  it("rejects an invalid SMS timestamp", () => {
-    expect(() => buildRentPaymentReminderMessage(6500, "2026-11-23", "upcoming", new Date("invalid")))
-      .toThrow("SMS timestamp is invalid.");
   });
 
   it("rejects unsupported reminder types", () => {
