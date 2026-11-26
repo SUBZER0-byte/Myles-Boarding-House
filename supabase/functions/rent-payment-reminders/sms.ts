@@ -11,10 +11,27 @@ export function normalizePhilippineSmsPhone(rawPhone: string): string {
   return "+63" + localNumber.slice(1);
 }
 
+export function formatPhilippineTimestamp(date: Date = new Date()): string {
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("SMS timestamp is invalid.");
+  }
+  const formatted = new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+  return formatted + " PHT";
+}
+
 export function buildRentPaymentReminderMessage(
   amount: number,
   dueDate: string,
   reminderType: string = "upcoming",
+  sentAt: Date = new Date(),
 ): string {
   if (
     !Number.isFinite(amount)
@@ -27,10 +44,11 @@ export function buildRentPaymentReminderMessage(
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
+  const sentTimestamp = formatPhilippineTimestamp(sentAt);
   if (reminderType === "upcoming") {
-    return "Reminder: your rent payment of PHP " + formattedAmount + " is due on " + dueDate + ". Please pay by the due date. - Myle's Boarding House";
+    return "Reminder: your rent payment of PHP " + formattedAmount + " is due on " + dueDate + ". Please pay by the due date. Sent " + sentTimestamp + ". - Myle's Boarding House";
   }
-  return "Overdue notice: your rent payment of PHP " + formattedAmount + " was due on " + dueDate + " and remains unpaid. Please pay as soon as possible. - Myle's Boarding House";
+  return "Overdue notice: your rent payment of PHP " + formattedAmount + " was due on " + dueDate + " and remains unpaid. Please pay as soon as possible. Sent " + sentTimestamp + ". - Myle's Boarding House";
 }
 
 export async function sendTextBeeSms(

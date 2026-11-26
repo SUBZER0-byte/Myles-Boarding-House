@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildRentPaymentReminderMessage,
+  formatPhilippineTimestamp,
   normalizePhilippineSmsPhone,
   sendTextBeeSms,
 } from "../../../supabase/functions/rent-payment-reminders/sms";
@@ -21,15 +22,34 @@ describe("rent payment reminder SMS", () => {
     );
   });
 
+  it("formats the actual send time in Philippine Time", () => {
+    expect(formatPhilippineTimestamp(new Date("2026-11-26T17:00:00.000Z"))).toBe(
+      "Nov 27, 2026, 1:00 AM PHT",
+    );
+    expect(() => formatPhilippineTimestamp(new Date(Number.NaN))).toThrow(
+      "SMS timestamp is invalid.",
+    );
+  });
+
   it("includes the due date without claiming each daily reminder is five days away", () => {
-    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "upcoming")).toBe(
-      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23. Please pay by the due date. - Myle's Boarding House",
+    expect(buildRentPaymentReminderMessage(
+      6500,
+      "2026-11-23",
+      "upcoming",
+      new Date("2026-11-26T17:00:00.000Z"),
+    )).toBe(
+      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23. Please pay by the due date. Sent Nov 27, 2026, 1:00 AM PHT. - Myle's Boarding House",
     );
   });
 
   it("reminds the tenant an overdue payment is still unpaid", () => {
-    expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "overdue")).toBe(
-      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and remains unpaid. Please pay as soon as possible. - Myle's Boarding House",
+    expect(buildRentPaymentReminderMessage(
+      6500,
+      "2026-11-23",
+      "overdue",
+      new Date("2026-11-26T17:00:00.000Z"),
+    )).toBe(
+      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and remains unpaid. Please pay as soon as possible. Sent Nov 27, 2026, 1:00 AM PHT. - Myle's Boarding House",
     );
   });
 
