@@ -125,9 +125,7 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $function$
 BEGIN
-    IF TG_TABLE_NAME = 'ratings' THEN
-        NEW."comment" := public.mask_profanity(NEW."comment");
-    ELSIF TG_TABLE_NAME = 'promotional_video_comments' THEN
+    IF TG_TABLE_NAME = 'promotional_video_comments' THEN
         NEW."comment" := public.mask_profanity(NEW."comment");
     ELSIF TG_TABLE_NAME = 'promotional_video_replies' THEN
         NEW."reply" := public.mask_profanity(NEW."reply");
@@ -135,12 +133,6 @@ BEGIN
     RETURN NEW;
 END;
 $function$;
-
-DROP TRIGGER IF EXISTS "ratings_mask_public_profanity" ON public."ratings";
-CREATE TRIGGER "ratings_mask_public_profanity"
-    BEFORE INSERT OR UPDATE ON public."ratings"
-    FOR EACH ROW
-    EXECUTE FUNCTION public.mask_public_profanity_before_write();
 
 DROP TRIGGER IF EXISTS "promotional_video_comments_mask_profanity"
     ON public."promotional_video_comments";
@@ -155,11 +147,6 @@ CREATE TRIGGER "promotional_video_replies_mask_profanity"
     BEFORE INSERT OR UPDATE ON public."promotional_video_replies"
     FOR EACH ROW
     EXECUTE FUNCTION public.mask_public_profanity_before_write();
-
-UPDATE public."ratings"
-   SET "comment" = public.mask_profanity("comment")
- WHERE "comment" IS NOT NULL
-   AND public.mask_profanity("comment") IS DISTINCT FROM "comment";
 
 UPDATE public."promotional_video_comments"
    SET "comment" = public.mask_profanity("comment")

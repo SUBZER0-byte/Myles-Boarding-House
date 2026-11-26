@@ -13,7 +13,7 @@ describe("tenant rating operations", () => {
     invoke.mockReset();
   });
 
-  it("loads only the current tenant's ratings through the Edge Function", async () => {
+  it("loads only the current tenant's ratings without changing private rating text", async () => {
     const ratings = [{
       rating_id: 4,
       category: "Services",
@@ -25,14 +25,11 @@ describe("tenant rating operations", () => {
     }];
     invoke.mockResolvedValue({ data: { type: "success", data: ratings }, error: null });
 
-    await expect(listTenantRatings()).resolves.toEqual([{
-      ...ratings[0],
-      comment: "Helpful, ****",
-    }]);
+    await expect(listTenantRatings()).resolves.toEqual(ratings);
     expect(invoke).toHaveBeenCalledWith("tenant-ratings", { body: { action: "list" } });
   });
 
-  it("submits rating data without a browser-provided tenant ID", async () => {
+  it("submits rating data unchanged without a browser-provided tenant ID", async () => {
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
 
     await submitTenantRating({
@@ -41,7 +38,7 @@ describe("tenant rating operations", () => {
       comment: "Helpful fuck",
     });
     expect(invoke).toHaveBeenCalledWith("tenant-ratings", {
-      body: { action: "submit", stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful ****" },
+      body: { action: "submit", stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful fuck" },
     });
   });
 
