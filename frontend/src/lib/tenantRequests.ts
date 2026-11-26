@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase";
+import { Upload } from "tus-js-client";
 
 export interface RequestStatusHistory {
   status: string;
@@ -68,6 +69,7 @@ const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 export const MAX_REQUEST_IMAGE_SIZE_BYTES = 100 * 1024 * 1024;
 export const MAX_REQUEST_VIDEO_SIZE_BYTES = 500 * 1024 * 1024;
+const RESUMABLE_UPLOAD_THRESHOLD_BYTES = 6 * 1024 * 1024;
 const SIGNED_URL_TTL_SECONDS = 300;
 const signedAttachmentUrlCache = new Map<string, { url: string; expiresAt: number }>();
 
@@ -122,10 +124,23 @@ async function removeUnattachedFiles(paths: string[]): Promise<void> {
 
 type UploadableRequestAttachment = { file: File; type: "image" | "video" };
 type UploadedRequestAttachment = { path: string; type: "image" | "video"; sort_order: number };
+type RequestUploadProgress = (progress: number) => void;
+
+function getResumableUploadEndpoint(): string {
+  const url = new URL(SUPABASE_URL);
+  if (url.hostname.endsWith(".supabase.co") && !url.hostname.endsWith(".storage.supabase.co")) {
+    url.hostname = `${url.hostname.slice(0, -".supabase.co".length)}.storage.supabase.co`;
+  }
+  url.pathname = "/storage/v1/upload/resumable";
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
 
 async function uploadRequestAttachments(
   files: UploadableRequestAttachment[],
   requestType: "complaint" | "maintenance",
+  onProgress?: RequestUploadProgress,
 ): Promise<UploadedRequestAttachment[]> {
   if (files.length === 0) return [];
   if (files.length > 6 || files.filter(file => file.type === "image").length > 5
@@ -139,6 +154,9 @@ async function uploadRequestAttachments(
   if (!userData.user) throw new Error(`Sign in to attach ${requestType} files.`);
 
   const uploaded: UploadedRequestAttachment[] = [];
+  const totalBytes = files.reduce((total, attachment) => total + attachment.file.size, 0);
+  let completedBytes = 0;
+  let accessToken: string | null = null;
   try {
     for (const [sortOrder, attachment] of files.entries()) {
       const { file, type } = attachment;
@@ -161,11 +179,50 @@ async function uploadRequestAttachments(
         : file.type === "video/webm" ? "webm"
         : "mov";
       const path = `${userData.user.id}/${crypto.randomUUID()}.${extension}`;
-      const { error } = await supabase.storage
-        .from(REQUEST_ATTACHMENT_BUCKET)
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw new Error(error.message || `Could not upload the ${requestType} ${kindLabel}.`);
+      if (file.size > RESUMABLE_UPLOAD_THRESHOLD_BYTES) {
+        if (!accessToken) {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) throw new Error(sessionError.message || "Could not verify your account.");
+          accessToken = sessionData.session?.access_token ?? null;
+          if (!accessToken) throw new Error(`Sign in to attach ${requestType} files.`);
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          const upload = new Upload(file, {
+            endpoint: getResumableUploadEndpoint(),
+            retryDelays: [0, 3000, 5000, 10000, 20000],
+            headers: {
+              authorization: `Bearer ${accessToken}`,
+              apikey: SUPABASE_PUBLISHABLE_KEY,
+            },
+            uploadDataDuringCreation: true,
+            removeFingerprintOnSuccess: true,
+            chunkSize: RESUMABLE_UPLOAD_THRESHOLD_BYTES,
+            metadata: {
+              bucketName: REQUEST_ATTACHMENT_BUCKET,
+              objectName: path,
+              contentType: file.type,
+              cacheControl: "3600",
+            },
+            onProgress: bytesUploaded => {
+              onProgress?.(Math.round(((completedBytes + bytesUploaded) / totalBytes) * 100));
+            },
+            onError: error => reject(new Error(
+              error.message || `Could not upload the ${requestType} ${kindLabel}.`,
+            )),
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        });
+      } else {
+        const { error } = await supabase.storage
+          .from(REQUEST_ATTACHMENT_BUCKET)
+          .upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw new Error(error.message || `Could not upload the ${requestType} ${kindLabel}.`);
+      }
       uploaded.push({ path, type, sort_order: sortOrder });
+      completedBytes += file.size;
+      onProgress?.(Math.round((completedBytes / totalBytes) * 100));
     }
   } catch (error) {
     try {
@@ -183,8 +240,9 @@ async function createRequestWithAttachments(
   data: Record<string, unknown>,
   files: UploadableRequestAttachment[],
   requestType: "complaint" | "maintenance",
+  onProgress?: RequestUploadProgress,
 ): Promise<TenantRequestResponse> {
-  const uploaded = await uploadRequestAttachments(files, requestType);
+  const uploaded = await uploadRequestAttachments(files, requestType, onProgress);
   let response: TenantRequestResponse;
   try {
     response = await invokeRequest(action, { ...data, photo_path: null });
@@ -348,8 +406,8 @@ export async function createTenantComplaint(input: {
   description: string;
   category: string;
   is_urgent: boolean;
-}, files: UploadableRequestAttachment[] = []): Promise<TenantRequestResponse> {
-  return createRequestWithAttachments("tenant_create_complaint", input, files, "complaint");
+}, files: UploadableRequestAttachment[] = [], onProgress?: RequestUploadProgress): Promise<TenantRequestResponse> {
+  return createRequestWithAttachments("tenant_create_complaint", input, files, "complaint", onProgress);
 }
 
 export async function createTenantRoomChangeRequest(
@@ -420,8 +478,8 @@ export async function createTenantMaintenanceRequest(input: {
   category: string;
   description: string;
   priority: string;
-}, files: UploadableRequestAttachment[] = []): Promise<void> {
-  await createRequestWithAttachments("tenant_create_maintenance", input, files, "maintenance");
+}, files: UploadableRequestAttachment[] = [], onProgress?: RequestUploadProgress): Promise<void> {
+  await createRequestWithAttachments("tenant_create_maintenance", input, files, "maintenance", onProgress);
 }
 
 export async function cancelTenantMaintenanceRequest(requestId: number): Promise<void> {

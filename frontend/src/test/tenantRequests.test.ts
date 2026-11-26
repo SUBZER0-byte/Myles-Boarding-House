@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { invoke, rpc, getUser, upload, remove, createSignedUrls, storageFrom } = vi.hoisted(() => {
+const { invoke, rpc, getUser, getSession, upload, remove, createSignedUrls, storageFrom, startTusUpload } = vi.hoisted(() => {
   const upload = vi.fn();
   const remove = vi.fn();
   const createSignedUrls = vi.fn();
@@ -8,19 +8,39 @@ const { invoke, rpc, getUser, upload, remove, createSignedUrls, storageFrom } = 
     invoke: vi.fn(),
     rpc: vi.fn(),
     getUser: vi.fn(),
+    getSession: vi.fn(),
     upload,
     remove,
     createSignedUrls,
     storageFrom: vi.fn(() => ({ upload, remove, createSignedUrls })),
+    startTusUpload: vi.fn(),
   };
 });
 
 vi.mock("@/lib/supabase", () => ({
+  SUPABASE_URL: "https://sxrwgoqzlwseqadozcwl.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
   supabase: {
     functions: { invoke },
     rpc,
-    auth: { getUser },
+    auth: { getUser, getSession },
     storage: { from: storageFrom },
+  },
+}));
+
+vi.mock("tus-js-client", () => ({
+  Upload: class {
+    constructor(
+      private file: File,
+      private options: {
+        onProgress: (bytesUploaded: number, bytesTotal: number) => void;
+        onSuccess: () => void;
+      },
+    ) {}
+
+    start() {
+      startTusUpload(this.file, this.options);
+    }
   },
 }));
 
@@ -43,7 +63,21 @@ describe("tenant request workflows", () => {
     invoke.mockReset();
     rpc.mockReset().mockResolvedValue({ data: [], error: null });
     getUser.mockReset().mockResolvedValue({ data: { user: { id: "tenant-auth-id" } }, error: null });
+    getSession.mockReset().mockResolvedValue({
+      data: { session: { access_token: "tenant-access-token" } },
+      error: null,
+    });
     upload.mockReset().mockResolvedValue({ data: { path: "uploaded-path" }, error: null });
+    startTusUpload.mockReset().mockImplementation((
+      file: File,
+      options: {
+        onProgress: (bytesUploaded: number, bytesTotal: number) => void;
+        onSuccess: () => void;
+      },
+    ) => {
+      options.onProgress(file.size / 2, file.size);
+      options.onSuccess();
+    });
     remove.mockReset().mockResolvedValue({ data: [], error: null });
     createSignedUrls.mockReset().mockResolvedValue({ data: [], error: null });
     storageFrom.mockClear();
@@ -111,6 +145,37 @@ describe("tenant request workflows", () => {
     });
   });
 
+  it("uses direct-host resumable uploads with progress for large evidence files", async () => {
+    invoke.mockResolvedValue({ data: { type: "success", complaint_id: 25 }, error: null });
+    rpc.mockResolvedValue({ data: { type: "success" }, error: null });
+    const video = new File(["video"], "recording.mp4", { type: "video/mp4" });
+    Object.defineProperty(video, "size", { value: 10 * 1024 * 1024 });
+    const progress: number[] = [];
+
+    await createTenantComplaint({
+      title: "Leak",
+      description: "Video evidence",
+      category: "Plumbing",
+      is_urgent: false,
+    }, [{ file: video, type: "video" }], value => progress.push(value));
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(startTusUpload).toHaveBeenCalledOnce();
+    const options = startTusUpload.mock.calls[0][1];
+    expect(options.endpoint).toBe("https://sxrwgoqzlwseqadozcwl.storage.supabase.co/storage/v1/upload/resumable");
+    expect(options.chunkSize).toBe(6 * 1024 * 1024);
+    expect(options.headers).toEqual({
+      authorization: "Bearer tenant-access-token",
+      apikey: "test-publishable-key",
+    });
+    expect(options.metadata).toEqual(expect.objectContaining({
+      bucketName: "mbh-request-photos",
+      contentType: "video/mp4",
+    }));
+    expect(progress).toEqual([50, 100]);
+  });
+
   it("allows videos up to 500MB and rejects larger videos for complaints and maintenance", async () => {
     const makeVideo = (size: number) => {
       const file = new File(["video"], "recording.mp4", { type: "video/mp4" });
@@ -160,7 +225,8 @@ describe("tenant request workflows", () => {
     }, [{ file: makeVideo(0), type: "video" }]))
       .rejects.toThrow("Video must be MP4, WEBM, or MOV and 500MB or smaller.");
 
-    expect(upload).toHaveBeenCalledTimes(2);
+    expect(startTusUpload).toHaveBeenCalledTimes(2);
+    expect(upload).not.toHaveBeenCalled();
   });
 
   it("allows complaint and maintenance images up to 100MB per file", async () => {
@@ -194,7 +260,8 @@ describe("tenant request workflows", () => {
     }, [{ file: makeImage(MAX_REQUEST_IMAGE_SIZE_BYTES + 1), type: "image" }]))
       .rejects.toThrow("100MB or smaller");
 
-    expect(upload).toHaveBeenCalledTimes(2);
+    expect(startTusUpload).toHaveBeenCalledTimes(2);
+    expect(upload).not.toHaveBeenCalled();
   });
 
   it("uploads multiple images and an optional video for maintenance requests", async () => {

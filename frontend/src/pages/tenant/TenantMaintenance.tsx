@@ -33,6 +33,7 @@ const TenantMaintenance = () => {
   const [photos, setPhotos] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +52,8 @@ const TenantMaintenance = () => {
         ...photos.map(file => ({ file, type: "image" as const })),
         ...(video ? [{ file: video, type: "video" as const }] : []),
       ];
-      await createTenantMaintenanceRequest(form, attachments);
+      setUploadProgress(attachments.length > 0 ? 0 : null);
+      await createTenantMaintenanceRequest(form, attachments, setUploadProgress);
       toast({ title: "Request submitted" });
       setOpen(false);
       setForm({ title: "", category: "Other", description: "", priority: "Medium" });
@@ -72,6 +74,7 @@ const TenantMaintenance = () => {
       }
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -261,6 +264,24 @@ const TenantMaintenance = () => {
               )}
             </div>
           </div>
+          {saving && uploadProgress !== null && (
+            <div className="space-y-2" role="status" aria-live="polite">
+              <div className="flex justify-between text-sm">
+                <span>Uploading attachments</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label="Uploading attachments"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploadProgress}
+              >
+                <div className="h-full bg-primary transition-[width]" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={submit} disabled={saving}>{saving ? "Sending…" : "Submit"}</Button>

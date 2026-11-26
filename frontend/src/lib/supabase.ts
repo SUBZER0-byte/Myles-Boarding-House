@@ -9,6 +9,9 @@ if (!supabaseUrl || !supabasePublishableKey) {
   );
 }
 
+export const SUPABASE_URL = supabaseUrl;
+export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey;
+
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     autoRefreshToken: true,
