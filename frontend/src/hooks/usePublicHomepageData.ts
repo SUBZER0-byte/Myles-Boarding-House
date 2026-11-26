@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { getPublicReviews, getPublicStats, type PublicReview, type PublicStats } from "@/lib/publicHomepage";
+import { supabase } from "@/lib/supabase";
 
 function toError(caught: unknown): Error {
   return caught instanceof Error ? caught : new Error("Could not load public homepage data.");
 }
 
-export function usePublicHomepageData(intervalMs = 10000) {
+export function usePublicHomepageData(intervalMs = 60000) {
   const [reviews, setReviews] = useState<PublicReview[] | null>(null);
   const [stats, setStats] = useState<PublicStats | null>(null);
   const [reviewsError, setReviewsError] = useState<Error | null>(null);
@@ -46,11 +47,18 @@ export function usePublicHomepageData(intervalMs = 10000) {
     };
 
     void refresh();
+    const channel = supabase
+      .channel("public:rating-updates", { config: { private: true } })
+      .on("broadcast", { event: "ratings_changed" }, () => void refresh())
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void refresh();
+      });
     const timer = window.setInterval(() => void refresh(), intervalMs);
     return () => {
       active = false;
       requestId.current += 1;
       window.clearInterval(timer);
+      void supabase.removeChannel(channel);
     };
   }, [intervalMs]);
 

@@ -82,7 +82,7 @@ const Index = () => {
     reviewsError,
     statsError,
     reviewsLoading,
-  } = usePublicHomepageData(10000);
+  } = usePublicHomepageData(60000);
 
   const rooms: RoomDisplayData[] = (liveRooms ?? []).map((room) => ({
     room_id: room.room_id,
