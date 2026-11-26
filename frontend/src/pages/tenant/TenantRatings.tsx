@@ -25,7 +25,7 @@ const TenantRatings = () => {
     setSaving(true);
     try {
       await submitTenantRating({ stars, category, comment });
-      toast({ title: "Rating submitted and hidden until it is revealed" });
+      toast({ title: "Rating submitted and revealed" });
       setComment("");
       setStars(5);
       setCategory("Overall Satisfaction");
