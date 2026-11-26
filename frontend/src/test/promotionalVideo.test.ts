@@ -101,7 +101,7 @@ describe("promotional video discussion", () => {
     });
   });
 
-  it("masks existing comments and replies from the public discussion read", async () => {
+  it("returns raw comments and replies so each page can control its display", async () => {
     rpc.mockResolvedValue({
       data: {
         video_url: "",
@@ -133,18 +133,18 @@ describe("promotional video discussion", () => {
 
     await expect(getPromotionalVideoDiscussion()).resolves.toMatchObject({
       comments: [{
-        comment: "*******!",
-        replies: [{ reply: "****." }],
+        comment: "Gagoooo!",
+        replies: [{ reply: "sh1t." }],
       }],
     });
   });
 
-  it("masks comments before posting without accepting a client-supplied user ID", async () => {
+  it("posts trimmed comments without censoring admin-visible source text or accepting a client-supplied user ID", async () => {
     rpc.mockResolvedValue({ data: { type: "success", comment_id: 9 }, error: null });
 
     await expect(addPromotionalVideoComment("  Nice f.u.c.k!  ")).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith("add_promotional_video_comment", {
-      p_comment: "Nice *.*.*.*!",
+      p_comment: "Nice f.u.c.k!",
     });
   });
 
@@ -177,7 +177,7 @@ describe("promotional video discussion", () => {
         user_id: 3,
         full_name: "Guest User",
         username: "guest",
-        comment: "A nice place",
+        comment: "A f.u.c.k place",
         created_at: "2026-11-18T12:00:00Z",
         likes_count: 0,
       }],
@@ -186,10 +186,10 @@ describe("promotional video discussion", () => {
         comment_id: 8,
         full_name: "Replying User",
         username: "replying",
-        reply: "A useful detail",
+        reply: "A sh1t detail",
         created_at: "2026-11-18T13:00:00Z",
         likes_count: 0,
-        comment: "A nice place",
+        comment: "A f.u.c.k place",
         commenter_name: "Guest User",
       }],
       likes: [{
@@ -215,7 +215,7 @@ describe("promotional video discussion", () => {
         replies: [{
           reply_id: 9,
           full_name: "Replying User",
-          reply: "A useful detail",
+          reply: "A sh1t detail",
           created_at: "2026-11-18T13:00:00Z",
           is_mine: false,
           reactions: [{ reaction: "like", count: 1, reacted_by_me: false }],
@@ -270,14 +270,14 @@ describe("promotional video discussion", () => {
     });
   });
 
-  it("masks authenticated owner comment edits and validates them", async () => {
+  it("preserves authenticated owner comment edits and validates them", async () => {
     rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
     await updateMyPromotionalVideoComment(12, "  Updated f.u.c.k  ");
     await deleteMyPromotionalVideoComment(12);
 
     expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_comment", {
       p_comment_id: 12,
-      p_comment: "Updated *.*.*.*",
+      p_comment: "Updated f.u.c.k",
     });
     expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_comment", {
       p_comment_id: 12,
@@ -289,12 +289,12 @@ describe("promotional video discussion", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("masks replies before posting and validates their length", async () => {
+  it("posts replies without censoring admin-visible source text and validates their length", async () => {
     rpc.mockResolvedValue({ data: { type: "success", reply_id: 15 }, error: null });
     await expect(addPromotionalVideoReply(3, "  I agree, sh1t!  ")).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith("add_promotional_video_reply", {
       p_comment_id: 3,
-      p_reply: "I agree, ****!",
+      p_reply: "I agree, sh1t!",
     });
 
     rpc.mockClear();
@@ -303,14 +303,14 @@ describe("promotional video discussion", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("masks owner reply edits and validates them", async () => {
+  it("preserves owner reply edits and validates them", async () => {
     rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
     await updateMyPromotionalVideoReply(15, "  Updated sh1t  ");
     await deleteMyPromotionalVideoReply(15);
 
     expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_reply", {
       p_reply_id: 15,
-      p_reply: "Updated ****",
+      p_reply: "Updated sh1t",
     });
     expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_reply", {
       p_reply_id: 15,

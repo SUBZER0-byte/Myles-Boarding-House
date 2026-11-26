@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import { filterProfanity } from "@/lib/profanityFilter";
 
 export interface PromotionalVideoComment {
   comment_id: number;
@@ -138,7 +137,7 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
         return {
           reply_id: reply.reply_id,
           full_name: reply.full_name,
-          reply: filterProfanity(reply.reply),
+          reply: reply.reply,
           created_at: reply.created_at,
           is_mine: reply.is_mine,
           ...replyLikes,
@@ -147,7 +146,7 @@ export async function getPromotionalVideoDiscussion(): Promise<PromotionalVideoD
       return {
         comment_id: item.comment_id,
         full_name: item.full_name,
-        comment: filterProfanity(item.comment),
+        comment: item.comment,
         created_at: item.created_at,
         is_mine: item.is_mine,
         replies_count: item.replies_count,
@@ -375,7 +374,7 @@ async function runMyCommentAction(
   const { data, error } = action === "update"
     ? await supabase.rpc("update_my_promotional_video_comment", {
       p_comment_id: commentId,
-      p_comment: commentValue ? filterProfanity(commentValue) : commentValue,
+      p_comment: commentValue,
     })
     : await supabase.rpc("delete_my_promotional_video_comment", {
       p_comment_id: commentId,
@@ -401,7 +400,7 @@ export async function addPromotionalVideoReply(commentId: number, reply: string)
 
   const { data, error } = await supabase.rpc("add_promotional_video_reply", {
     p_comment_id: commentId,
-    p_reply: filterProfanity(value),
+    p_reply: value,
   });
   if (error) throw new Error(error.message || "Could not post your reply.");
   if (!isRecord(data) || data.type !== "success" || typeof data.reply_id !== "number") {
@@ -423,7 +422,7 @@ async function runMyReplyAction(
   const { data, error } = action === "update"
     ? await supabase.rpc("update_my_promotional_video_reply", {
       p_reply_id: replyId,
-      p_reply: replyValue ? filterProfanity(replyValue) : replyValue,
+      p_reply: replyValue,
     })
     : await supabase.rpc("delete_my_promotional_video_reply", {
       p_reply_id: replyId,
@@ -481,7 +480,7 @@ export async function addPromotionalVideoComment(comment: string): Promise<void>
     throw new Error("Comments must be between 1 and 1,000 characters.");
   }
   const { data, error } = await supabase.rpc("add_promotional_video_comment", {
-    p_comment: filterProfanity(value),
+    p_comment: value,
   });
   if (error) throw new Error(error.message || "Could not post your comment.");
   if (!isRecord(data) || data.type !== "success" || typeof data.comment_id !== "number") {
