@@ -35,7 +35,7 @@ DECLARE
         'pussy','pussies','retard','retards','retarded','raghead','ragheads','spic','spics',
         'shit','shits','shitted','shitting','shitty','shithead','shitheads','shithole','shitholes',
         'scumbags','slut','sluts','stupid','shite','shyt','sht','twat','twats','tranny','trannies','wanker','wankers','wetback',
-        'wetbacks','whore','whores','puta','putas','putangina','putanginamo','putanginamoka',
+        'wetbacks','whore','whores','puta','putas','pota','putangina','putanginamo','putanginamoka',
         'potangina','potanginamo','potanginaka','tangina','tanginamo',
         'tanginaka','tanginamoha','kingina','kinginamo','pucha','puchangina','pakyu','pakyo','pakyow','pakshet',
         'pakshit','pakingshet','shet','syet','shuta','shutaena','gago','gaga','gagi','gagoha',

@@ -130,6 +130,7 @@ const filteredWords = new Set([
   "whores",
   "puta",
   "putas",
+  "pota",
   "putangina",
   "putanginamo",
   "putanginamoka",

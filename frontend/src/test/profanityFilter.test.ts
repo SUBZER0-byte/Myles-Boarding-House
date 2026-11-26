@@ -11,8 +11,8 @@ describe("filterProfanity", () => {
   });
 
   it("filters common Filipino profanity, including multiword phrases", () => {
-    expect(filterProfanity("Gago ka, puta; putang ina mo! Yawa."))
-      .toBe("**** ka, ****; ****** *** **! ****.");
+    expect(filterProfanity("Gago ka, puta; pota; putang ina mo! Yawa."))
+      .toBe("**** ka, ****; ****; ****** *** **! ****.");
   });
 
   it("filters listed English and Filipino insults and preserves phrase spacing", () => {
