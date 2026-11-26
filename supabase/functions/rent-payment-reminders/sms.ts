@@ -48,9 +48,9 @@ export function buildRentPaymentReminderMessage(
   }).format(amount);
   const formattedTimestamp = formatPhilippineTimestamp(timestamp);
   if (reminderType === "upcoming") {
-    return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate} (in 5 days). Please pay before the due date. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
+    return `Reminder: your rent payment of PHP ${formattedAmount} is due on ${dueDate}. Please pay by the due date. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
   }
-  return `Overdue notice: your rent payment of PHP ${formattedAmount} was due on ${dueDate} and is now overdue. Please pay as soon as possible. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
+  return `Overdue notice: your rent payment of PHP ${formattedAmount} was due on ${dueDate} and remains unpaid. Please pay as soon as possible. Timestamp: ${formattedTimestamp}. - Myle's Boarding House`;
 }
 
 export async function sendTextBeeSms(

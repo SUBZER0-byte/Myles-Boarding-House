@@ -23,15 +23,15 @@ describe("rent payment reminder SMS", () => {
     );
   });
 
-  it("includes the exact due date and five-day notice in the SMS", () => {
+  it("includes the due date without claiming each daily reminder is five days away", () => {
     expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "upcoming", timestamp)).toBe(
-      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23 (in 5 days). Please pay before the due date. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
+      "Reminder: your rent payment of PHP 6,500.00 is due on 2026-11-23. Please pay by the due date. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
     );
   });
 
-  it("notifies the tenant when a rent payment becomes overdue", () => {
+  it("reminds the tenant an overdue payment is still unpaid", () => {
     expect(buildRentPaymentReminderMessage(6500, "2026-11-23", "overdue", timestamp)).toBe(
-      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and is now overdue. Please pay as soon as possible. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
+      "Overdue notice: your rent payment of PHP 6,500.00 was due on 2026-11-23 and remains unpaid. Please pay as soon as possible. Timestamp: Nov 25, 2026 8:00 AM PHT. - Myle's Boarding House",
     );
   });
 
