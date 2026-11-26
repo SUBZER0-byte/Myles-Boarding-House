@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { filterProfanity } from "@/lib/profanityFilter";
 
 export interface PublicReview {
   stars: number;
@@ -19,7 +20,10 @@ export interface PublicStats {
 export async function getPublicReviews(): Promise<PublicReview[]> {
   const { data, error } = await supabase.rpc("get_public_reviews");
   if (error) throw error;
-  return (data ?? []) as PublicReview[];
+  return ((data ?? []) as PublicReview[]).map(review => ({
+    ...review,
+    comment: review.comment === null ? null : filterProfanity(review.comment),
+  }));
 }
 
 export async function getPublicStats(): Promise<PublicStats> {

@@ -20,21 +20,28 @@ describe("tenant rating operations", () => {
       moderation_status: "Hidden",
       admin_reply: null,
       stars: 4.5,
-      comment: "Helpful",
+      comment: "Helpful, sh1t",
       created_at: "2026-01-01",
     }];
     invoke.mockResolvedValue({ data: { type: "success", data: ratings }, error: null });
 
-    await expect(listTenantRatings()).resolves.toEqual(ratings);
+    await expect(listTenantRatings()).resolves.toEqual([{
+      ...ratings[0],
+      comment: "Helpful, ****",
+    }]);
     expect(invoke).toHaveBeenCalledWith("tenant-ratings", { body: { action: "list" } });
   });
 
   it("submits rating data without a browser-provided tenant ID", async () => {
     invoke.mockResolvedValue({ data: { type: "success" }, error: null });
 
-    await submitTenantRating({ stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful" });
+    await submitTenantRating({
+      stars: 4.5,
+      category: "Maintenance & Repairs",
+      comment: "Helpful fuck",
+    });
     expect(invoke).toHaveBeenCalledWith("tenant-ratings", {
-      body: { action: "submit", stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful" },
+      body: { action: "submit", stars: 4.5, category: "Maintenance & Repairs", comment: "Helpful ****" },
     });
   });
 

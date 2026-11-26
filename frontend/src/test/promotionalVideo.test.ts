@@ -101,12 +101,50 @@ describe("promotional video discussion", () => {
     });
   });
 
-  it("posts trimmed comments without accepting a client-supplied user ID", async () => {
+  it("masks existing comments and replies from the public discussion read", async () => {
+    rpc.mockResolvedValue({
+      data: {
+        video_url: "",
+        likes_count: 0,
+        comments_count: 1,
+        liked_by_me: false,
+        comments: [{
+          comment_id: 3,
+          full_name: "Video Guest",
+          comment: "Gagoooo!",
+          created_at: "2026-11-18T12:00:00Z",
+          is_mine: false,
+          replies_count: 1,
+          likes_count: 0,
+          liked_by_me: false,
+          replies: [{
+            reply_id: 4,
+            full_name: "Another Guest",
+            reply: "sh1t.",
+            created_at: "2026-11-18T13:00:00Z",
+            is_mine: false,
+            likes_count: 0,
+            liked_by_me: false,
+          }],
+        }],
+      },
+      error: null,
+    });
+
+    await expect(getPromotionalVideoDiscussion()).resolves.toMatchObject({
+      comments: [{
+        comment: "*******!",
+        replies: [{ reply: "****." }],
+      }],
+    });
+  });
+
+  it("masks comments before posting without accepting a client-supplied user ID", async () => {
     rpc.mockResolvedValue({ data: { type: "success", comment_id: 9 }, error: null });
 
-    await expect(addPromotionalVideoComment("  Nice place!  ")).resolves.toBeUndefined();
+    await expect(addPromotionalVideoComment("  Nice f.u.c.k!  ")).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith("add_promotional_video_comment", {
-      p_comment: "Nice place!",
+      p_comment: "Nice *.*.*.*!",
     });
   });
 
@@ -232,14 +270,14 @@ describe("promotional video discussion", () => {
     });
   });
 
-  it("uses authenticated owner-only comment RPCs and validates edits", async () => {
+  it("masks authenticated owner comment edits and validates them", async () => {
     rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
-    await updateMyPromotionalVideoComment(12, "  Updated text  ");
+    await updateMyPromotionalVideoComment(12, "  Updated f.u.c.k  ");
     await deleteMyPromotionalVideoComment(12);
 
     expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_comment", {
       p_comment_id: 12,
-      p_comment: "Updated text",
+      p_comment: "Updated *.*.*.*",
     });
     expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_comment", {
       p_comment_id: 12,
@@ -251,12 +289,12 @@ describe("promotional video discussion", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("posts replies through the authenticated comment-reply RPC and validates their length", async () => {
+  it("masks replies before posting and validates their length", async () => {
     rpc.mockResolvedValue({ data: { type: "success", reply_id: 15 }, error: null });
-    await expect(addPromotionalVideoReply(3, "  I agree!  ")).resolves.toBeUndefined();
+    await expect(addPromotionalVideoReply(3, "  I agree, sh1t!  ")).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith("add_promotional_video_reply", {
       p_comment_id: 3,
-      p_reply: "I agree!",
+      p_reply: "I agree, ****!",
     });
 
     rpc.mockClear();
@@ -265,14 +303,14 @@ describe("promotional video discussion", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("uses owner-only RPCs to update and delete replies and validates edits", async () => {
+  it("masks owner reply edits and validates them", async () => {
     rpc.mockResolvedValue({ data: { type: "success", message: "Saved." }, error: null });
-    await updateMyPromotionalVideoReply(15, "  Updated reply  ");
+    await updateMyPromotionalVideoReply(15, "  Updated sh1t  ");
     await deleteMyPromotionalVideoReply(15);
 
     expect(rpc).toHaveBeenNthCalledWith(1, "update_my_promotional_video_reply", {
       p_reply_id: 15,
-      p_reply: "Updated reply",
+      p_reply: "Updated ****",
     });
     expect(rpc).toHaveBeenNthCalledWith(2, "delete_my_promotional_video_reply", {
       p_reply_id: 15,

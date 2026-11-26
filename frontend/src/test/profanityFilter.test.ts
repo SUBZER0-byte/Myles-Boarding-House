@@ -12,7 +12,7 @@ describe("filterProfanity", () => {
 
   it("filters common Filipino profanity, including multiword phrases", () => {
     expect(filterProfanity("Gago ka, puta; putang ina mo! Yawa."))
-      .toBe("**** ka, ****; ****** *** mo! ****.");
+      .toBe("**** ka, ****; ****** *** **! ****.");
   });
 
   it("filters listed English and Filipino insults and preserves phrase spacing", () => {
@@ -40,5 +40,15 @@ describe("filterProfanity", () => {
       .toBe(words.map(word => "*".repeat(word.length)).join(" "));
     expect(filterProfanity("WALANG HIYA; anak ng puta!"))
       .toBe("****** ****; **** ** ****!");
+  });
+
+  it("normalizes common leetspeak, accents, repeated letters, and punctuation obfuscation", () => {
+    expect(filterProfanity("sh1t, f.u.c.k, fuuuck, pútá"))
+      .toBe("****, *.*.*.*, ******, ****");
+  });
+
+  it("masks multiword insults while preserving clean short words", () => {
+    expect(filterProfanity("son of a bitch; as a class, assess this."))
+      .toBe("*** ** * *****; as a class, assess this.");
   });
 });

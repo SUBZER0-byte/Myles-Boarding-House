@@ -17,14 +17,17 @@ describe("public homepage reads", () => {
     const reviews = [{
       stars: 4.5,
       category: "Facilities",
-      comment: "Great",
+      comment: "Great shit",
       created_at: "2026-01-01",
       full_name: null,
       room_number: "12",
     }];
     rpc.mockResolvedValue({ data: reviews, error: null });
 
-    await expect(getPublicReviews()).resolves.toEqual(reviews);
+    await expect(getPublicReviews()).resolves.toEqual([{
+      ...reviews[0],
+      comment: "Great ****",
+    }]);
     expect(rpc).toHaveBeenCalledWith("get_public_reviews");
   });
 

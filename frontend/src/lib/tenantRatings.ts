@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { filterProfanity } from "@/lib/profanityFilter";
 
 export interface TenantRating {
   rating_id: number;
@@ -31,7 +32,10 @@ async function invokeTenantRatings(body: Record<string, string | number>) {
 export async function listTenantRatings(): Promise<TenantRating[]> {
   const result = await invokeTenantRatings({ action: "list" });
   if (!Array.isArray(result.data)) throw new Error("The rating service returned an invalid list.");
-  return result.data;
+  return result.data.map(rating => ({
+    ...rating,
+    comment: rating.comment === null ? null : filterProfanity(rating.comment),
+  }));
 }
 
 export async function submitTenantRating(input: {
@@ -39,5 +43,9 @@ export async function submitTenantRating(input: {
   category: string;
   comment: string;
 }): Promise<void> {
-  await invokeTenantRatings({ action: "submit", ...input });
+  await invokeTenantRatings({
+    action: "submit",
+    ...input,
+    comment: filterProfanity(input.comment),
+  });
 }

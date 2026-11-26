@@ -9,14 +9,23 @@ const filteredWords = new Set([
   "arsehole",
   "bastard",
   "bastards",
+  "beaner",
+  "beaners",
   "bitch",
+  "biatch",
   "bitches",
   "bitchy",
   "bollocks",
   "bullshit",
+  "bugger",
+  "buggers",
+  "chink",
+  "chinks",
   "cock",
   "cocksucker",
   "cocksuckers",
+  "coon",
+  "coons",
   "cunt",
   "cunts",
   "crap",
@@ -28,6 +37,8 @@ const filteredWords = new Set([
   "dick",
   "dickhead",
   "dicks",
+  "dyke",
+  "dykes",
   "douche",
   "douchebag",
   "douchebags",
@@ -36,6 +47,11 @@ const filteredWords = new Set([
   "fuckface",
   "fuckfaces",
   "fuck",
+  "fck",
+  "fuk",
+  "fucc",
+  "phuck",
+  "phuk",
   "fucked",
   "fucker",
   "fuckers",
@@ -44,6 +60,8 @@ const filteredWords = new Set([
   "goddamn",
   "goddamned",
   "goddammit",
+  "gook",
+  "gooks",
   "hell",
   "horseshit",
   "idiot",
@@ -59,6 +77,10 @@ const filteredWords = new Set([
   "motherfucker",
   "motherfuckers",
   "motherfucking",
+  "nigga",
+  "niggas",
+  "nigger",
+  "niggers",
   "moron",
   "morons",
   "freak",
@@ -88,10 +110,22 @@ const filteredWords = new Set([
   "retard",
   "retards",
   "retarded",
+  "worthless",
+  "raghead",
+  "ragheads",
+  "spic",
+  "spics",
+  "shite",
+  "shyt",
+  "sht",
   "twat",
   "twats",
+  "tranny",
+  "trannies",
   "wanker",
   "wankers",
+  "wetback",
+  "wetbacks",
   "whore",
   "whores",
   "puta",
@@ -101,18 +135,26 @@ const filteredWords = new Set([
   "putanginamoka",
   "potangina",
   "potanginamo",
+  "potanginaka",
   "tangina",
   "tanginamo",
   "tanginaka",
+  "tanginamoha",
   "pucha",
   "puchangina",
   "pakyu",
+  "pakyo",
+  "pakyow",
   "pakshet",
   "pakshit",
+  "pakingshet",
   "shet",
   "syet",
+  "shuta",
+  "shutaena",
   "gago",
   "gaga",
+  "gagi",
   "gagoha",
   "gaguhan",
   "tanga",
@@ -129,6 +171,8 @@ const filteredWords = new Set([
   "anakngputa",
   "tarantado",
   "tarantada",
+  "inutil",
+  "unggoy",
   "kupal",
   "kupalo",
   "bwisit",
@@ -144,6 +188,9 @@ const filteredWords = new Set([
   "hinayupak",
   "punyeta",
   "punyemas",
+  "putragis",
+  "potaena",
+  "potaenamo",
   "hindot",
   "kantot",
   "kantutan",
@@ -164,24 +211,69 @@ const filteredWords = new Set([
   "lecheng",
   "hayup",
   "hayupak",
+  "tae",
+  "etits",
+  "tililing",
+  "burikat",
+  "libog",
+  "kantutin",
+  "kantutan",
 ]);
 
-const wordsPattern = /[\p{L}\p{N}]+/gu;
+const wordsPattern = /[\p{L}\p{N}]+(?:[.@$*!_+-]+[\p{L}\p{N}]+)*/gu;
+const leetCharacters: Record<string, string> = {
+  "0": "o",
+  "1": "i",
+  "2": "z",
+  "3": "e",
+  "4": "a",
+  "5": "s",
+  "6": "g",
+  "7": "t",
+  "8": "b",
+  "9": "g",
+  "@": "a",
+  "$": "s",
+  "!": "i",
+};
+
+function normalizeWord(word: string): string {
+  return word
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[0-9@$!]/gu, character => leetCharacters[character] ?? character)
+    .replace(/[^a-z]/gu, "");
+}
+
+const normalizedFilteredWords = new Set([...filteredWords].map(normalizeWord));
+const repeatedLetterPattern = /([a-z0-9])\1+/gu;
 const profanePhrases = [
-  /\bputang[\s-]+ina\b/giu,
-  /\bpotang[\s-]+ina\b/giu,
-  /\btang[\s-]+ina\b/giu,
+  /\bputang[\s-]+ina(?:[\s-]+mo)?\b/giu,
+  /\bpotang[\s-]+ina(?:[\s-]+mo)?\b/giu,
+  /\btang[\s-]+ina(?:[\s-]+mo)?\b/giu,
   /\bpucha[\s-]+ina\b/giu,
   /\bking[\s-]*ina\b/giu,
   /\bwalang[\s-]+hiya\b/giu,
   /\banak[\s-]+ng[\s-]+puta\b/giu,
+  /\bmother[\s-]*fucker\b/giu,
+  /\bson[\s-]+of[\s-]+a[\s-]+bitch\b/giu,
+  /\bjesus[\s-]+christ\b/giu,
 ];
 
 export function filterProfanity(text: string): string {
   const phraseFilteredText = profanePhrases.reduce((result, phrasePattern) => (
     result.replace(phrasePattern, phrase => phrase.replace(/[\p{L}\p{N}]/gu, "*"))
   ), text);
-  return phraseFilteredText.replace(wordsPattern, word => (
-    filteredWords.has(word.toLowerCase()) ? "*".repeat(Array.from(word).length) : word
-  ));
+  return phraseFilteredText.replace(wordsPattern, word => {
+    const normalized = normalizeWord(word);
+    const variants = [
+      normalized,
+      normalized.replace(repeatedLetterPattern, "$1"),
+      normalized.replace(repeatedLetterPattern, "$1$1"),
+    ];
+    return variants.some(variant => normalizedFilteredWords.has(variant))
+      ? word.replace(/[\p{L}\p{N}]/gu, "*")
+      : word;
+  });
 }
