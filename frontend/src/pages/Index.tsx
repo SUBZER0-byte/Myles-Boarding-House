@@ -481,9 +481,10 @@ const Index = () => {
                   {visibleReviews.map((r) => (
                     <motion.div
                       key={`${r.name}-${r.date}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
+                      initial={{ opacity: 0, x: 32 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, amount: 0.2 }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
                       className="min-w-[85vw] max-w-[85vw] sm:min-w-[300px] sm:max-w-[300px] md:min-w-[360px] md:max-w-[360px] snap-center sm:snap-start flex-shrink-0 rounded-lg border border-border bg-card p-6 flex flex-col"
                     >
                       <Quote className="text-primary/30 mb-3" size={28} />
