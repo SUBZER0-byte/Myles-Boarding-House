@@ -13,173 +13,148 @@ DO $migration$
 DECLARE
     function_definition text;
     old_fragment text;
+    advance_field text;
+    amount_due_position integer;
+    start_position integer;
+    end_position integer;
+    marker_position integer;
 BEGIN
     SELECT pg_get_functiondef('public.manage_guest_booking(text,jsonb)'::regprocedure)
       INTO function_definition;
 
-    old_fragment := $old$
-        IF move_in_value IS NULL OR check_out_value IS NULL
-           OR move_in_value < CURRENT_DATE OR check_out_value < (move_in_value + interval '1 month')::date THEN
-            RAISE EXCEPTION 'Choose a valid stay of at least one month';
-        END IF;
-        stay_months := ((extract(year FROM check_out_value) - extract(year FROM move_in_value)) * 12
-                        + extract(month FROM check_out_value) - extract(month FROM move_in_value))::integer
-                       + CASE WHEN extract(day FROM check_out_value) > extract(day FROM move_in_value) THEN 1 ELSE 0 END;
-        stay_months := GREATEST(stay_months, 1);
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
+    old_fragment := 'check_out_value < (move_in_value + interval ''1 month'')::date';
+    IF strpos(function_definition, old_fragment) > 0 THEN
+        function_definition := replace(
+            function_definition,
+            old_fragment,
+            'check_out_value < move_in_value + 30 OR mod(check_out_value - move_in_value, 30) <> 0'
+        );
+    ELSIF strpos(function_definition, 'mod(check_out_value - move_in_value, 30)') = 0 THEN
         RAISE EXCEPTION 'Could not locate guest booking stay-length calculation to update.';
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-        IF move_in_value IS NULL OR check_out_value IS NULL
-           OR move_in_value < CURRENT_DATE
-           OR check_out_value < move_in_value + 30
-           OR mod(check_out_value - move_in_value, 30) <> 0 THEN
-            RAISE EXCEPTION 'Choose a stay in 30-day periods of at least 30 days';
-        END IF;
-        stay_months := (check_out_value - move_in_value) / 30;
-$new$
-    );
 
-    old_fragment := $old$
-        initial_amount := CASE p_data->>'payment_plan'
-            WHEN 'Pay in Full' THEN total_rent_value
-            WHEN 'Pay One Month Rent' THEN room_row."monthly_rent"
-            ELSE room_row."monthly_rent" * 2
-        END;
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
+    old_fragment := 'Choose a valid stay of at least one month';
+    IF strpos(function_definition, old_fragment) > 0 THEN
+        function_definition := replace(
+            function_definition,
+            old_fragment,
+            'Choose a stay in 30-day periods of at least 30 days'
+        );
+    ELSIF strpos(function_definition, 'Choose a stay in 30-day periods of at least 30 days') = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking stay validation message to update.';
+    END IF;
+
+    old_fragment := 'stay_months := GREATEST(stay_months, 1);';
+    IF strpos(function_definition, old_fragment) > 0 THEN
+        function_definition := replace(
+            function_definition,
+            old_fragment,
+            'stay_months := (check_out_value - move_in_value) / 30;'
+        );
+    ELSIF strpos(function_definition, 'stay_months := (check_out_value - move_in_value) / 30;') = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking stay-month calculation to update.';
+    END IF;
+
+    function_definition := regexp_replace(
+        function_definition,
+        $pattern$initial_amount := CASE p_data->>'payment_plan'[[:space:]]+WHEN 'Pay in Full' THEN total_rent_value[[:space:]]+WHEN 'Pay One Month Rent' THEN room_row\."monthly_rent"[[:space:]]+ELSE room_row\."monthly_rent" \* 2[[:space:]]+END;$pattern$,
+        'initial_amount := round(room_row."monthly_rent" * 2, 2);',
+        'g'
+    );
+    IF strpos(function_definition, 'initial_amount := round(room_row."monthly_rent" * 2, 2);') = 0 THEN
         RAISE EXCEPTION 'Could not locate guest booking initial-charge calculation to update.';
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-        initial_amount := round(room_row."monthly_rent" * 2, 2);
-$new$
-    );
 
-    old_fragment := $old$
-                         'amount_paid', COALESCE((
-                             SELECT sum(p."amount") FROM public."payments" AS p
-                              WHERE p."booking_id" = b."booking_id"
-                                AND p."status" IN ('Confirmed', 'Paid')
-                         ), 0),
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
-        RAISE EXCEPTION 'Could not locate guest booking payment totals to update.';
+    IF strpos(function_definition, 'unconsumed_advance_amount') = 0 THEN
+        IF strpos(function_definition, 'amount_paid') = 0 THEN
+            RAISE EXCEPTION 'Could not locate guest booking payment totals to update.';
+        END IF;
+        amount_due_position := strpos(function_definition, '''amount_due''');
+        IF amount_due_position = 0 THEN
+            RAISE EXCEPTION 'Could not locate guest booking amount due to update.';
+        END IF;
+        advance_field := $field$
+'unconsumed_advance_amount', COALESCE((
+    SELECT sum(advance."amount" - COALESCE((
+        SELECT sum(refund."refund_amount")
+          FROM public."refund_requests" AS refund
+         WHERE refund."payment_id" = advance."payment_id"
+           AND refund."status" = 'Approved'
+    ), 0))
+      FROM public."payments" AS advance
+     WHERE advance."booking_id" = b."booking_id"
+       AND advance."payment_type" = 'Advance Rent'
+       AND advance."status" IN ('Confirmed', 'Paid')
+       AND advance."consumed_at" IS NULL
+       AND NOT EXISTS (
+           SELECT 1 FROM public."refund_requests" AS refund
+            WHERE refund."payment_id" = advance."payment_id"
+              AND refund."status" = 'Pending'
+       )
+), 0),
+$field$;
+        function_definition := substr(function_definition, 1, amount_due_position - 1)
+            || advance_field
+            || substr(function_definition, amount_due_position);
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-                         'amount_paid', COALESCE((
-                             SELECT sum(p."amount") FROM public."payments" AS p
-                              WHERE p."booking_id" = b."booking_id"
-                                AND p."status" IN ('Confirmed', 'Paid')
-                         ), 0),
-                         'unconsumed_advance_amount', COALESCE((
-                             SELECT sum(advance."amount" - COALESCE((
-                                 SELECT sum(refund."refund_amount")
-                                   FROM public."refund_requests" AS refund
-                                  WHERE refund."payment_id" = advance."payment_id"
-                                    AND refund."status" = 'Approved'
-                             ), 0))
-                               FROM public."payments" AS advance
-                              WHERE advance."booking_id" = b."booking_id"
-                                AND advance."payment_type" = 'Advance Rent'
-                                AND advance."status" IN ('Confirmed', 'Paid')
-                                AND advance."consumed_at" IS NULL
-                                AND NOT EXISTS (
-                                    SELECT 1 FROM public."refund_requests" AS refund
-                                     WHERE refund."payment_id" = advance."payment_id"
-                                       AND refund."status" = 'Pending'
-                                )
-                         ), 0),
-$new$
-    );
     EXECUTE function_definition;
 
     SELECT pg_get_functiondef('public.manage_stay_extension(text,uuid,jsonb)'::regprocedure)
       INTO function_definition;
 
-    old_fragment := $old$
-        IF v_requested_checkout <= v_original_checkout THEN
-            RETURN jsonb_build_object('type', 'error', 'message', 'The new move-out date must be later than your current move-out date.');
+    IF strpos(function_definition, 'mod(v_requested_checkout - v_original_checkout, 30)') = 0 THEN
+        start_position := strpos(function_definition, 'IF v_requested_checkout <= v_original_checkout THEN');
+        IF start_position = 0
+           OR strpos(substr(function_definition, start_position, 500), 'The new move-out date must be later than your current move-out date.') = 0 THEN
+            RAISE EXCEPTION 'Could not locate extension date validation to update.';
         END IF;
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
-        RAISE EXCEPTION 'Could not locate extension date validation to update.';
+        marker_position := strpos(substr(function_definition, start_position), 'END IF;');
+        IF marker_position = 0 THEN
+            RAISE EXCEPTION 'Could not locate end of extension date validation to update.';
+        END IF;
+        end_position := start_position
+            + marker_position
+            + length('END IF;') - 2;
+        function_definition := substr(function_definition, 1, end_position)
+            || E'\n        IF mod(v_requested_checkout - v_original_checkout, 30) <> 0 THEN\n'
+            || E'            RETURN jsonb_build_object(''type'', ''error'', ''message'', ''Extensions must be requested in 30-day periods.'');\n'
+            || E'        END IF;'
+            || substr(function_definition, end_position + 1);
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-        IF v_requested_checkout <= v_original_checkout THEN
-            RETURN jsonb_build_object('type', 'error', 'message', 'The new move-out date must be later than your current move-out date.');
-        END IF;
-        IF mod(v_requested_checkout - v_original_checkout, 30) <> 0 THEN
-            RETURN jsonb_build_object('type', 'error', 'message', 'Extensions must be requested in 30-day periods.');
-        END IF;
-$new$
-    );
 
-    old_fragment := $old$
-        v_length_months :=
-            ((EXTRACT(YEAR FROM v_original_checkout)::integer - EXTRACT(YEAR FROM v_check_in)::integer) * 12)
-            + EXTRACT(MONTH FROM v_original_checkout)::integer
-            - EXTRACT(MONTH FROM v_check_in)::integer
-            + CASE WHEN EXTRACT(DAY FROM v_original_checkout) > EXTRACT(DAY FROM v_check_in) THEN 1 ELSE 0 END;
-        v_new_length_months :=
-            ((EXTRACT(YEAR FROM v_requested_checkout)::integer - EXTRACT(YEAR FROM v_check_in)::integer) * 12)
-            + EXTRACT(MONTH FROM v_requested_checkout)::integer
-            - EXTRACT(MONTH FROM v_check_in)::integer
-            + CASE WHEN EXTRACT(DAY FROM v_requested_checkout) > EXTRACT(DAY FROM v_check_in) THEN 1 ELSE 0 END;
-        v_length_months := GREATEST(1, v_length_months);
-        v_new_length_months := GREATEST(1, v_new_length_months);
-        v_added_months := v_new_length_months - v_length_months;
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
+    old_fragment := 'v_added_months := v_new_length_months - v_length_months;';
+    IF strpos(function_definition, old_fragment) > 0 THEN
+        start_position := strpos(function_definition, 'v_length_months :=');
+        end_position := strpos(function_definition, old_fragment) + length(old_fragment) - 1;
+        IF start_position = 0 OR end_position < start_position THEN
+            RAISE EXCEPTION 'Could not locate extension billing-period calculation to update.';
+        END IF;
+        function_definition := substr(function_definition, 1, start_position - 1)
+            || E'v_length_months := GREATEST(\n'
+            || E'    1,\n'
+            || E'    CEIL((v_original_checkout - v_check_in)::numeric / 30)::integer\n'
+            || E');\n'
+            || E'v_added_months := (v_requested_checkout - v_original_checkout) / 30;\n'
+            || E'v_new_length_months := v_length_months + v_added_months;'
+            || substr(function_definition, end_position + 1);
+    ELSIF strpos(function_definition, 'v_added_months := (v_requested_checkout - v_original_checkout) / 30;') = 0 THEN
         RAISE EXCEPTION 'Could not locate extension billing-period calculation to update.';
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-        v_length_months := GREATEST(
-            1,
-            CEIL((v_original_checkout - v_check_in)::numeric / 30)::integer
-        );
-        v_added_months := (v_requested_checkout - v_original_checkout) / 30;
-        v_new_length_months := v_length_months + v_added_months;
-$new$
-    );
 
-    old_fragment := $old$
-                v_month_start := date_trunc(
-                    'month',
-                    v_check_in + make_interval(months => v_month_index)
-                )::date;
-                v_due_date := v_month_start + (
-                    LEAST(
-                        EXTRACT(DAY FROM v_check_in)::integer,
-                        EXTRACT(DAY FROM (v_month_start + interval '1 month - 1 day'))::integer
-                    ) - 1
-                );
-$old$;
-    IF strpos(function_definition, old_fragment) = 0 THEN
+    old_fragment := 'v_month_start := date_trunc(';
+    start_position := strpos(function_definition, old_fragment);
+    IF start_position > 0 THEN
+        end_position := strpos(substr(function_definition, start_position), ');');
+        IF end_position = 0 THEN
+            RAISE EXCEPTION 'Could not locate extension rent due-date calculation to update.';
+        END IF;
+        end_position := start_position + end_position;
+        function_definition := substr(function_definition, 1, start_position - 1)
+            || 'v_due_date := v_check_in + (v_month_index * 30);'
+            || substr(function_definition, end_position + 1);
+    ELSIF strpos(function_definition, 'v_due_date := v_check_in + (v_month_index * 30);') = 0 THEN
         RAISE EXCEPTION 'Could not locate extension rent due-date calculation to update.';
     END IF;
-    function_definition := replace(
-        function_definition,
-        old_fragment,
-        $new$
-                v_due_date := v_check_in + (v_month_index * 30);
-$new$
-    );
     EXECUTE function_definition;
 END;
 $migration$;
