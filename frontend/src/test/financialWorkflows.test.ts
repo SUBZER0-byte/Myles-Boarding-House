@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   getEligibleRefundPayments,
+  getMyBookingRefundPayments,
   getMyFullPaymentRequest,
   newFinancialRequestId,
   submitMyFullPaymentProof,
@@ -130,5 +131,76 @@ describe("Supabase financial workflows", () => {
     expect(newFinancialRequestId()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+  });
+
+  it("uses the booking-specific refund workflow for deposit and advance eligibility", async () => {
+    rpc.mockResolvedValueOnce({
+      data: { type: "success", data: [{ payment_id: 21, payment_type: "Advance Rent" }] },
+      error: null,
+    });
+
+    await expect(getEligibleRefundPayments({ booking_id: 8 })).resolves.toEqual([
+      { payment_id: 21, payment_type: "Advance Rent" },
+    ]);
+    expect(rpc).toHaveBeenCalledWith("manage_booking_refunds", {
+      p_action: "eligible",
+      p_data: { booking_id: 8 },
+    });
+  });
+
+  it("submits a booking component refund without trusting a client-supplied user ID", async () => {
+    const key = "ffe10000-0000-4000-8000-000000000021";
+    await submitMyRefundRequest({
+      payment_id: 21,
+      booking_id: 8,
+      gcash_account_name: "Account",
+      gcash_number: "09170000000",
+      transaction_reference: "advance-txn",
+      reason: "",
+      idempotency_key: key,
+    });
+
+    expect(rpc).toHaveBeenCalledWith("manage_booking_refunds", {
+      p_action: "submit",
+      p_data: {
+        payment_id: 21,
+        booking_id: 8,
+        gcash_account_name: "Account",
+        gcash_number: "09170000000",
+        transaction_reference: "advance-txn",
+        reason: "",
+        screenshot_path: null,
+        idempotency_key: key,
+      },
+    });
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain("user_id");
+  });
+
+  it("loads tenant booking-component refund availability for rent-history buttons", async () => {
+    rpc.mockResolvedValueOnce({
+      data: {
+        type: "success",
+        data: [{
+          payment_id: 21,
+          booking_id: 8,
+          payment_type: "Advance Rent",
+          refund_available: true,
+        }],
+      },
+      error: null,
+    });
+
+    await expect(getMyBookingRefundPayments()).resolves.toEqual([
+      {
+        payment_id: 21,
+        booking_id: 8,
+        payment_type: "Advance Rent",
+        refund_available: true,
+      },
+    ]);
+    expect(rpc).toHaveBeenCalledWith("manage_booking_refunds", {
+      p_action: "tenant_components",
+      p_data: {},
+    });
   });
 });

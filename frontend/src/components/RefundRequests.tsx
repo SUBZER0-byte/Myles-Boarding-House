@@ -38,6 +38,7 @@ interface EligiblePayment {
   booking_id: number | null;
   amount: number;
   remaining_amount: number;
+  payment_type?: string | null;
   method: string | null;
   reference_number: string | null;
   description: string | null;
@@ -147,6 +148,7 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
     try {
       await submitMyRefundRequest({
         payment_id: payment.payment_id,
+        ...(bookingId === undefined ? {} : { booking_id: bookingId }),
         gcash_account_name: gcashAccountName,
         gcash_number: gcashNumber,
         transaction_reference: reference,
@@ -193,7 +195,7 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
           <DialogHeader>
             <DialogTitle>Request a payment refund</DialogTitle>
             <DialogDescription>
-              The refundable balance is calculated from your confirmed payment, less refunds already approved. An admin will verify your payment evidence.
+              Available booking advances may be refunded until used for an extension. A security deposit is refundable only after one full day and within the first month, if unused. An admin will verify your payment evidence.
             </DialogDescription>
           </DialogHeader>
           {loadError ? (

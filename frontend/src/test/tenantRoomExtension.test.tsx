@@ -18,6 +18,7 @@ const { room, pollState, requestStayExtension, refetchRoom } = vi.hoisted(() => 
     check_out_date: "2027-01-31",
     requested_move_out_date: null,
     extension_request_status: null,
+    available_advance_amount: 6500,
     tenant_name: "Test Tenant",
     roommates: [],
   },
@@ -65,6 +66,11 @@ describe("TenantRoom stay extension", () => {
   it("calculates the new move-out date from the current checkout and submits it", async () => {
     render(<TenantRoom />);
     fireEvent.click(screen.getByRole("button", { name: "Request to Extend Stay" }));
+
+    expect(screen.getByText(/Available booking advance applied to the first extension month:/))
+      .toHaveTextContent("−₱6,500");
+    expect(screen.getByText(/New one-month advance required after approval:/))
+      .toHaveTextContent("₱6,500");
 
     const monthsInput = screen.getByLabelText("Extension length (months)");
     expect(screen.getByLabelText("New move-out date (calculated)")).toHaveValue(

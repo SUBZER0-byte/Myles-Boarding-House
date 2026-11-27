@@ -179,6 +179,16 @@ describe("Supabase guest booking service", () => {
       })
       .mockResolvedValueOnce({
         data: {
+          type: "success",
+          data: [{
+            booking_id: 15,
+            initial_payment_amount: 2000,
+          }],
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
           payment_expires_at_epoch: 1795653000,
           server_now_epoch: 1795651200,
         },
@@ -186,6 +196,7 @@ describe("Supabase guest booking service", () => {
       });
     await expect(createMyGuestBooking(input)).resolves.toMatchObject({
       booking_id: 15,
+      initial_payment_amount: 2000,
       payment_expires_at_epoch: 1795653000,
       server_now_epoch: 1795651200,
     });
@@ -194,7 +205,11 @@ describe("Supabase guest booking service", () => {
       p_data: input,
     });
     expect(rpc.mock.calls[0][1].p_data).not.toHaveProperty("email");
-    expect(rpc).toHaveBeenNthCalledWith(2, "get_guest_booking_reservation_deadline", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "manage_guest_booking", {
+      p_action: "guest_list",
+      p_data: {},
+    });
+    expect(rpc).toHaveBeenNthCalledWith(3, "get_guest_booking_reservation_deadline", {
       p_booking_id: 15,
     });
   });

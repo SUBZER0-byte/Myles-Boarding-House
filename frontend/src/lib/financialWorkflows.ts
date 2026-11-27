@@ -47,6 +47,7 @@ export interface EligibleRefundPayment {
   booking_id: number | null;
   amount: number;
   remaining_amount: number;
+  payment_type?: string | null;
   method: string | null;
   reference_number: string | null;
   description: string | null;
@@ -100,6 +101,21 @@ async function call<T>(action: string, data: Record<string, unknown> = {}): Prom
   }
   if (!Object.prototype.hasOwnProperty.call(response, "data")) {
     throw new Error("The financial service returned an incomplete response.");
+  }
+  return (response as RpcResponse<T>).data;
+}
+
+async function callBookingRefund<T>(action: string, data: Record<string, unknown> = {}): Promise<T> {
+  const { data: response, error } = await supabase.rpc("manage_booking_refunds", {
+    p_action: action,
+    p_data: data,
+  });
+  if (error) throw new Error(error.message || "Could not process the booking refund request.");
+  if (!response || typeof response !== "object" || Array.isArray(response) || response.type !== "success") {
+    throw new Error("The booking refund service returned an invalid response.");
+  }
+  if (!Object.prototype.hasOwnProperty.call(response, "data")) {
+    throw new Error("The booking refund service returned an incomplete response.");
   }
   return (response as RpcResponse<T>).data;
 }
@@ -244,7 +260,19 @@ export function decideAdminFullPayment(
 export function getEligibleRefundPayments(filters: { payment_id?: number; booking_id?: number } = {}) {
   if (filters.payment_id !== undefined) requireId(filters.payment_id, "payment");
   if (filters.booking_id !== undefined) requireId(filters.booking_id, "booking");
+  if (filters.booking_id !== undefined) {
+    return callBookingRefund<EligibleRefundPayment[]>("eligible", filters);
+  }
   return call<EligibleRefundPayment[]>("refund_eligible", filters);
+}
+
+export function getMyBookingRefundPayments() {
+  return callBookingRefund<Array<{
+    payment_id: number;
+    booking_id: number | null;
+    payment_type: string | null;
+    refund_available: boolean;
+  }>>("tenant_components");
 }
 
 export async function listMyRefundRequests(): Promise<RefundRequest[]> {
@@ -258,6 +286,7 @@ export async function listMyRefundRequests(): Promise<RefundRequest[]> {
 
 export async function submitMyRefundRequest(input: {
   payment_id: number;
+  booking_id?: number;
   gcash_account_name: string;
   gcash_number: string;
   transaction_reference: string;
@@ -266,6 +295,7 @@ export async function submitMyRefundRequest(input: {
   idempotency_key: string;
 }) {
   requireId(input.payment_id, "payment");
+  if (input.booking_id !== undefined) requireId(input.booking_id, "booking");
   requireUuid(input.idempotency_key);
   const userId = await currentAuthId();
   let screenshotPath: string | null = null;
@@ -274,15 +304,19 @@ export async function submitMyRefundRequest(input: {
     screenshotPath = `${userId}/refund/${input.payment_id}/${input.idempotency_key}.${extension}`;
     await uploadEvidence(screenshotPath, input.screenshot);
   }
-  return call<{ refund_id: number; refund_amount: number }>("refund_submit", {
+  const request = {
     payment_id: input.payment_id,
+    ...(input.booking_id === undefined ? {} : { booking_id: input.booking_id }),
     gcash_account_name: input.gcash_account_name.trim(),
     gcash_number: input.gcash_number.trim(),
     transaction_reference: input.transaction_reference.trim(),
     reason: input.reason.trim(),
     screenshot_path: screenshotPath,
     idempotency_key: input.idempotency_key,
-  });
+  };
+  return input.booking_id === undefined
+    ? call<{ refund_id: number; refund_amount: number }>("refund_submit", request)
+    : callBookingRefund<{ refund_id: number; refund_amount: number }>("submit", request);
 }
 
 export async function listAdminRefundRequests(): Promise<RefundRequest[]> {

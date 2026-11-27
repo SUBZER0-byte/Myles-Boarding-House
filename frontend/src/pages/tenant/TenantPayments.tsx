@@ -474,6 +474,9 @@ const TenantPayments = () => {
                       {isPaid(p.status) && Boolean(p.refund_available) && !isRefunded(p) && (
                         <RefundRequestButton
                           paymentId={p.payment_id}
+                          bookingId={p.payment_type === "Security Deposit" || p.payment_type === "Advance Rent"
+                            ? p.booking_id ?? undefined
+                            : undefined}
                           onSubmitted={refetchHistory}
                         />
                       )}

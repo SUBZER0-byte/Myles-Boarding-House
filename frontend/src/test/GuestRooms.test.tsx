@@ -358,7 +358,7 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(screen.getByRole("button", { name: "Select move-in date" })).toBeTruthy();
   });
 
-  it("offers only one-month rent for one-month stays and itemizes its deposit separately", async () => {
+  it("requires a one-month deposit and advance for one-month stays", async () => {
     render(<GuestRooms />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Book Now" }));
@@ -376,20 +376,21 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText(/Estimated rent for 1 person:/)).toHaveTextContent("₱1,000");
     const bookingDialog = screen.getByRole("dialog");
     const paymentPlan = within(bookingDialog).getByRole("combobox");
-    expect(within(bookingDialog).getByRole("option", { name: "Pay 1 month" })).toBeTruthy();
-    expect(within(bookingDialog).queryByRole("option", { name: "Pay 1 month and 1 deposit" })).toBeNull();
+    expect(within(bookingDialog).getByRole("option", { name: "Monthly rent payments" })).toBeTruthy();
+    expect(within(bookingDialog).queryByRole("option", { name: "Monthly rent payments with deposit applied to the final month" })).toBeNull();
     expect(paymentPlan).toHaveValue("Pay One Month Rent");
-    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱1,000");
-    expect(within(bookingDialog).getByText(/Security deposit due at move-in:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/One-month security deposit \(included today\):/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/One-month advance rent \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱0");
     fireEvent.click(within(bookingDialog).getByRole("button", { name: "Review Booking" }));
 
-    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱1,000");
-    expect(within(bookingDialog).getByText(/security deposit due at move-in:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
+    expect(within(bookingDialog).getByText(/security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent for 0 months:/)).toHaveTextContent("₱0");
   });
 
-  it("calculates booking rent from the per-person rate and adds deposit only for stays of two months or more", async () => {
+  it("calculates the same deposit and advance for longer stays", async () => {
     room.capacity = 4;
     room.available_beds = 4;
     render(<GuestRooms />);
@@ -410,16 +411,17 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText(/Estimated rent for 1 person:/)).toHaveTextContent("₱2,000");
     const bookingDialog = screen.getByRole("dialog");
     const paymentPlan = within(bookingDialog).getByRole("combobox");
-    expect(within(bookingDialog).getByRole("option", { name: "Pay 1 month and 1 deposit" })).toBeTruthy();
+    expect(within(bookingDialog).getByRole("option", { name: "Monthly rent payments with deposit applied to the final month" })).toBeTruthy();
     fireEvent.change(paymentPlan, { target: { value: "Pay Monthly" } });
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
-    expect(within(bookingDialog).getByText(/Security deposit included today:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/One-month security deposit \(included today\):/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/One-month advance rent \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱1,000");
     fireEvent.click(screen.getByRole("button", { name: "Review Booking" }));
 
     expect(within(bookingDialog).getByText(/Monthly rent per person:/).parentElement).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Total rent for 1 person:/).parentElement).toHaveTextContent("₱2,000");
-    expect(within(bookingDialog).getByText(/Plan:/).parentElement).toHaveTextContent("Pay 1 month and 1 deposit");
+    expect(within(bookingDialog).getByText(/Plan:/).parentElement).toHaveTextContent("Monthly rent with deposit applied to the final month");
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
     expect(within(bookingDialog).getByText(/security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent for 1 month:/)).toHaveTextContent("₱1,000");

@@ -47,6 +47,10 @@ describe("Supabase rent payment workflows", () => {
       p_action: "tenant_history",
       p_data: {},
     });
+    expect(rpc).toHaveBeenCalledWith("manage_booking_refunds", {
+      p_action: "tenant_components",
+      p_data: {},
+    });
   });
 
   it("rejects malformed or oversized evidence before upload or RPC", async () => {

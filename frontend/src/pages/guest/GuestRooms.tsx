@@ -106,8 +106,8 @@ const GuestRooms = () => {
     ? "Pay One Month Rent"
     : form.payment_plan;
   const paymentPlanLabel = paymentPlan === "Pay Monthly"
-    ? "Pay 1 month and 1 deposit"
-    : "Pay 1 month";
+    ? "Monthly rent with deposit applied to the final month"
+    : "Monthly rent";
   const minimumCheckOutDate = calculateMoveOutDate(form.move_in_date, 1);
   const calculatedCheckOutDate = calculateMoveOutDate(form.move_in_date, stayMonths);
   const hasAnyDates = Boolean(form.move_in_date || stayMonthsInput !== "1");
@@ -407,9 +407,7 @@ const GuestRooms = () => {
   const totalRent = monthlyRentPerPerson * stayMonths;
   const securityDeposit = monthlyRentPerPerson;
   const advanceRent = monthlyRentPerPerson;
-  const initialPayment = paymentPlan === "Pay Monthly"
-    ? securityDeposit + advanceRent
-    : advanceRent;
+  const initialPayment = securityDeposit + advanceRent;
   const remainingRent = Math.max(0, totalRent - advanceRent);
   const datesValid = Boolean(
     form.move_in_date >= minimumCheckInDate
@@ -840,16 +838,14 @@ const GuestRooms = () => {
                 <p>Length of stay: <strong>{stayMonths} month{stayMonths === 1 ? "" : "s"}</strong></p>
                 <p>Estimated rent for 1 person: <strong>{peso(totalRent)}</strong></p>
                 <p>Payment required today: <strong>{peso(initialPayment)}</strong></p>
-                <p>
-                  Security deposit {paymentPlan === "Pay One Month Rent" ? "due at move-in" : "included today"}:
-                  {" "}{peso(securityDeposit)}
-                </p>
+                <p>One-month security deposit (included today): <strong>{peso(securityDeposit)}</strong></p>
+                <p>One-month advance rent (included today): <strong>{peso(advanceRent)}</strong></p>
                 <p>Remaining rent after first month: <strong>{peso(remainingRent)}</strong></p>
               </div>
-              <div className="space-y-2"><Label className="text-xs">Payment Plan</Label>
+              <div className="space-y-2"><Label className="text-xs">Rent payment schedule</Label>
                 <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={paymentPlan} onChange={(e) => setForm(current => ({ ...current, payment_plan: e.target.value }))}>
-                  <option value="Pay One Month Rent">Pay 1 month</option>
-                  {stayMonths >= 2 && <option value="Pay Monthly">Pay 1 month and 1 deposit</option>}
+                  <option value="Pay One Month Rent">Monthly rent payments</option>
+                  {stayMonths >= 2 && <option value="Pay Monthly">Monthly rent payments with deposit applied to the final month</option>}
                 </select>
               </div>
               <Button className="w-full" onClick={() => setStep(3)}>Review Booking</Button>
@@ -862,17 +858,11 @@ const GuestRooms = () => {
                   : form.connection_to_opposite_gender_tenant}</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                {paymentPlan === "Pay One Month Rent"
-                  ? "Pay one month of rent now. The one-month security deposit is due when you move in."
-                  : "Pay one month of rent and one security deposit now. The deposit is separate from the rent for your stay."}
+                Your booking payment always includes a one-month security deposit and a one-month advance, including for a one-month stay. The advance can be applied to the first month of an approved stay extension.
               </p>
               <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs space-y-1">
                 <p className="font-semibold text-foreground">Payment required today: {peso(initialPayment)}</p>
-                {paymentPlan === "Pay One Month Rent" ? (
-                  <p className="text-muted-foreground">One-month security deposit due at move-in: {peso(securityDeposit)}</p>
-                ) : (
-                  <p className="text-muted-foreground">One-month security deposit (included today): {peso(securityDeposit)}</p>
-                )}
+                <p className="text-muted-foreground">One-month security deposit (included today): {peso(securityDeposit)}</p>
                 <p className="text-muted-foreground">One-month advance rent: {peso(advanceRent)}</p>
                 <p className="font-medium text-foreground">Remaining rent for {Math.max(0, stayMonths - 1)} month{stayMonths === 2 ? "" : "s"}: {peso(remainingRent)}</p>
               </div>

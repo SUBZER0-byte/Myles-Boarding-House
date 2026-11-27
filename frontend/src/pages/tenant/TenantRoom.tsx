@@ -37,6 +37,11 @@ const TenantRoom = () => {
   const requestedMoveOutDate = currentMoveOutDate
     ? calculateMoveOutDate(currentMoveOutDate, extensionMonths)
     : "";
+  const monthlyRent = Number(myRoom?.monthly_rent ?? 0);
+  const extensionRent = monthlyRent * extensionMonths;
+  const bookingAdvanceCredit = Math.min(monthlyRent, Number(myRoom?.available_advance_amount ?? 0));
+  const newAdvanceDue = monthlyRent;
+  const extensionPaymentDue = Math.max(0, extensionRent - bookingAdvanceCredit) + newAdvanceDue;
 
   const request = async () => {
     if (!myRoom || !target) return;
@@ -250,10 +255,23 @@ const TenantRoom = () => {
                 placeholder="Select extension length to calculate date"
               />
             </div>
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+              <p>Extension rent: <strong>₱{extensionRent.toLocaleString()}</strong></p>
+              <p>Available booking advance applied to the first extension month: <strong>−₱{bookingAdvanceCredit.toLocaleString()}</strong></p>
+              <p>New one-month advance required after approval: <strong>₱{newAdvanceDue.toLocaleString()}</strong></p>
+              <p className="mt-1 border-t border-border pt-2 font-semibold">
+                Payment due after approval: ₱{extensionPaymentDue.toLocaleString()}
+              </p>
+              {bookingAdvanceCredit < monthlyRent && (
+                <p className="mt-2 text-xs text-destructive">
+                  A confirmed, unused one-month advance is required before this extension can be approved.
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setExtensionOpen(false)}>Cancel</Button>
-            <Button onClick={requestExtension} disabled={!requestedMoveOutDate}>Submit Request</Button>
+            <Button onClick={requestExtension} disabled={!requestedMoveOutDate || bookingAdvanceCredit < monthlyRent}>Submit Request</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

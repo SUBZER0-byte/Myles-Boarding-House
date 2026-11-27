@@ -172,6 +172,11 @@ const GuestBooking = () => {
             <h2 className="font-display font-semibold text-base">Active Bookings</h2>
             {active.map((b) => {
               const style = statusStyles[b.status as StatusKey] ?? statusStyles.Pending;
+              const depositNotAppliedToRent = b.payment_plan !== "Pay Monthly"
+                && b.initial_payment_status === "Confirmed"
+                ? Number(b.monthly_rent || 0)
+                : 0;
+              const rentPaid = Math.max(0, Number(b.amount_paid || 0) - depositNotAppliedToRent);
               return (
                 <div
                   key={b.booking_id}
@@ -213,16 +218,9 @@ const GuestBooking = () => {
                     />
                     <InfoRow icon={<CalendarDays size={14} />} label="Move-out Date" value={b.check_out_date || "—"} />
                     <InfoRow icon={<ReceiptText size={14} />} label="Payment Plan" value={b.payment_plan || "—"} />
-                    {b.payment_plan === "Pay One Month Rent" && (
-                      <InfoRow
-                        icon={<Clock size={14} />}
-                        label="Security Deposit Due"
-                        value={`₱${Number(b.monthly_rent || 0).toLocaleString()} per person at move-in (${b.move_in_date || "move-in date"})`}
-                      />
-                    )}
                     <InfoRow icon={<ReceiptText size={14} />} label="Total Rent" value={`₱${Number(b.total_rent || 0).toLocaleString()}`} />
-                    <InfoRow icon={<CheckCircle2 size={14} />} label="Total Paid" value={`₱${Number(b.amount_paid || 0).toLocaleString()}`} />
-                    <InfoRow icon={<Clock size={14} />} label="Remaining Rent Balance" value={`₱${Math.max(0, Number(b.total_rent || 0) - Number(b.amount_paid || 0)).toLocaleString()}`} />
+                    <InfoRow icon={<CheckCircle2 size={14} />} label="Total Payments Received" value={`₱${Number(b.amount_paid || 0).toLocaleString()}`} />
+                    <InfoRow icon={<Clock size={14} />} label="Remaining Rent Balance" value={`₱${Math.max(0, Number(b.total_rent || 0) - rentPaid).toLocaleString()}`} />
                     <InfoRow icon={<Clock size={14} />} label="Next Payment Due" value={b.next_payment_due || "—"} />
                     <InfoRow
                       icon={<Clock size={14} />}

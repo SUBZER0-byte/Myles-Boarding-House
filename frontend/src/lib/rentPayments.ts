@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getMyBookingRefundPayments } from "@/lib/financialWorkflows";
 
 const evidenceBucket = "mbh-financial-evidence";
 const bookingProofBucket = "mbh-booking-payment-proofs";
@@ -8,6 +9,8 @@ const allowedEvidenceTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export interface RentPayment {
   payment_id: number;
+  booking_id?: number | null;
+  payment_type?: string | null;
   tenant_id?: number;
   full_name?: string;
   room_number?: string | null;
@@ -80,7 +83,22 @@ export function newRentPaymentSubmissionId() {
 }
 
 export function listMyRentPayments() {
-  return call<RentPayment[]>("tenant_history");
+  return call<RentPayment[]>("tenant_history").then(async payments => {
+    if (!Array.isArray(payments)) throw new Error("The rent payment service returned an invalid list.");
+    const components = await getMyBookingRefundPayments();
+    const byPaymentId = new Map(components.map(payment => [payment.payment_id, payment]));
+    return payments.map(payment => {
+      const component = byPaymentId.get(payment.payment_id);
+      return component
+        ? {
+            ...payment,
+            booking_id: component.booking_id,
+            payment_type: component.payment_type,
+            refund_available: component.refund_available,
+          }
+        : payment;
+    });
+  });
 }
 
 export async function submitMyRentPayment(input: {

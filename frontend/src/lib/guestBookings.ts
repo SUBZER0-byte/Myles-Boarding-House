@@ -204,9 +204,22 @@ export async function createMyGuestBooking(input: {
     throw new Error("The booking service returned an invalid booking identifier.");
   }
 
-  const deadline = await loadMyGuestBookingReservationDeadline(booking.booking_id);
+  const [bookings, deadline] = await Promise.all([
+    call<GuestBooking[]>("guest_list"),
+    loadMyGuestBookingReservationDeadline(booking.booking_id),
+  ]);
+  if (!Array.isArray(bookings)) throw new Error("The booking service returned an invalid list.");
+  const savedBooking = bookings.find(item => item.booking_id === booking.booking_id);
+  if (
+    !savedBooking
+    || !Number.isFinite(savedBooking.initial_payment_amount)
+    || savedBooking.initial_payment_amount <= 0
+  ) {
+    throw new Error("The booking service did not return the saved initial payment amount.");
+  }
   return {
     ...booking,
+    initial_payment_amount: savedBooking.initial_payment_amount,
     ...deadline,
   };
 }
