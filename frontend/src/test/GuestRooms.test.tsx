@@ -14,6 +14,7 @@ const {
   boundaryDates,
   dashboardRange,
   guestGender,
+  bookingPaymentDialog,
 } = vi.hoisted(() => ({
   acquireMyGuestRoomHold: vi.fn(),
   createMyGuestBooking: vi.fn(),
@@ -23,6 +24,7 @@ const {
   boundaryDates: { room_id: 1, dates: [] as string[] },
   dashboardRange: { value: null as { checkInDate: string; checkOutDate: string } | null },
   guestGender: { value: null as string | null },
+  bookingPaymentDialog: { props: null as Record<string, unknown> | null },
   room: {
     room_id: 1,
     room_number: "11",
@@ -60,7 +62,10 @@ vi.mock("@/components/GuestRoomPhotoSlideshow", () => ({
   GuestRoomPhotoSlideshow: () => null,
 }));
 vi.mock("@/components/BookingPaymentDialog", () => ({
-  BookingPaymentDialog: () => null,
+  BookingPaymentDialog: (props: Record<string, unknown>) => {
+    bookingPaymentDialog.props = props;
+    return null;
+  },
 }));
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/hooks/useSupabasePolling", () => ({
@@ -144,6 +149,7 @@ describe("GuestRooms temporary hold cancellation", () => {
     refetchRooms.mockReset();
     dashboardRange.value = null;
     guestGender.value = null;
+    bookingPaymentDialog.props = null;
     roomList.value = [];
   });
 
@@ -388,6 +394,11 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
     expect(within(bookingDialog).getByText(/security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent for 0 months:/)).toHaveTextContent("₱0");
+    fireEvent.click(within(bookingDialog).getByRole("button", { name: "Confirm Booking" }));
+    await waitFor(() => expect(bookingPaymentDialog.props).toMatchObject({
+      open: true,
+      amountPHP: 2000,
+    }));
   });
 
   it("calculates the same deposit and advance for longer stays", async () => {

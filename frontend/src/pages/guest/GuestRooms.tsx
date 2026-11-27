@@ -375,7 +375,7 @@ const GuestRooms = () => {
       setDetailsOpen(false);
       setTermsOpen(false);
       setSubmittedBookingId(data.booking_id);
-      setPaymentAmount(Number(data.initial_payment_amount ?? initialPayment));
+      setPaymentAmount(initialPayment);
       setPaymentDeadline(
         Number(data.payment_expires_at_epoch) > 0 && Number(data.server_now_epoch) > 0
           ? {
