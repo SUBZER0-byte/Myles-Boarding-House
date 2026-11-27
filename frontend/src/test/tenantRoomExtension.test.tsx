@@ -74,16 +74,16 @@ describe("TenantRoom stay extension", () => {
 
     const monthsInput = screen.getByLabelText("Extension length (months)");
     expect(screen.getByLabelText("New move-out date (calculated)")).toHaveValue(
-      format(new Date("2027-02-28T00:00:00"), "PPP"),
+      format(new Date("2027-03-02T00:00:00"), "PPP"),
     );
 
     fireEvent.change(monthsInput, { target: { value: "2" } });
     expect(screen.getByLabelText("New move-out date (calculated)")).toHaveValue(
-      format(new Date("2027-03-31T00:00:00"), "PPP"),
+      format(new Date("2027-04-01T00:00:00"), "PPP"),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Request" }));
-    await waitFor(() => expect(requestStayExtension).toHaveBeenCalledWith("2027-03-31"));
+    await waitFor(() => expect(requestStayExtension).toHaveBeenCalledWith("2027-04-01"));
   });
 
   it("disables submission when the extension length is empty", () => {

@@ -76,11 +76,15 @@ const isRefunded = (payment: Payment) =>
   && Number(payment.amount) > 0
   && Number(payment.refunded_amount || 0) >= Number(payment.amount);
 const paymentStatusLabel = (payment: Payment) =>
-  isRefunded(payment) ? "Refunded" : statusLabel(payment.status, payment.due_date);
+  isRefunded(payment)
+    ? "Refunded"
+    : payment.payment_type === "Advance Rent Applied"
+      ? "Paid via advance"
+      : statusLabel(payment.status, payment.due_date);
 
 const paymentCategory = (payment: Payment): Exclude<PaymentFilter, "All"> => {
   const label = paymentStatusLabel(payment);
-  if (label === "Paid") return "Paid";
+  if (label === "Paid" || label === "Paid via advance") return "Paid";
   if (label === "Overdue") return "Overdue";
   if (label === "Pending" || label === "Submitted") return "Pending";
   return "Other";
@@ -305,7 +309,11 @@ const TenantPayments = () => {
   };
 
   const variant = (s: string): "default" | "secondary" | "destructive" =>
-    isPaid(s) ? "default" : s === "Pending" || s === "Submitted" ? "secondary" : "destructive";
+    isPaid(s) || s === "Paid via advance"
+      ? "default"
+      : s === "Pending" || s === "Submitted"
+        ? "secondary"
+        : "destructive";
 
   const records = history ?? [];
   const sortedRecords = [...records].sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));
@@ -330,7 +338,7 @@ const TenantPayments = () => {
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const overdueCount = recordGroups.Overdue.length;
   const pendingCount = recordGroups.Pending.length;
-  const paidCount = recordGroups.Paid.length;
+  const paidCount = recordGroups.Paid.filter(payment => payment.payment_type !== "Advance Rent").length;
 
   return (
     <DashboardLayout role="tenant">
@@ -468,7 +476,7 @@ const TenantPayments = () => {
                   <p className="font-semibold text-sm">{peso(Number(p.amount))}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={isRefunded(p) ? "secondary" : variant(paymentStatusLabel(p))} className="text-xs">
-                      {isPaid(p.status) && !isRefunded(p) && <CheckCircle2 size={10} className="mr-1" />}
+                      {(isPaid(p.status) || p.payment_type === "Advance Rent Applied") && !isRefunded(p) && <CheckCircle2 size={10} className="mr-1" />}
                       {paymentStatusLabel(p)}
                     </Badge>
                       {isPaid(p.status) && Boolean(p.refund_available) && !isRefunded(p) && (

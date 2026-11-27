@@ -28,6 +28,7 @@ export interface GuestBooking {
   payment_expires_at_epoch: number | null;
   server_now_epoch: number;
   amount_paid: number;
+  unconsumed_advance_amount?: number;
   amount_due: number;
   next_payment_due: string | null;
   notes: string | null;

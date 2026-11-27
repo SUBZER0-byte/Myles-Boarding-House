@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { addMonths, format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -337,7 +337,7 @@ describe("GuestRooms temporary hold cancellation", () => {
     fireEvent.click(screen.getByRole("gridcell", { name: String(moveInDate.getDate()) }));
     fireEvent.change(screen.getByLabelText("Length of Stay (months)"), { target: { value: "3" } });
 
-    const moveOutDate = addMonths(moveInDate, 3);
+    const moveOutDate = addDays(moveInDate, 90);
     expect(screen.getByLabelText("Move-out Date (calculated)")).toHaveProperty(
       "value",
       format(moveOutDate, "PPP"),
@@ -388,7 +388,7 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
     expect(within(bookingDialog).getByText(/One-month security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/One-month advance rent \(included today\):/)).toHaveTextContent("₱1,000");
-    expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱0");
+    expect(within(bookingDialog).getByText(/Remaining rent after first 30 days:/)).toHaveTextContent("₱0");
     fireEvent.click(within(bookingDialog).getByRole("button", { name: "Review Booking" }));
 
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
@@ -422,17 +422,17 @@ describe("GuestRooms temporary hold cancellation", () => {
     expect(await screen.findByText(/Estimated rent for 1 person:/)).toHaveTextContent("₱2,000");
     const bookingDialog = screen.getByRole("dialog");
     const paymentPlan = within(bookingDialog).getByRole("combobox");
-    expect(within(bookingDialog).getByRole("option", { name: "Monthly rent payments with deposit applied to the final month" })).toBeTruthy();
+    expect(within(bookingDialog).getByRole("option", { name: "Monthly rent payments with deposit covering the first 30 days" })).toBeTruthy();
     fireEvent.change(paymentPlan, { target: { value: "Pay Monthly" } });
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
     expect(within(bookingDialog).getByText(/One-month security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/One-month advance rent \(included today\):/)).toHaveTextContent("₱1,000");
-    expect(within(bookingDialog).getByText(/Remaining rent after first month:/)).toHaveTextContent("₱1,000");
+    expect(within(bookingDialog).getByText(/Remaining rent after first 30 days:/)).toHaveTextContent("₱1,000");
     fireEvent.click(screen.getByRole("button", { name: "Review Booking" }));
 
     expect(within(bookingDialog).getByText(/Monthly rent per person:/).parentElement).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Total rent for 1 person:/).parentElement).toHaveTextContent("₱2,000");
-    expect(within(bookingDialog).getByText(/Plan:/).parentElement).toHaveTextContent("Monthly rent with deposit applied to the final month");
+    expect(within(bookingDialog).getByText(/Plan:/).parentElement).toHaveTextContent("Monthly rent with deposit covering the first 30 days");
     expect(within(bookingDialog).getByText(/Payment required today:/)).toHaveTextContent("₱2,000");
     expect(within(bookingDialog).getByText(/security deposit \(included today\):/)).toHaveTextContent("₱1,000");
     expect(within(bookingDialog).getByText(/Remaining rent for 1 month:/)).toHaveTextContent("₱1,000");

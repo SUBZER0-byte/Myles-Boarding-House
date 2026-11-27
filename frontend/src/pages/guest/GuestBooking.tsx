@@ -172,11 +172,10 @@ const GuestBooking = () => {
             <h2 className="font-display font-semibold text-base">Active Bookings</h2>
             {active.map((b) => {
               const style = statusStyles[b.status as StatusKey] ?? statusStyles.Pending;
-              const depositNotAppliedToRent = b.payment_plan !== "Pay Monthly"
-                && b.initial_payment_status === "Confirmed"
-                ? Number(b.monthly_rent || 0)
-                : 0;
-              const rentPaid = Math.max(0, Number(b.amount_paid || 0) - depositNotAppliedToRent);
+              const rentPaid = Math.max(
+                0,
+                Number(b.amount_paid || 0) - Number(b.unconsumed_advance_amount || 0),
+              );
               return (
                 <div
                   key={b.booking_id}
