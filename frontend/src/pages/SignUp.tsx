@@ -7,6 +7,7 @@ import { useAuthSlideshow } from "@/hooks/useAuthSlideshow";
 import { authAction, signUpGuest } from "@/lib/auth";
 import { getPostLoginPath } from "@/lib/authNavigation";
 import { GENDER_OPTIONS, isGender, type Gender } from "@/lib/gender";
+import { isValidPhilippineMobileNumber, sanitizePhilippinePhoneNumber } from "@/lib/philippinePhone";
 import { toast } from "sonner";
 import slide1 from "../../Promotion/Promotion_2/795696821_2068750914002786_4444334205767913973_n.jpg";
 import slide2 from "../../Promotion/Promotion_2/793924181_2511856059334424_2316540071660421728_n.jpg";
@@ -111,25 +112,11 @@ const SignUp = () => {
   }, [email]);
 
   useEffect(() => {
-    const normalized = phone.trim();
-    if (!normalized) {
+    if (!phone.trim()) {
       setPhoneStatus("idle");
-      return;
+    } else {
+      setPhoneStatus(isValidPhilippineMobileNumber(phone) ? "available" : "invalid");
     }
-
-    const digitsOnly = normalized.replace(/\D/g, "");
-    const looksLikePhilippineMobile = /^09\d{9}$/.test(normalized) || /^\+639\d{9}$/.test(normalized);
-    if (!looksLikePhilippineMobile) {
-      setPhoneStatus("invalid");
-      return;
-    }
-
-    if (digitsOnly.length !== 11 || digitsOnly === "09111111111" || /^(\d)\1{9}$/.test(digitsOnly)) {
-      setPhoneStatus("invalid");
-      return;
-    }
-
-    setPhoneStatus("available");
   }, [phone]);
 
   useEffect(() => {
@@ -545,7 +532,7 @@ const SignUp = () => {
                     type="tel"
                     id="signup-phone"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    onChange={(e) => setPhone(sanitizePhilippinePhoneNumber(e.target.value))}
                     placeholder=" "
                     inputMode="numeric"
                     pattern="09[0-9]{9}"

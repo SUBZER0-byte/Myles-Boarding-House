@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/AuthProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +11,7 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { useFinancialPolling } from "@/hooks/useFinancialPolling";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhilippineDate } from "@/lib/philippineTime";
+import { isValidPhilippineMobileNumber, sanitizePhilippinePhoneNumber } from "@/lib/philippinePhone";
 import {
   getEligibleRefundPayments,
   listMyRefundRequests,
@@ -96,6 +98,7 @@ export function RefundRequestHistory() {
 }
 
 export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props) {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [reference, setReference] = useState("");
   const [gcashAccountName, setGcashAccountName] = useState("");
@@ -136,8 +139,12 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
 
   const submit = async () => {
     if (!payment) return;
-    if (!gcashAccountName.trim() || !gcashNumber.trim()) {
-      toast({ title: "Enter the GCash account name and number", variant: "destructive" });
+    if (!gcashAccountName.trim()) {
+      toast({ title: "Enter the GCash account name", variant: "destructive" });
+      return;
+    }
+    if (!isValidPhilippineMobileNumber(gcashNumber)) {
+      toast({ title: "Enter a valid Philippine mobile number (09XXXXXXXXX)", variant: "destructive" });
       return;
     }
     if (!reference.trim() && !payment.reference_number && !screenshot) {
@@ -177,7 +184,15 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-2" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        onClick={() => {
+          setGcashNumber(sanitizePhilippinePhoneNumber(profile?.phone ?? ""));
+          setOpen(true);
+        }}
+      >
         <RotateCcw size={14} /> Request refund
       </Button>
       <Dialog open={open} onOpenChange={next => {
@@ -244,11 +259,13 @@ export function RefundRequestButton({ paymentId, bookingId, onSubmitted }: Props
                 <Input
                   id="refund-gcash-number"
                   type="tel"
-                  maxLength={30}
+                  inputMode="numeric"
+                  pattern="09[0-9]{9}"
+                  maxLength={11}
                   autoComplete="tel"
                   value={gcashNumber}
-                  onChange={event => setGcashNumber(event.target.value)}
-                  placeholder="Number for receiving the refund"
+                  onChange={event => setGcashNumber(sanitizePhilippinePhoneNumber(event.target.value))}
+                  placeholder="09XXXXXXXXX"
                   required
                 />
               </div>
