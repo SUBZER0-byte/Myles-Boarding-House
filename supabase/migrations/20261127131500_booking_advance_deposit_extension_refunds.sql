@@ -943,3 +943,5 @@ $$;
 REVOKE ALL ON FUNCTION public.get_my_tenant_room() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_tenant_room() TO authenticated;
 
+NOTIFY pgrst, 'reload schema';
+
