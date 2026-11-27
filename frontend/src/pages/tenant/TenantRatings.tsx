@@ -20,15 +20,33 @@ const TenantRatings = () => {
   const [category, setCategory] = useState("Overall Satisfaction");
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submittedCategories, setSubmittedCategories] = useState<Set<string>>(() => new Set());
+
+  const hasRatedCategory = (ratingCategory: string) =>
+    submittedCategories.has(ratingCategory)
+    || Boolean(ratings?.some(rating => rating.category === ratingCategory));
+  const allCategoriesRated = ratingCategories.every(hasRatedCategory);
+  const selectedCategoryRated = hasRatedCategory(category);
 
   const submit = async () => {
+    if (selectedCategoryRated) {
+      toast({
+        title: "You have already submitted a rating for this category.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
       await submitTenantRating({ stars, category, comment });
       toast({ title: "Rating submitted and revealed" });
+      setSubmittedCategories(current => new Set(current).add(category));
+      const nextCategory = ratingCategories.find(ratingCategory =>
+        ratingCategory !== category && !hasRatedCategory(ratingCategory),
+      );
+      if (nextCategory) setCategory(nextCategory);
       setComment("");
       setStars(5);
-      setCategory("Overall Satisfaction");
       void refetch();
     } catch (caught) {
       toast({
@@ -49,6 +67,12 @@ const TenantRatings = () => {
 
         <div className="bg-card border border-border rounded-lg p-5 space-y-3">
           <h2 className="font-semibold">New Rating</h2>
+          <p className="text-sm text-muted-foreground">
+            You can submit one rating per category. Categories you have already rated are unavailable.
+          </p>
+          {allCategoriesRated && (
+            <p className="text-sm text-muted-foreground">You have submitted a rating for every category.</p>
+          )}
           <div>
             <RatingStars value={stars} size={28} onChange={setStars} />
             <p className="mt-1 text-sm text-muted-foreground">{stars.toFixed(1)} out of 5 stars</p>
@@ -59,7 +83,13 @@ const TenantRatings = () => {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ratingCategories.map(ratingCategory => (
-                  <SelectItem key={ratingCategory} value={ratingCategory}>{ratingCategory}</SelectItem>
+                  <SelectItem
+                    key={ratingCategory}
+                    value={ratingCategory}
+                    disabled={hasRatedCategory(ratingCategory)}
+                  >
+                    {ratingCategory}{hasRatedCategory(ratingCategory) ? " (Already rated)" : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -68,7 +98,12 @@ const TenantRatings = () => {
             <Label>Written feedback</Label>
             <Textarea rows={3} maxLength={3000} placeholder="Share your feedback…" value={comment} onChange={e => setComment(e.target.value)} />
           </div>
-          <Button onClick={submit} disabled={saving || !comment.trim()}>{saving ? "Sending…" : "Submit Rating"}</Button>
+          <Button
+            onClick={submit}
+            disabled={saving || loading || !comment.trim() || selectedCategoryRated || allCategoriesRated}
+          >
+            {saving ? "Sending…" : "Submit Rating"}
+          </Button>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
