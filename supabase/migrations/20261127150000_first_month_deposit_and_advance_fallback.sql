@@ -4,7 +4,15 @@ LANGUAGE sql
 IMMUTABLE
 SET search_path = ''
 AS $$
-    SELECT p_date + (p_months * 30)
+    SELECT make_date(
+        extract(year FROM shifted)::integer,
+        extract(month FROM shifted)::integer,
+        least(
+            extract(day FROM p_date)::integer,
+            extract(day FROM (date_trunc('month', shifted) + interval '1 month - 1 day'))::integer
+        )
+    )
+      FROM (SELECT p_date + make_interval(months => p_months) AS shifted) AS dates
 $$;
 
 REVOKE ALL ON FUNCTION public.rent_add_months(date, integer) FROM PUBLIC, anon, authenticated;
@@ -13,46 +21,65 @@ DO $migration$
 DECLARE
     function_definition text;
     old_fragment text;
+    new_fragment text;
     advance_field text;
     amount_due_position integer;
-    start_position integer;
-    end_position integer;
     marker_position integer;
 BEGIN
     SELECT pg_get_functiondef('public.manage_guest_booking(text,jsonb)'::regprocedure)
       INTO function_definition;
 
-    old_fragment := 'check_out_value < (move_in_value + interval ''1 month'')::date';
+    old_fragment := 'check_out_value < move_in_value + 30 OR mod(check_out_value - move_in_value, 30) <> 0';
     IF strpos(function_definition, old_fragment) > 0 THEN
         function_definition := replace(
             function_definition,
             old_fragment,
-            'check_out_value < move_in_value + 30 OR mod(check_out_value - move_in_value, 30) <> 0'
+            'check_out_value < (move_in_value + interval ''1 month'')::date'
         );
-    ELSIF strpos(function_definition, 'mod(check_out_value - move_in_value, 30)') = 0 THEN
-        RAISE EXCEPTION 'Could not locate guest booking stay-length calculation to update.';
+    ELSIF strpos(function_definition, 'check_out_value < (move_in_value + interval ''1 month'')::date') = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking stay validation to update.';
     END IF;
 
-    old_fragment := 'Choose a valid stay of at least one month';
+    old_fragment := 'Choose a stay in 30-day periods of at least 30 days';
     IF strpos(function_definition, old_fragment) > 0 THEN
         function_definition := replace(
             function_definition,
             old_fragment,
-            'Choose a stay in 30-day periods of at least 30 days'
+            'Choose a valid stay of at least one month'
         );
-    ELSIF strpos(function_definition, 'Choose a stay in 30-day periods of at least 30 days') = 0 THEN
-        RAISE EXCEPTION 'Could not locate guest booking stay validation message to update.';
+    ELSIF strpos(function_definition, 'Choose a valid stay of at least one month') = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking validation message to update.';
+    END IF;
+
+    old_fragment := 'stay_months := (check_out_value - move_in_value) / 30;';
+    new_fragment := $months$
+stay_months := ((extract(year FROM check_out_value) - extract(year FROM move_in_value)) * 12
+                        + extract(month FROM check_out_value) - extract(month FROM move_in_value))::integer
+                       + CASE WHEN extract(day FROM check_out_value) > extract(day FROM move_in_value) THEN 1 ELSE 0 END;
+stay_months := GREATEST(stay_months, 1);
+$months$;
+    IF strpos(function_definition, old_fragment) > 0 THEN
+        function_definition := replace(
+            function_definition,
+            old_fragment,
+            new_fragment
+        );
+    ELSIF strpos(function_definition, 'stay_months := GREATEST(stay_months, 1);') = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking stay-month calculation.';
     END IF;
 
     old_fragment := 'stay_months := GREATEST(stay_months, 1);';
-    IF strpos(function_definition, old_fragment) > 0 THEN
-        function_definition := replace(
-            function_definition,
-            old_fragment,
-            'stay_months := (check_out_value - move_in_value) / 30;'
-        );
-    ELSIF strpos(function_definition, 'stay_months := (check_out_value - move_in_value) / 30;') = 0 THEN
-        RAISE EXCEPTION 'Could not locate guest booking stay-month calculation to update.';
+    marker_position := strpos(function_definition, old_fragment);
+    IF marker_position = 0 THEN
+        RAISE EXCEPTION 'Could not locate guest booking minimum stay calculation.';
+    END IF;
+    IF strpos(function_definition, 'check_out_value <> public.rent_add_months(move_in_value, stay_months)') = 0 THEN
+        marker_position := marker_position + length(old_fragment) - 1;
+        function_definition := substr(function_definition, 1, marker_position)
+            || E'\n        IF check_out_value <> public.rent_add_months(move_in_value, stay_months) THEN\n'
+            || E'            RAISE EXCEPTION ''Choose a valid stay in whole calendar-month increments'';\n'
+            || E'        END IF;'
+            || substr(function_definition, marker_position + 1);
     END IF;
 
     function_definition := regexp_replace(
@@ -98,94 +125,48 @@ $field$;
             || substr(function_definition, amount_due_position);
     END IF;
     EXECUTE function_definition;
-
-    SELECT pg_get_functiondef('public.manage_stay_extension(text,uuid,jsonb)'::regprocedure)
-      INTO function_definition;
-
-    IF strpos(function_definition, 'mod(v_requested_checkout - v_original_checkout, 30)') = 0 THEN
-        start_position := strpos(function_definition, 'IF v_requested_checkout <= v_original_checkout THEN');
-        IF start_position = 0
-           OR strpos(substr(function_definition, start_position, 500), 'The new move-out date must be later than your current move-out date.') = 0 THEN
-            RAISE EXCEPTION 'Could not locate extension date validation to update.';
-        END IF;
-        marker_position := strpos(substr(function_definition, start_position), 'END IF;');
-        IF marker_position = 0 THEN
-            RAISE EXCEPTION 'Could not locate end of extension date validation to update.';
-        END IF;
-        end_position := start_position
-            + marker_position
-            + length('END IF;') - 2;
-        function_definition := substr(function_definition, 1, end_position)
-            || E'\n        IF mod(v_requested_checkout - v_original_checkout, 30) <> 0 THEN\n'
-            || E'            RETURN jsonb_build_object(''type'', ''error'', ''message'', ''Extensions must be requested in 30-day periods.'');\n'
-            || E'        END IF;'
-            || substr(function_definition, end_position + 1);
-    END IF;
-
-    old_fragment := 'v_added_months := v_new_length_months - v_length_months;';
-    IF strpos(function_definition, old_fragment) > 0 THEN
-        start_position := strpos(function_definition, 'v_length_months :=');
-        end_position := strpos(function_definition, old_fragment) + length(old_fragment) - 1;
-        IF start_position = 0 OR end_position < start_position THEN
-            RAISE EXCEPTION 'Could not locate extension billing-period calculation to update.';
-        END IF;
-        function_definition := substr(function_definition, 1, start_position - 1)
-            || E'v_length_months := GREATEST(\n'
-            || E'    1,\n'
-            || E'    CEIL((v_original_checkout - v_check_in)::numeric / 30)::integer\n'
-            || E');\n'
-            || E'v_added_months := (v_requested_checkout - v_original_checkout) / 30;\n'
-            || E'v_new_length_months := v_length_months + v_added_months;'
-            || substr(function_definition, end_position + 1);
-    ELSIF strpos(function_definition, 'v_added_months := (v_requested_checkout - v_original_checkout) / 30;') = 0 THEN
-        RAISE EXCEPTION 'Could not locate extension billing-period calculation to update.';
-    END IF;
-
-    old_fragment := 'v_month_start := date_trunc(';
-    start_position := strpos(function_definition, old_fragment);
-    IF start_position > 0 THEN
-        end_position := strpos(substr(function_definition, start_position), ');');
-        IF end_position = 0 THEN
-            RAISE EXCEPTION 'Could not locate extension rent due-date calculation to update.';
-        END IF;
-        end_position := start_position + end_position;
-        function_definition := substr(function_definition, 1, start_position - 1)
-            || 'v_due_date := v_check_in + (v_month_index * 30);'
-            || substr(function_definition, end_position + 1);
-    ELSIF strpos(function_definition, 'v_due_date := v_check_in + (v_month_index * 30);') = 0 THEN
-        RAISE EXCEPTION 'Could not locate extension rent due-date calculation to update.';
-    END IF;
-    EXECUTE function_definition;
 END;
 $migration$;
 
-CREATE OR REPLACE FUNCTION public.validate_stay_extension_30_day_periods()
+CREATE OR REPLACE FUNCTION public.validate_stay_extension_calendar_months()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+    extension_months integer;
 BEGIN
-    IF NEW."request_type" = 'Extension'
-       AND (
-           NEW."requested_check_out_date" <= NEW."original_check_out_date"
-           OR mod(NEW."requested_check_out_date" - NEW."original_check_out_date", 30) <> 0
-       ) THEN
-        RAISE EXCEPTION 'Extensions must be requested in 30-day periods.';
+    IF NEW."request_type" = 'Extension' THEN
+        extension_months :=
+            (extract(year FROM NEW."requested_check_out_date")::integer
+             - extract(year FROM NEW."original_check_out_date")::integer) * 12
+            + extract(month FROM NEW."requested_check_out_date")::integer
+            - extract(month FROM NEW."original_check_out_date")::integer;
+        IF NEW."original_check_out_date" IS NULL
+           OR NEW."requested_check_out_date" IS NULL
+           OR NEW."requested_check_out_date" <= NEW."original_check_out_date"
+           OR extension_months < 1
+           OR public.rent_add_months(NEW."original_check_out_date", extension_months)
+                <> NEW."requested_check_out_date" THEN
+            RAISE EXCEPTION 'Extensions must be requested in whole calendar-month periods.';
+        END IF;
     END IF;
     RETURN NEW;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.validate_stay_extension_30_day_periods() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_stay_extension_calendar_months() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS stay_extension_validate_30_day_periods
     ON public."stay_change_requests";
-CREATE TRIGGER stay_extension_validate_30_day_periods
+DROP TRIGGER IF EXISTS stay_extension_validate_calendar_months
+    ON public."stay_change_requests";
+CREATE TRIGGER stay_extension_validate_calendar_months
     BEFORE INSERT OR UPDATE OF "original_check_out_date", "requested_check_out_date"
     ON public."stay_change_requests"
     FOR EACH ROW
-    EXECUTE FUNCTION public.validate_stay_extension_30_day_periods();
+    EXECUTE FUNCTION public.validate_stay_extension_calendar_months();
 
 CREATE OR REPLACE FUNCTION public.require_booking_advance_for_extension()
 RETURNS trigger
@@ -562,7 +543,12 @@ BEGIN
             CONTINUE;
         END IF;
 
-        month_total := greatest(1, CEIL((check_out - check_in)::numeric / 30)::integer);
+        month_total := greatest(
+            1,
+            ((extract(year FROM check_out)::integer - extract(year FROM check_in)::integer) * 12)
+             + extract(month FROM check_out)::integer - extract(month FROM check_in)::integer
+             + CASE WHEN extract(day FROM check_out) > extract(day FROM check_in) THEN 1 ELSE 0 END
+        );
         legacy_final_deposit := booking_id_value IS NOT NULL AND EXISTS (
             SELECT 1
               FROM public."payments" AS deposit
@@ -578,7 +564,8 @@ BEGIN
                AND deposit."status" IN ('Confirmed', 'Paid')
                AND deposit."description" IN (
                    'One-month security deposit',
-                   'One-month security deposit applied to first 30 days'
+                   'One-month security deposit applied to first 30 days',
+                   'One-month security deposit applied to first calendar month'
                )
                AND NOT EXISTS (
                    SELECT 1 FROM public."refund_requests" AS refund
@@ -600,13 +587,14 @@ BEGIN
            AND CURRENT_DATE >= check_in THEN
             UPDATE public."payments" AS deposit
                SET "consumed_at" = COALESCE(deposit."consumed_at", CURRENT_TIMESTAMP),
-                   "description" = 'One-month security deposit applied to first 30 days'
+                   "description" = 'One-month security deposit applied to first calendar month'
              WHERE deposit."booking_id" = booking_id_value
                AND deposit."payment_type" = 'Security Deposit'
                AND deposit."status" IN ('Confirmed', 'Paid')
                AND deposit."description" IN (
                    'One-month security deposit',
-                   'One-month security deposit applied to first 30 days'
+                   'One-month security deposit applied to first 30 days',
+                   'One-month security deposit applied to first calendar month'
                )
                AND NOT EXISTS (
                    SELECT 1 FROM public."refund_requests" AS refund
@@ -622,7 +610,7 @@ BEGIN
             IF installment_index = 0 AND deposit_covers_first_month THEN
                 UPDATE public."payments" AS rent
                    SET "status" = 'Cancelled',
-                       "description" = 'First 30 days covered by security deposit'
+                       "description" = 'First calendar month covered by security deposit'
                  WHERE rent."booking_id" = booking_id_value
                    AND rent."due_date" = due_date_value
                    AND COALESCE(rent."payment_type", '') NOT IN ('Security Deposit', 'Advance Rent')
@@ -779,7 +767,7 @@ $old$;
     IF actor_role = 'Tenant' THEN
         UPDATE public."payments" AS deposit
            SET "consumed_at" = COALESCE(deposit."consumed_at", CURRENT_TIMESTAMP),
-               "description" = 'One-month security deposit applied to first 30 days'
+               "description" = 'One-month security deposit applied to first calendar month'
           FROM public."tenants" AS tenant
          WHERE tenant."user_id" = actor_id
            AND tenant."is_active" = 1

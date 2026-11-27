@@ -1,10 +1,10 @@
-import { addDays, differenceInCalendarDays, format } from "date-fns";
+import { addMonths, differenceInCalendarMonths, format } from "date-fns";
 
 export function calculateMoveOutDate(moveInDate: string, stayMonths: number): string {
   if (!moveInDate || !Number.isInteger(stayMonths) || stayMonths < 1) return "";
   const moveIn = new Date(`${moveInDate}T00:00:00`);
   if (Number.isNaN(moveIn.getTime()) || format(moveIn, "yyyy-MM-dd") !== moveInDate) return "";
-  const moveOut = addDays(moveIn, stayMonths * 30);
+  const moveOut = addMonths(moveIn, stayMonths);
   if (Number.isNaN(moveOut.getTime())) return "";
   const formattedMoveOut = format(moveOut, "yyyy-MM-dd");
   return /^\d{4}-\d{2}-\d{2}$/.test(formattedMoveOut) ? formattedMoveOut : "";
@@ -22,6 +22,7 @@ export function getStayMonths(moveInDate: string, moveOutDate: string | null | u
     || moveOut <= moveIn
   ) return "";
 
-  const stayDays = differenceInCalendarDays(moveOut, moveIn);
-  return String(Math.max(1, Math.ceil(stayDays / 30)));
+  const monthDifference = differenceInCalendarMonths(moveOut, moveIn);
+  const months = Math.max(1, monthDifference);
+  return String(addMonths(moveIn, months) < moveOut ? months + 1 : months);
 }
