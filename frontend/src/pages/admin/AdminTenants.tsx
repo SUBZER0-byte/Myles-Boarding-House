@@ -1056,7 +1056,7 @@ const AdminTenants = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete tenant?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes {selected?.full_name} from Tenant Management. Payment and request history will be retained.
+              Tenant-specific payments, ratings, and requests for {selected?.full_name} will be deleted. Guest booking history and its initial payment records will be retained. The linked account will remain as a Guest.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -132,13 +132,13 @@ describe("Admin tenant Supabase workflows", () => {
     await expect(deleteAdminTenant(9)).rejects.toThrow("Tenant record not found");
   });
 
-  it("archives tenants through the history-preserving deletion RPC", async () => {
+  it("deletes tenants through the booking-history-preserving RPC", async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     await expect(deleteAdminTenant(9)).resolves.toBeUndefined();
     expect(rpc).toHaveBeenCalledWith("delete_admin_tenant", { p_tenant_id: 9 });
   });
 
-  it("rejects tenant IDs that cannot be archived", async () => {
+  it("rejects invalid tenant IDs before deletion", async () => {
     await expect(deleteAdminTenant(0)).rejects.toThrow("A valid tenant ID is required.");
     expect(rpc).not.toHaveBeenCalled();
   });
